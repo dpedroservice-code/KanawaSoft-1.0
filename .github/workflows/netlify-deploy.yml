@@ -15,7 +15,7 @@ jobs:
     runs-on: ubuntu-latest
     env:
       NETLIFY_AUTH_TOKEN: ${{ secrets.NETLIFY_AUTH_TOKEN }}
-      NETLIFY_SITE_ID: e26b5da1-c0d9-4bbe-b536-fb02a1a77502
+      NETLIFY_SITE_ID: 2db572fb-342a-46ee-ab41-0672245dffa0
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
