@@ -707,50 +707,67 @@ Em 2026-11-06, após confirmação explícita do proprietário, foi reutilizado 
 - Estado: ACTIVE_HEALTHY
 - Região: eu-west-1
 
-A limpeza foi executada no próprio projeto, sem criar projeto ou branch adicional:
-- removidos todos os registos operacionais das tabelas públicas do KanawaSoft e da loja D.Pedro;
-- removido o utilizador existente de Auth e respetivos registos dependentes;
+A limpeza foi executada no próprio projeto, sem criar outro projeto ou branch:
+- removidos todos os registos operacionais das 36 tabelas públicas do KanawaSoft e da loja D.Pedro;
+- removido o utilizador Auth existente e os registos dependentes;
 - Storage verificado: 0 objetos; os dois buckets foram preservados;
-- preservados os schemas, as 36 tabelas públicas, funções, políticas RLS e histórico de migrações;
-- removidos também os 3 registos do catálogo `ks_saas_plans`; a tabela e as respetivas políticas foram preservadas, mas o catálogo ficou vazio e deverá ser reconstruído por uma migração de dados-base antes de reabrir o onboarding.
+- preservados schemas, tabelas, funções, políticas RLS e histórico de migrações;
+- após a limpeza, foi reposto apenas o plano técnico interno `starter`, sem preço nem limites comerciais inventados, para permitir o bootstrap da avaliação de 14 dias.
 
-Verificação posterior: 0 utilizadores Auth, 0 registos de aplicação nas 36 tabelas públicas (incluindo catálogo de planos), 0 objetos Storage. O utilizador terá de criar novamente a conta e cada empresa terá de refazer o respetivo cadastro e personalização quando o fluxo de onboarding estiver concluído.
+Verificação após os testes com ROLLBACK: 0 utilizadores Auth, 0 empresas, 0 vendas, 0 produtos e 0 registos genéricos; o catálogo contém apenas o plano interno `starter`. As empresas e utilizadores terão de se registar novamente quando o onboarding for reaberto.
 
-### 13.17 Migrações de correção aplicadas no projeto existente
+### 13.17 Migrações aplicadas no projeto existente
 
-Depois de uma execução de ensaio em transação com ROLLBACK, foram aplicadas as seguintes migrações ao projeto APP:
+As seguintes migrações foram aplicadas ao projeto APP e verificadas:
 1. `20261106123854_kanawa_sales_mirror_rls_hardening`: políticas RLS restritivas para espelhos de venda finalizada, helper privado de escrita validada, RPC pública SECURITY INVOKER e coluna/hash de idempotência.
-2. `20261106123908_kanawa_fk_performance_indexes`: índices para `ks_company_branches.created_by` e `ks_store_api_keys.created_by`, cobrindo as duas chaves estrangeiras identificadas pelo advisor.
+2. `20261106123908_kanawa_fk_performance_indexes`: índices para `ks_company_branches.created_by` e `ks_store_api_keys.created_by`.
+3. `20261106130000_kanawa_seed_starter_trial_plan`: repõe o plano interno `starter` exigido pelo trigger de onboarding, sem atribuir preço ou limites não aprovados.
+4. `20261106133000_kanawa_invitation_activation`: ativa imediatamente o membership de um colaborador quando o email já chega confirmado; caso contrário mantém `invited` até à confirmação.
+5. `20261106140000_kanawa_pos_idempotency_lock_fix`: remove o `FOR UPDATE` desnecessário na leitura de uma venda já existente, evitando exigir privilégio UPDATE para repetir uma operação idempotente.
 
-Verificações posteriores confirmaram:
-- coluna `ks_sales.idempotency_hash` existente;
-- helper privado existente;
-- RPC pública continua SECURITY INVOKER;
-- dois índices de chaves estrangeiras existentes;
-- advisor de segurança sem findings.
+Verificações:
+- coluna `ks_sales.idempotency_hash` e helper privado existentes;
+- RPC `ks_finalize_sale` permanece SECURITY INVOKER e sem `FOR UPDATE` na recuperação idempotente;
+- índices das duas FKs existem;
+- advisor de segurança sem findings;
+- advisor de performance já não aponta as duas FKs sem índice.
 
-O advisor de performance deixou de apontar as duas chaves estrangeiras sem índice. Mantém avisos de múltiplas políticas permissivas em 11 tabelas, que exigem revisão semântica individual antes de consolidação; também indica índices ainda não utilizados, algo esperado enquanto a base está vazia e sem tráfego real.
-
-### 13.18 Integração seletiva no repositório KanawaSoft-1.0
+### 13.18 Consolidação de persistência e gestão de equipa no repositório 1.0
 
 Na branch `feat/agt-api-foundation`, PR draft #1:
-- adicionada a migração de hardening POS e respetivo teste estático;
-- atualizado `app/cloud.js` para enviar `record_payload` à RPC e terminar o fluxo após a resposta, evitando tentar gravar novamente o espelho finalizado por uma operação direta bloqueada por RLS;
-- adicionada a migração de índices e teste estático;
-- adicionado o script `npm test`;
-- criado workflow CI para testes Node e verificação sintática JavaScript.
+- removida a inicialização de SQLite de `server/server.js`;
+- removido `server/database.js`;
+- removidas as dependências `sql.js` e `bcryptjs` de `package.json` e `package-lock.json`;
+- o servidor local do Electron passou a servir apenas a interface e endpoints de saúde; as antigas rotas CRUD SQLite permanecem desativadas (HTTP 410);
+- IndexedDB foi mantido como cache/fila offline do renderer; não é a fonte central de verdade;
+- `app/cloud.js` passou a carregar permissões do membership, atualizar perfil no PostgreSQL, listar equipa, criar convites, alterar acessos e aceitar convites via Supabase Auth;
+- a autorização da interface passou a derivar do membership cloud, não do papel guardado em localStorage;
+- o perfil deixou de permitir autoelevação de papel, alteração local de email ou gravação local de senha; a alteração de senha usa Supabase Auth;
+- a gestão de utilizadores passou a usar convites com validade de 72 horas e perfis manager/operator/cashier/accountant/viewer.
 
-A primeira execução CI falhou por o teste apontar para o nome antigo do ficheiro de migração. O caminho foi corrigido; a nova execução é a run 42219465894 e deve ser verificada antes de marcar os testes como aprovados.
+### 13.19 Testes integrados executados no Supabase
 
-A instalação de dependências no CI reportou 17 vulnerabilidades npm (4 moderadas, 11 altas e 2 críticas). A árvore de dependências precisa de auditoria e correção controlada; não executar `npm audit fix --force` sem análise de compatibilidade.
+Todos os testes abaixo foram executados em transações com ROLLBACK; nenhum utilizador, empresa, produto ou venda de teste ficou gravado:
+- **Onboarding:** criação de Auth user, perfil, empresa, membership owner ativo, licença trial de 14 dias, subscrição trial, locale pt-AO/Africa-Luanda/AOA e configuração de mapas.
+- **Convite de equipa:** administrador cria convite, novo Auth user usa o código, membership cashier é criado ativo para email confirmado e as permissões `pdv` são aplicadas.
+- **POS:** finalização autenticada criou venda, linha, pagamento, decremento de stock, movimento e espelho em uma transação.
+- **Idempotência:** repetição da mesma venda devolveu o resultado existente sem duplicar venda, pagamento, movimento ou espelho, nem voltar a decrementar stock. Resultado observado: 1 venda, 1 pagamento, 1 movimento, 1 espelho e stock final 2 (de 3 iniciais).
 
-### 13.19 Bloqueadores ainda abertos antes de considerar o sistema pronto
+### 13.20 CI e evidências
 
-1. `server/database.js` continua a iniciar uma base local `sql.js`/SQLite e a guardar dados em ficheiro. A arquitetura ainda não está unificada em Supabase/PostgreSQL; é necessário mapear os módulos que dependem da base local antes de a remover.
-2. A aplicação ainda precisa de teste integrado autenticado, com utilizador, empresa, permissões, produto, venda, pagamento, decremento de stock e espelho POS na mesma transação. Os testes atuais são estáticos/Node e não substituem um teste PostgreSQL end-to-end.
-3. A consolidação das 11 situações de múltiplas políticas permissivas deve ser feita apenas após comparar os predicados RLS e provar que não altera permissões.
-4. As 17 vulnerabilidades npm precisam de triagem por pacote, dependência direta/transitiva e compatibilidade.
-5. A integração AGT continua incompleta face ao contrato técnico completo e não está homologada/certificada. Não ativar faturação real nem afirmar conformidade.
-6. O PR #1 continua em draft e não foi merged. O workflow Netlify para pull request executa apenas deploy de preview; o deploy de produção está condicionado a push na branch main após merge.
+- CI mais recente desta ronda: run `42222418864`, testes Node e verificações sintáticas aprovados; 22 testes passaram e 0 falharam.
+- Workflow Netlify executou corretamente a etapa de diagnóstico, mas o preview foi ignorado por falta de `NETLIFY_AUTH_TOKEN`; produção não foi publicada.
+- A PR #1 continua draft e não foi merged.
 
-**Estado:** a limpeza e as duas migrações de base de dados foram executadas no projeto existente. O código foi atualizado seletivamente no PR #1, mas o KanawaSoft 1.0 ainda não está pronto para produção nem foi declarado funcional a 100%.
+### 13.21 Pendências antes de considerar o sistema pronto
+
+1. Rever individualmente as 11 situações de políticas RLS permissivas sobrepostas; não consolidar sem provar equivalência dos predicados.
+2. Reexecutar auditoria npm após remoção de dependências e corrigir vulnerabilidades restantes sem `npm audit fix --force`; o relatório anterior indicava 17 vulnerabilidades (4 moderadas, 11 altas e 2 críticas).
+3. Executar testes de browser completos no onboarding, OTP, troca de dispositivo, convites, alteração de papel e suspensão/reativação de membro.
+4. Testar fila IndexedDB em perda de internet, conflito, repetição e recuperação. O PostgreSQL é a fonte central; uma operação local pendente não pode ser apresentada como confirmada.
+5. A seleção de empresa ativa ainda usa a primeira membership ativa; a experiência de troca entre múltiplas empresas precisa de implementação e testes.
+6. O convite gera um código seguro, mas o envio automático por email ainda não está integrado; o administrador partilha o código por um canal externo.
+7. A integração AGT continua incompleta face ao contrato técnico completo e não está homologada/certificada. Não ativar faturação real nem afirmar conformidade.
+8. O PR #1 continua em draft; não fazer merge nem produção antes de fechar as pendências e obter aprovação.
+
+**Estado:** SQLite foi retirado do runtime, o onboarding e os fluxos de convite/POS foram validados em transações de teste, e o CI está verde. O KanawaSoft 1.0 ainda não está pronto para produção: faltam validações de browser, segurança/performance, sincronização offline, multiempresa e AGT.
