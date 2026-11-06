@@ -428,3 +428,68 @@ A comparação dos `<script src>` de `app/index.html` revelou uma diferença fun
 - A interface do destino tem uma versão de cache-busting `15.3.20261101.2`, apesar de `package.json` e servidor ainda declararem 15.2. Isto reforça a necessidade de normalização coordenada da versão.
 
 **Decisão de integração:** importar módulos por grupos funcionais e atualizar os scripts do HTML apenas depois de confirmar as funções globais que cada módulo espera, a ordem de carregamento e os testes correspondentes. Não acrescentar scripts de forma isolada nem carregar módulos duplicados.
+
+### 13.10 Auditoria técnica aprofundada — backend cloud, cache e desktop
+
+**Comparação realizada nesta etapa:** destino feat/agt-api-foundation versus fonte feat/kanawasoft-v15.4-maps-gps-tracking, além da revisão dos ficheiros de execução e testes da fonte.
+
+#### A. O que a V15.4 melhora e pode ser aproveitado
+
+- A V15.4 remove server/database.js e a dependência sql.js do package.json; server/server.js deixa de chamar initDB e deixa de criar data/kanawa.db.
+- A V15.4 mantém as rotas CRUD SQLite antigas desativadas e acrescenta POST /api/sales/finalize, encaminhado para server/supabase-gateway.js.
+- O gateway exige um Bearer token e encaminha a operação para a RPC PostgreSQL ks_finalize_sale; a própria migração SQL contém verificações de sessão, associação ativa à empresa, permissões, idempotência, pagamento e movimentos de stock.
+- A migração 20261104100000_kanawa_v154_atomic_sales_idempotency.sql é candidata importante para revisão e testes em base isolada. O seu comentário também determina que seja testada numa base dedicada antes de produção.
+- A branch contém testes específicos de arquitetura cloud, gateway, finalização atómica, stock, permissões, impostos, GPS/mapas e módulos técnicos. A existência desses testes não prova que tenham passado nesta revisão.
+
+#### B. Bloqueio: desktop ainda não foi migrado para a arquitetura cloud
+
+- O ficheiro desktop/main.js na V15.4 tem o mesmo blob SHA observado no destino e na V15.2 (e341b22a4e2e52e5554851bee04de56749d5e35a). Portanto, o desktop não acompanhou a remoção de SQLite do servidor.
+- Continua a criar a pasta local de dados, passa dataDir ao servidor e apresenta no menu “Sobre” a indicação “Base de dados: SQLite local”.
+- O mesmo texto contém a afirmação “Certificado AGT — Angola”. Não foi encontrada nesta auditoria evidência de certificação/homologação que sustente essa afirmação; deve ser removida ou substituída por estado factual antes de qualquer lançamento.
+- O backup desktop copia ficheiros da pasta userData/data. Na arquitetura V15.4, os dados operacionais offline são mantidos em IndexedDB no perfil Chromium/Electron; não está demonstrado que o backup atual inclua ou restaure essa IndexedDB.
+- desktop/preload.js também mantém appVersion: 15.3.0, apesar de a branch declarar V15.4.0 no package.json e no servidor.
+- A V15.4 não deve ser considerada pronta para desktop/cloud-only até haver uma estratégia explícita para backup/restauro, dados offline, sessão, arranque e versão do Electron, acompanhada de testes de ponta a ponta.
+
+#### C. A aplicação V15.4 ainda é offline-first no cliente
+
+- O servidor pode ser cloud-only, mas o renderer mantém IndexedDB com dezenas de coleções e a fila _sync_queue.
+- saveData grava primeiro em IndexedDB e depois tenta enviar para Supabase; em falhas, mantém a operação na fila. getData consulta a cloud e atualiza a cache local; a reconciliação completa também limpa e repovoa coleções não marcadas como pendentes.
+- Este desenho pode ser válido como cache/fila offline, mas não é uma aplicação sem persistência local. A interface deve distinguir claramente “guardado neste dispositivo”, “pendente” e “confirmado na cloud”.
+- O fluxo de migração local para cloud compara NIF/nome da empresa e IDs de registos; precisa de testes de colisão de IDs, migração parcial, troca de empresa, repetição, conflitos e recuperação após falha.
+- A aplicação mantém dados de contexto de empresa/utilizador em localStorage. Rever minimização, expiração e exposição de dados pessoais; não tratar localStorage como base empresarial nem como mecanismo de autorização.
+- O teste cloud-only-architecture.test.mjs verifica a remoção de SQLite do servidor e alguns padrões de arranque/cloud. Não verifica, por si só, a ausência de cache local, o backup IndexedDB, a compatibilidade Electron nem o comportamento completo offline.
+
+#### D. Integração frontend e módulos
+
+- A V15.4 app/index.html carrega scripts adicionais de mapas, validação operacional, cálculo monetário, impostos, stock, permissões, pagamentos, GPS, cloud, suite técnica e centro de integrações.
+- A V15.4 app/cloud.js é substancialmente maior que a versão no destino e inclui métodos adicionais de equipa, pagamentos e funcionalidades de instalação/licença.
+- A ordem dos scripts, as dependências globais e a compatibilidade de cada módulo com o app.js devem ser testadas como conjunto. Não copiar apenas o app.js ou o index.html isoladamente.
+- A V15.4 mantém o modelo genérico ks_records e também tabelas normalizadas, como ks_products, para stock e vendas. É necessário mapear a fonte de verdade por entidade e impedir divergências entre payload genérico e tabelas normalizadas.
+
+#### E. Matriz de decisão preliminar
+
+| Área | Destino 1.0 | Fonte V15.4 | Decisão nesta fase |
+|---|---|---|---|
+| Servidor e persistência | Inicializa SQLite; rotas CRUD antigas desativadas; Supabase no frontend | Servidor sem SQLite; gateway Supabase para finalização de venda | V15.4 é candidata preferencial para backend cloud, condicionada a testes |
+| Cache e fila offline | IndexedDB e fila local | IndexedDB e fila local mais evoluída | Aproveitar seletivamente; definir semântica e testes de sincronização |
+| Frontend/cloud bridge | Versão menor | Métodos e módulos adicionais | Comparar método a método; não substituir em bloco |
+| POS e stock | Fluxo anterior e escrita cloud | validação, stock normalizado e RPC atómica | Rever SQL, RPC, idempotência e concorrência antes de integrar |
+| Desktop | SQLite declarado e backup por pasta local | código desktop essencialmente igual ao antigo | Bloqueado para adoção cloud-only até redesenho e testes |
+| AGT | cliente JWS/backend já existente no destino | módulos e configuração AGT adicionais na fonte | Preservar o cliente AGT do destino; avaliar módulos sem alegar certificação |
+| Mapas/GPS | implementação parcial/ausente | módulos e sincronização GPS adicionais | Candidata a integração separada, com privacidade e limites dos serviços externos |
+| Versões | versões divergentes entre package, servidor e interface | package/servidor 15.4, preload 15.3 e texto desktop 15.2 | Normalizar apenas depois da consolidação |
+
+#### F. Ações obrigatórias antes da integração
+
+1. Rever todas as migrações SQL V15.4, RLS, funções SECURITY DEFINER, permissões de execução e search_path; validar em projeto Supabase de teste.
+2. Executar a suite Node de testes da branch V15.4 e registar os resultados reais; executar também testes específicos de Electron e build, que ainda não foram demonstrados.
+3. Criar testes de backup/restauro que incluam a IndexedDB ou alterar a estratégia de backup para exportação consistente através da camada de dados.
+4. Corrigir a afirmação de certificação AGT no texto desktop antes de qualquer release.
+5. Mapear cada coleção IndexedDB e cada store_key para tabela, política RLS, permissão e teste.
+6. Rever migração local→cloud, conflitos, deduplicação, idempotência e troca de empresa.
+7. Preservar server/agt/client.js e os testes AGT exclusivos do destino durante qualquer integração.
+8. Só depois criar commits pequenos no destino; nenhum merge, deploy, migração de produção ou alteração de domínio está autorizado por esta etapa.
+
+**Estado desta etapa:** auditoria estática dos ficheiros concluída parcialmente; nenhum teste foi executado nesta sessão; nenhum código de aplicação foi copiado, apagado ou substituído. A matriz acima é preliminar e deve ser refinada com revisão das políticas RLS, funções SQL, dependências, contratos e testes.
+
+**Próxima tarefa imediata:** auditar as migrações/RLS e os testes da V15.4, em seguida comparar os serviços e contratos de cada módulo com o destino 1.0.
