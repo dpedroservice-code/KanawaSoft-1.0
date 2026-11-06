@@ -394,7 +394,7 @@ const PERMISSOES = {
 function getPerms() {
   const membership = window.KanawaCloud && KanawaCloud.context && KanawaCloud.context.membership;
   const role = membership && membership.role || 'operator';
-  const roleKey = ({ owner: 'admin', admin: 'admin', manager: 'gerente', operator: 'operador', cashier: 'caixa' })[role] || 'operador';
+  const roleKey = ({ owner: 'admin', admin: 'admin', manager: 'gerente', gerente: 'gerente', operator: 'operador', operador: 'operador', cashier: 'caixa', caixa: 'caixa' })[role] || 'operador';
   return PERMISSOES[roleKey] || PERMISSOES.operador;
 }
 function podeAcessar(m) { const p = getPerms(); return p.modulos === '*' || p.modulos.indexOf(m) !== -1; }
