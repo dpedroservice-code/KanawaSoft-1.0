@@ -1,37 +1,40 @@
-# Inventário inicial — persistência e integração
+# Inventário de persistência — Kanawa Soft 1.0
 
-Data da inspeção: 2026-11-06
+Data da atualização: 2026-11-06
 
-## Evidência confirmada no código consultado
+## Estado verificado na branch `feat/agt-api-foundation`
 
-| Área | Evidência | Consequência |
+| Camada | Estado | Função |
 |---|---|---|
-| Documentação principal | `README.md` descreve Supabase Auth, PostgreSQL em `public.ks_records`, RLS e cache IndexedDB | A documentação apresenta uma arquitetura cloud |
-| Dependências | `package.json` inclui `sql.js`, Express e dependências Electron; não declara `@supabase/supabase-js` | O backend desktop tem dependências explícitas de SQLite; o cliente Supabase pode estar carregado por CDN ou noutro ficheiro, ainda por localizar |
-| Arranque do servidor | `server/server.js` chama `initDB(path.join(dataDir, 'kanawa.db'))` e serve a pasta `app/` | O servidor local ainda inicializa uma base SQLite |
-| Comentário/diagnóstico do servidor | O cabeçalho declara “SQLite local shell · Supabase Cloud”; o log de arranque declara “SQLite · 135 tabelas” | O projeto parece manter dois modos de persistência que precisam de fronteira e sincronização explícitas |
-| Integração AGT | `server/agt/jws.js` e `server/agt/client.js` estão separados do renderer | Boa fronteira inicial; não deve ser exposta sem autenticação, autorização por empresa e persistência durável |
+| Supabase Auth | Ativo | Identidade, sessão e OTP por email |
+| PostgreSQL/Supabase | Fonte central cloud | Empresas, memberships, produtos, vendas, stock, licenças, integrações e registos genéricos |
+| `public.ks_records` | Ativo com RLS | Persistência genérica por empresa/módulo, com `company_id` e `store_key` |
+| Tabelas normalizadas `ks_*` | Ativas com RLS | Núcleo de empresas, produtos, clientes, vendas, pagamentos, stock, licenças e integrações |
+| IndexedDB | Mantido no renderer | Cache local, interface offline e fila de operações pendentes |
+| localStorage | Mantido apenas para preferências/contexto transitório | Não é fonte de verdade empresarial |
+| SQLite/sql.js | Retirado do runtime e dependências | O servidor já não cria `kanawa.db` |
 
-## Risco principal
+## Alterações desta etapa
 
-Não está demonstrado, apenas com estes ficheiros, que todos os módulos do ERP gravem na mesma base central. A documentação, o modo desktop e o modo web podem ter caminhos de dados diferentes. Isso cria risco de duplicação, dados divergentes, perda de alterações entre dispositivos e comportamento diferente entre desktop e cloud.
+- `server/server.js` deixou de importar ou inicializar `server/database.js`.
+- O servidor Express local do Electron limita-se a servir a interface e endpoints de saúde; as rotas CRUD SQLite antigas já devolvem HTTP 410.
+- `server/database.js` foi removido.
+- As dependências `sql.js` e `bcryptjs` foram removidas de `package.json` e `package-lock.json`.
+- O arranque desktop deixou de passar um diretório de base de dados ao servidor.
 
-## Decisão técnica provisória
+## Fronteira de dados
 
-- Não remover `sql.js`, `kanawa.db` ou rotinas existentes nesta fase.
-- Não declarar SQLite como fonte cloud nem Supabase como única fonte efetiva até inspecionar todos os pontos de leitura/escrita.
-- Definir PostgreSQL/Supabase como destino central pretendido para multi-dispositivo; manter SQLite apenas se for necessário para modo desktop/offline, com sincronização explícita e auditável.
-- Não usar localStorage como base principal nem sincronizar indiscriminadamente todas as tabelas.
-- Antes de qualquer migração, criar cópia de segurança e inventário de esquema, volumes, chaves e dependências.
+O renderer mantém IndexedDB porque é necessário para cache e fila offline. As operações cloud continuam a passar por `app/cloud.js`, com a chave publicável e as políticas RLS do PostgreSQL. A cache não deve ser interpretada como confirmação de gravação central: uma operação pendente só fica sincronizada após confirmação do Supabase.
 
-## Próximos ficheiros a inspecionar
+## Pendências confirmadas
 
-1. `server/database.js` e `server/routes.js`: esquema, CRUD, transações, autenticação e rotas.
-2. Ficheiros de inicialização do Supabase dentro de `app/`: URL, chave publicável, sessão e listeners.
-3. Serviços de sincronização IndexedDB/localStorage: formato da fila, resolução de conflitos e migração inicial.
-4. Migrações SQL, triggers e políticas RLS do Supabase: cobertura por tabela e isolamento de empresa.
-5. Módulos de vendas, stock, compras, caixa e faturação: identificar operações que alteram mais de um domínio.
+1. O fluxo de onboarding precisa de teste integrado após o reset. O trigger `private.ks_handle_new_user` cria perfil, empresa e membership a partir dos metadados de signup; o trigger de empresa cria licença trial de 14 dias e configurações-base. Validar esta cadeia com um utilizador de teste real antes de reabrir o registo.
+2. O catálogo `ks_saas_plans` está vazio. O bootstrap de licença usa o código `starter`; é necessário repor esse plano com módulos e limites aprovados antes de testar onboarding.
+3. A sincronização offline precisa de testes de falha, repetição, conflito e recuperação; não basta a cache local.
+4. Os módulos que usam stores marcadas como locais (`empresas`, `usuarios`, segurança, dispositivos e configurações) precisam de revisão para garantir que a informação autoritativa é obtida do Auth, memberships e tabelas cloud, sem depender de cópias locais.
+5. A operação POS precisa de teste PostgreSQL end-to-end com utilizador autenticado.
+6. A integração AGT permanece em desenvolvimento e não homologada.
 
-## Critério para avançar
+## Critério de conclusão
 
-Só depois de mapear cada fluxo página → serviço → API → tabela local/cloud → política de acesso → teste será seguro consolidar repositórios e retirar duplicações. A migração deve ser incremental, com testes de regressão e plano de reversão.
+Nenhuma operação crítica deve ser considerada concluída apenas porque foi escrita em IndexedDB. A interface deve distinguir claramente estado local pendente e estado confirmado no PostgreSQL. O isolamento entre empresas deve ser validado com pelo menos duas contas de teste.
