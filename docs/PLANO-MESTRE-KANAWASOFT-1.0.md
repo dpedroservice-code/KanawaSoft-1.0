@@ -712,9 +712,9 @@ A limpeza foi executada no próprio projeto, sem criar projeto ou branch adicion
 - removido o utilizador existente de Auth e respetivos registos dependentes;
 - Storage verificado: 0 objetos; os dois buckets foram preservados;
 - preservados os schemas, as 36 tabelas públicas, funções, políticas RLS e histórico de migrações;
-- preservado o catálogo técnico `ks_saas_plans` com 3 planos, por ser referência base do licenciamento.
+- removidos também os 3 registos do catálogo `ks_saas_plans`; a tabela e as respetivas políticas foram preservadas, mas o catálogo ficou vazio e deverá ser reconstruído por uma migração de dados-base antes de reabrir o onboarding.
 
-Verificação posterior: 0 utilizadores Auth, 0 registos operacionais nas tabelas limpas, 0 objetos Storage. O utilizador terá de criar novamente a conta e cada empresa terá de refazer o respetivo cadastro e personalização quando o fluxo de onboarding estiver concluído.
+Verificação posterior: 0 utilizadores Auth, 0 registos de aplicação nas 36 tabelas públicas (incluindo catálogo de planos), 0 objetos Storage. O utilizador terá de criar novamente a conta e cada empresa terá de refazer o respetivo cadastro e personalização quando o fluxo de onboarding estiver concluído.
 
 ### 13.17 Migrações de correção aplicadas no projeto existente
 
