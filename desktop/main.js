@@ -248,7 +248,7 @@ function bootstrap() {
                 detail:
                   'Sistema de Gestão Empresarial\n' +
                   'Certificado AGT — Angola\n\n' +
-                  'Base de dados: SQLite local\n' +
+                  'Base central: Supabase PostgreSQL\nCache offline: IndexedDB\n' +
                   'Servidor: embutido (liga automaticamente)\n' +
                   'Módulos: 100+ (Produção, Logística, E-commerce, RH, Projetos, Ativos, Frota, OS, E-learning, CRM, Marketing)',
                 buttons: ['OK']
