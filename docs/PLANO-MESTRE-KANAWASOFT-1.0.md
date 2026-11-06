@@ -759,7 +759,7 @@ Todos os testes abaixo foram executados em transações com ROLLBACK; nenhum uti
 
 ### 13.20 CI e evidências
 
-- CI mais recente: run `42224247724`, testes Node e verificações sintáticas aprovados; 24 testes passaram e 0 falharam. O `npm audit` final reportou 0 vulnerabilidades.
+- CI mais recente: run `42224428131`, testes Node e verificações sintáticas aprovados; 26 testes passaram e 0 falharam. O `npm audit` final reportou 0 vulnerabilidades.
 - Workflow Netlify executou corretamente a etapa de diagnóstico, mas o preview foi ignorado por falta de `NETLIFY_AUTH_TOKEN`; produção não foi publicada.
 - A PR #1 continua draft e não foi merged.
 
