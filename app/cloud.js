@@ -29,6 +29,8 @@
     if (role === 'owner' || role === 'admin') return 'admin';
     if (role === 'manager') return 'gerente';
     if (role === 'cashier') return 'caixa';
+    if (role === 'accountant') return 'contabilista';
+    if (role === 'viewer') return 'consulta';
     return 'operador';
   }
 
@@ -36,7 +38,7 @@
     if (!client || !user) throw new Error('Sessão Kanawa não encontrada.');
     const membershipResult = await client
       .from('ks_company_memberships')
-      .select('company_id, role, status')
+      .select('company_id, role, status, permissions')
       .eq('user_id', user.id)
       .eq('status', 'active')
       .order('created_at', { ascending: true })
@@ -92,7 +94,16 @@
       if (!session) return null;
       try { return await loadContext(session.user); }
       catch (networkError) {
-        // Permit an already-authenticated installation to open its local cache while offline.
+        const message = String(networkError && networkError.message || networkError || '');
+        const status = Number(networkError && networkError.status || 0);
+        const transient = networkError instanceof TypeError || status === 0 || status >= 500 ||
+          /fetch|network|offline|timeout|temporar/i.test(message);
+        if (!transient) {
+          context = null;
+          try { localStorage.removeItem('kanawa_cloud_context'); } catch (e) { }
+          throw networkError;
+        }
+        // Only a genuine transient network failure may open the same user's offline cache.
         try {
           const cached = JSON.parse(localStorage.getItem('kanawa_cloud_context') || 'null');
           if (cached && cached.user && cached.user.id === session.user.id && cached.company && cached.company.id) {
@@ -427,6 +438,95 @@
     async getEntitlements() {
       if (!this.ready) return null;
       return failIfError(await client.rpc('ks_get_company_entitlements', { p_company_id: context.company.id }));
+    },
+
+
+    async updateProfile(details) {
+      if (!this.ready) throw new Error('Sessão cloud não disponível.');
+      const payload = {
+        full_name: String(details.fullName || '').trim(),
+        phone: String(details.phone || '').trim() || null,
+        updated_at: new Date().toISOString()
+      };
+      if (payload.full_name.length < 2) throw new Error('O nome deve ter pelo menos 2 caracteres.');
+      const result = await client.from('ks_profiles').update(payload).eq('user_id', context.user.id);
+      if (result.error) throw result.error;
+      context.profile = Object.assign({}, context.profile || {}, payload);
+      return context.profile;
+    },
+
+    async listTeamMembers() {
+      if (!this.ready) throw new Error('Sessão cloud não disponível.');
+      const memberships = failIfError(await client.from('ks_company_memberships')
+        .select('user_id, role, status, permissions, created_at')
+        .eq('company_id', context.company.id)
+        .order('created_at', { ascending: true })) || [];
+      if (!memberships.length) return [];
+      const ids = memberships.map(function (row) { return row.user_id; });
+      const profiles = failIfError(await client.from('ks_profiles')
+        .select('user_id, full_name, email, phone')
+        .in('user_id', ids)) || [];
+      const byId = new Map(profiles.map(function (profile) { return [profile.user_id, profile]; }));
+      return memberships.map(function (membership) {
+        return Object.assign({}, membership, byId.get(membership.user_id) || {});
+      });
+    },
+
+    async listTeamInvitations() {
+      if (!this.ready) throw new Error('Sessão cloud não disponível.');
+      return failIfError(await client.from('ks_team_invitations')
+        .select('id, email, full_name, role, expires_at, accepted_at, created_at')
+        .eq('company_id', context.company.id)
+        .order('created_at', { ascending: false })) || [];
+    },
+
+    async createTeamInvitation(details) {
+      if (!this.ready) throw new Error('Sessão cloud não disponível.');
+      const result = await client.rpc('ks_create_team_invitation', {
+        p_email: String(details.email || '').trim().toLowerCase(),
+        p_full_name: String(details.fullName || '').trim(),
+        p_role: details.role,
+        p_permissions: details.permissions || {},
+        p_expires_hours: 72
+      });
+      if (result.error) throw result.error;
+      return result.data;
+    },
+
+    async updateTeamMemberAccess(details) {
+      if (!this.ready) throw new Error('Sessão cloud não disponível.');
+      const result = await client.rpc('ks_update_team_member_access', {
+        p_user_id: details.userId,
+        p_role: details.role,
+        p_permissions: details.permissions || {},
+        p_status: details.status || 'active'
+      });
+      if (result.error) throw result.error;
+      return result.data;
+    },
+
+    async acceptInvitation(details) {
+      if (!client) throw new Error('Biblioteca de ligação à base de dados não carregou. Atualize a página.');
+      const email = String(details.email || '').trim().toLowerCase();
+      const password = String(details.password || '');
+      const code = String(details.invitationCode || '').trim();
+      if (!email || !password || password.length < 8 || !code) {
+        throw new Error('Email, senha com pelo menos 8 caracteres e código de convite são obrigatórios.');
+      }
+      const result = await client.auth.signUp({
+        email: email,
+        password: password,
+        options: { data: { full_name: String(details.fullName || '').trim(), invitation_code: code } }
+      });
+      if (result.error) throw result.error;
+      if (result.data.session && result.data.user) {
+        await loadContext(result.data.user);
+      }
+      return {
+        user: result.data.user,
+        session: result.data.session,
+        needsEmailConfirmation: !result.data.session
+      };
     },
 
     async submitDemoRequest(details) {
