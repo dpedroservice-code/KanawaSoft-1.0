@@ -2779,6 +2779,18 @@ async function init() {
     if (loginForm) {
       let otpStep = false;
       const emailInput = $('loginEmail');
+      const methodInput = $('loginMethod');
+      const identifierLabel = $('loginIdentifierLabel');
+      function loginMethod() { return methodInput && methodInput.value === 'sms' ? 'sms' : 'email'; }
+      function updateLoginChannel() {
+        const sms = loginMethod() === 'sms';
+        emailInput.type = sms ? 'tel' : 'email';
+        emailInput.autocomplete = sms ? 'tel' : 'email';
+        emailInput.placeholder = sms ? '+244923000000' : 'seu@email.com';
+        if (identifierLabel) identifierLabel.textContent = sms ? '📱 Telemóvel (formato internacional)' : '📧 Email';
+        if (!otpStep) emailInput.value = '';
+      }
+      if (methodInput) methodInput.addEventListener('change', updateLoginChannel);
       const codeInput = $('loginOtpCode');
       const codeGroup = $('otpCodeGroup');
       const otpHelp = $('otpHelp');
@@ -2794,6 +2806,7 @@ async function init() {
       function resetOtpStep() {
         otpStep = false;
         emailInput.readOnly = false;
+        if (methodInput) methodInput.disabled = false;
         codeInput.value = '';
         codeInput.required = false;
         codeGroup.style.display = 'none';
@@ -2803,21 +2816,23 @@ async function init() {
         if (errorBox) { errorBox.textContent = ''; errorBox.classList.remove('show'); }
       }
       async function sendLoginCode() {
-        const email = emailInput.value.trim();
-        if (!emailInput.checkValidity()) {
+        const method = loginMethod();
+        const identifier = emailInput.value.trim();
+        if (!identifier || !emailInput.checkValidity()) {
           emailInput.reportValidity();
           return;
         }
-        await KanawaCloud.requestOtp(email);
+        await KanawaCloud.requestOtp(identifier, method);
         otpStep = true;
         emailInput.readOnly = true;
+        if (methodInput) methodInput.disabled = true;
         codeGroup.style.display = 'block';
         codeInput.required = true;
         otpHelp.style.display = 'block';
         otpActions.style.display = 'flex';
         submit.innerHTML = '<i class="fas fa-unlock-alt"></i> Validar código e entrar';
         codeInput.focus();
-        toast('Código de acesso enviado para ' + email + '.', 'success');
+        toast('Código de acesso enviado por ' + (method === 'sms' ? 'SMS para ' : 'email para ') + identifier + '.', 'success');
       }
 
       loginForm.addEventListener('submit', async function (event) {
@@ -2829,9 +2844,9 @@ async function init() {
             await sendLoginCode();
             return;
           }
-          const ctx = await KanawaCloud.verifyOtp(emailInput.value, codeInput.value);
+          const ctx = await KanawaCloud.verifyOtp(emailInput.value, codeInput.value, loginMethod());
           await activateCloudSession(ctx, true);
-          localStorage.removeItem('kanawa_pending_email');
+          if (loginMethod() === 'email') localStorage.removeItem('kanawa_pending_email');
           mostrarAplicacaoAutenticada(ctx);
           toast('Sessão iniciada. Os dados estão ligados à base de dados central.', 'success');
         } catch (error) {
@@ -2846,7 +2861,7 @@ async function init() {
         if (resendButton.disabled) return;
         resendButton.disabled = true;
         try {
-          await KanawaCloud.requestOtp(emailInput.value);
+          await KanawaCloud.requestOtp(emailInput.value, loginMethod());
           toast('Novo código enviado. Utilize o código mais recente.', 'success');
           if (errorBox) { errorBox.textContent = ''; errorBox.classList.remove('show'); }
         } catch (error) {
