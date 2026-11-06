@@ -6,6 +6,7 @@ const cloud = readFileSync(new URL('../app/cloud.js', import.meta.url), 'utf8');
 const app = readFileSync(new URL('../app/app.js', import.meta.url), 'utf8');
 const html = readFileSync(new URL('../app/index.html', import.meta.url), 'utf8');
 const migration = readFileSync(new URL('../supabase/migrations/20261106162000_cloud_team_invitations_and_membership_management.sql', import.meta.url), 'utf8');
+const invokerMigration = readFileSync(new URL('../supabase/migrations/20261106163000_reduce_team_rpc_definer_surface.sql', import.meta.url), 'utf8');
 
 test('team directory reads memberships and profiles from the dedicated cloud database', () => {
   assert.match(cloud, /async listTeamMembers\(\)/);
@@ -41,4 +42,11 @@ test('direct membership policies cannot grant or mutate owner/admin roles', () =
 test('invited collaborators confirm email before membership becomes active', () => {
   assert.match(migration, /after insert or update of email_confirmed_at on auth\.users/i);
   assert.match(migration, /set status='active'[\s\S]*?where user_id=new\.id and status='invited'/);
+});
+
+test('team-management RPCs run as SECURITY INVOKER under RLS', () => {
+  assert.match(invokerMigration, /ks_team_invitations_admin_insert/);
+  assert.match(invokerMigration, /security invoker/i);
+  assert.match(invokerMigration, /alter function public\.ks_create_team_invitation[\s\S]*?security invoker/i);
+  assert.match(invokerMigration, /alter function public\.ks_update_team_member_access[\s\S]*?security invoker/i);
 });
