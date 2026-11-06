@@ -17,13 +17,15 @@ A migração inicial criou tabelas de empresas, perfis, associações, administr
 
 ## Autenticação
 
-O fluxo de email OTP mantém `shouldCreateUser: false`. O fluxo SMS usa telefone E.164 (por exemplo, `+244923000000`) e `type: sms`. Para o SMS funcionar em produção, é necessário:
+O fluxo de email OTP mantém `shouldCreateUser: false`. O fluxo SMS usa telefone E.164 (por exemplo, `+244923000000`) e `type: sms`. A área **Configurações → Acesso por SMS** permite iniciar a associação do telefone com `auth.updateUser({ phone })` e confirmar o código com `verifyOtp({ type: 'phone_change' })`. Só depois da confirmação o número passa a estar associado à conta Auth para o login SMS.
+
+Para o SMS funcionar em produção, é necessário:
 1. Ativar Phone Auth no Supabase Auth.
 2. Configurar um fornecedor SMS suportado e as respetivas credenciais diretamente no painel Supabase.
-3. Associar e verificar o telefone no registo Auth do utilizador.
+3. Confirmar o telefone na área Configurações → Acesso por SMS.
 4. Testar envio, reenvio, código expirado, número inválido e login em dispositivo diferente.
 
-Não guardar segredos do fornecedor no GitHub, no browser ou em mensagens de chat.
+O telefone guardado nos metadados da empresa/perfil não é, por si só, um telefone Auth verificado. Não guardar segredos do fornecedor no GitHub, no browser ou em mensagens de chat.
 
 ## Segurança e publicação
 
