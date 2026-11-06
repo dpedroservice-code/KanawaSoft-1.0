@@ -43,6 +43,44 @@ on public.ks_team_invitations
 for select to authenticated
 using (private.ks_has_company_role(company_id, array['owner','admin']::text[]));
 
+-- Prevent direct membership writes from granting owner/admin privileges.
+drop policy if exists ks_memberships_admin_insert on public.ks_company_memberships;
+create policy ks_memberships_admin_insert
+on public.ks_company_memberships
+for insert to authenticated
+with check (
+  private.ks_has_company_role(company_id, array['owner','admin']::text[])
+  and role in ('manager','operator','cashier')
+);
+
+drop policy if exists ks_memberships_admin_update on public.ks_company_memberships;
+create policy ks_memberships_admin_update
+on public.ks_company_memberships
+for update to authenticated
+using (
+  private.ks_has_company_role(company_id, array['owner','admin']::text[])
+  and role not in ('owner','admin')
+  and user_id <> (select auth.uid())
+)
+with check (
+  private.ks_has_company_role(company_id, array['owner','admin']::text[])
+  and role in ('manager','operator','cashier')
+  and user_id <> (select auth.uid())
+);
+
+drop policy if exists ks_memberships_admin_delete on public.ks_company_memberships;
+create policy ks_memberships_admin_delete
+on public.ks_company_memberships
+for delete to authenticated
+using (
+  private.ks_has_company_role(company_id, array['owner','admin']::text[])
+  and role not in ('owner','admin')
+  and user_id <> (select auth.uid())
+);
+
+grant select on public.ks_team_invitations to authenticated;
+grant select on public.ks_profiles to authenticated;
+
 drop policy if exists ks_profiles_company_admin_read on public.ks_profiles;
 create policy ks_profiles_company_admin_read
 on public.ks_profiles
