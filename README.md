@@ -24,7 +24,7 @@ Os restantes repositórios e as cópias locais do proprietário ficam fora do â
 
 A arquitetura cloud pretendida utiliza Supabase Auth e PostgreSQL como fonte central. IndexedDB poderá servir de cache e fila offline controlada.
 
-A árvore atual ainda contém inicialização de SQLite através de `sql.js` em `server/server.js`, enquanto o README e `app/cloud.js` descrevem a persistência cloud. Esta coexistência é uma pendência crítica da auditoria. Não remover SQLite, migrar dados ou alterar tabelas antes de mapear leituras/escritas, preparar backup e validar a alternativa.
+A inicialização SQLite foi removida do servidor e as dependências `sql.js`/`bcryptjs` foram retiradas. O PostgreSQL/Supabase é a fonte central cloud. IndexedDB permanece como cache e fila offline controlada; a validação completa da sincronização e do onboarding ainda está pendente.
 
 ## Publicação
 
