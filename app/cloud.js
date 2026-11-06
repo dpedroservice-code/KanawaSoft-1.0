@@ -454,6 +454,80 @@
       return failIfError(await client.rpc('ks_get_company_entitlements', { p_company_id: context.company.id }));
     },
 
+
+    async listTeamMembers() {
+      if (!this.ready) throw new Error('Sessão cloud não disponível.');
+      const memberships = failIfError(await client.from('ks_company_memberships')
+        .select('user_id, role, status, permissions, created_at')
+        .eq('company_id', context.company.id)
+        .order('created_at', { ascending: true })) || [];
+      if (!memberships.length) return [];
+      const ids = memberships.map(function (row) { return row.user_id; });
+      const profiles = failIfError(await client.from('ks_profiles')
+        .select('user_id, full_name, email, phone')
+        .in('user_id', ids)) || [];
+      const byId = new Map(profiles.map(function (profile) { return [profile.user_id, profile]; }));
+      return memberships.map(function (membership) {
+        return Object.assign({}, membership, byId.get(membership.user_id) || {});
+      });
+    },
+
+    async listTeamInvitations() {
+      if (!this.ready) throw new Error('Sessão cloud não disponível.');
+      return failIfError(await client.from('ks_team_invitations')
+        .select('id, email, full_name, role, expires_at, accepted_at, created_at')
+        .eq('company_id', context.company.id)
+        .order('created_at', { ascending: false })) || [];
+    },
+
+    async createTeamInvitation(details) {
+      if (!this.ready) throw new Error('Sessão cloud não disponível.');
+      const result = await client.rpc('ks_create_team_invitation', {
+        p_email: String(details.email || '').trim().toLowerCase(),
+        p_full_name: String(details.fullName || '').trim(),
+        p_role: details.role,
+        p_permissions: details.permissions || {},
+        p_expires_hours: 72
+      });
+      if (result.error) throw result.error;
+      return result.data;
+    },
+
+    async updateTeamMemberAccess(details) {
+      if (!this.ready) throw new Error('Sessão cloud não disponível.');
+      const result = await client.rpc('ks_update_team_member_access', {
+        p_user_id: details.userId,
+        p_role: details.role,
+        p_permissions: details.permissions || {},
+        p_status: details.status || 'active'
+      });
+      if (result.error) throw result.error;
+      return result.data;
+    },
+
+    async acceptInvitation(details) {
+      if (!client) throw new Error('Biblioteca de ligação à base de dados não carregou. Atualize a página.');
+      const email = String(details.email || '').trim().toLowerCase();
+      const password = String(details.password || '');
+      const code = String(details.invitationCode || '').trim();
+      const fullName = String(details.fullName || '').trim();
+      if (!email || !fullName || password.length < 8 || !code) {
+        throw new Error('Nome, email, senha com pelo menos 8 caracteres e código de convite são obrigatórios.');
+      }
+      const result = await client.auth.signUp({
+        email: email,
+        password: password,
+        options: { data: { full_name: fullName, invitation_code: code } }
+      });
+      if (result.error) throw result.error;
+      if (result.data.session && result.data.user) await loadContext(result.data.user);
+      return {
+        user: result.data.user,
+        session: result.data.session,
+        needsEmailConfirmation: !result.data.session
+      };
+    },
+
     async submitDemoRequest(details) {
       if (!client) throw new Error('Serviço de demonstração indisponível.');
       const result = await client.from('ks_demo_requests').insert({
