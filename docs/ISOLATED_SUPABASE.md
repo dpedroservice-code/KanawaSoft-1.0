@@ -42,7 +42,7 @@ A gestão da equipa foi portada para o banco dedicado, sem reutilizar a versão 
 
 Os perfis disponíveis nesta primeira etapa são gerente, operador e caixa. A gestão avançada de papéis/permissões customizadas fica para uma etapa posterior, após testes funcionais multiempresa.
 
-A migração `20261106162000_cloud_team_invitations_and_membership_management` foi aplicada ao projeto dedicado e registada no histórico remoto. O projeto dedicado passou a ter 17 tabelas públicas com RLS. Os avisos de segurança relativos às RPCs `SECURITY DEFINER` estão documentados para revisão; as funções exigem sessão e verificam membership/papel. Não declarar o linter de segurança sem avisos.
+A migração `20261106162000_cloud_team_invitations_and_membership_management` e o hardening `20261106163000_reduce_team_rpc_definer_surface` foram aplicados ao projeto dedicado e registados no histórico remoto. O projeto dedicado passou a ter 17 tabelas públicas com RLS. Os dois RPCs de equipa executam como SECURITY INVOKER sob RLS. Permanecem três avisos de segurança para RPCs SECURITY DEFINER de venda, sincronização de produtos e consulta de licenças; estas funções exigem revisão adicional. Não declarar o linter de segurança sem avisos.
 
 ## Segurança e publicação
 
