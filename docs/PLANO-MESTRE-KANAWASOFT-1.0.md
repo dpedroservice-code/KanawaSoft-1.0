@@ -415,3 +415,16 @@ A comparação de branches V15.4 com a `main` da fonte encontrou uma evolução 
 
 Esta matriz é preliminar: “candidata” não significa “aprovada”, “integrada” ou “testada”.
 
+
+
+### 13.9 Dependências de interface e scripts
+
+A comparação dos `<script src>` de `app/index.html` revelou uma diferença funcional direta:
+
+- O HTML do destino 1.0 carrega bibliotecas, `cloud.js` e `app.js`, mas não carrega os módulos adicionais que a fonte V15.2 declara.
+- O HTML da fonte V15.2 carrega, antes/depois de `app.js`, `operations-validation.js`, `sales-money.js`, `permissions.js`, `performance-bridge.js`, `module-hub.js`, `gps-map.js`, `agt-config.js` e `support-center.js`.
+- A branch V15.4 GPS/mapas acrescenta `map-tracking.js`, `gps-sync-engine.js`, `stock-engine.js`, `payment-methods.js`, `angola-tax.js`, `technical-pricing.js`, `technical-cloud.js` e `integration-center.js`, além de Leaflet e CSS de mapas.
+- Logo, copiar apenas `app/app.js` não basta para obter os módulos V15.2/V15.4. O carregamento, ordem, APIs globais e dependências dos scripts fazem parte da integração.
+- A interface do destino tem uma versão de cache-busting `15.3.20261101.2`, apesar de `package.json` e servidor ainda declararem 15.2. Isto reforça a necessidade de normalização coordenada da versão.
+
+**Decisão de integração:** importar módulos por grupos funcionais e atualizar os scripts do HTML apenas depois de confirmar as funções globais que cada módulo espera, a ordem de carregamento e os testes correspondentes. Não acrescentar scripts de forma isolada nem carregar módulos duplicados.
