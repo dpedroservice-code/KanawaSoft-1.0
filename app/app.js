@@ -2823,6 +2823,9 @@ async function init() {
         emailInput.autocomplete = sms ? 'tel' : 'email';
         emailInput.placeholder = sms ? '+244923000000' : 'seu@email.com';
         if (identifierLabel) identifierLabel.textContent = sms ? '📱 Telemóvel (formato internacional)' : '📧 Email';
+        if (otpHelp) otpHelp.textContent = sms
+          ? 'Enviámos um código de utilização única por SMS. Verifique se o número está confirmado na sua conta.'
+          : 'Enviámos um código de utilização única para o seu email. Consulte também a pasta de spam.';
         if (!otpStep) emailInput.value = '';
       }
       if (methodInput) methodInput.addEventListener('change', updateLoginChannel);
