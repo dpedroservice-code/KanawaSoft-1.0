@@ -20,11 +20,9 @@ A consolidação está limitada a dois repositórios:
 
 Os restantes repositórios e as cópias locais do proprietário ficam fora do âmbito. O repositório V15.2 é uma fonte de código candidata, não uma segunda linha de desenvolvimento. Não copiar branches inteiras nem substituir ficheiros sem análise de dependências e testes.
 
-## Arquitetura e persistência — situação a validar
+## Arquitetura e persistência — estado atual
 
-A arquitetura cloud pretendida utiliza Supabase Auth e PostgreSQL como fonte central. IndexedDB poderá servir de cache e fila offline controlada.
-
-A inicialização SQLite foi removida do servidor e as dependências `sql.js`/`bcryptjs` foram retiradas. O PostgreSQL/Supabase é a fonte central cloud. IndexedDB permanece como cache e fila offline controlada; a validação completa da sincronização e do onboarding ainda está pendente.
+Supabase Auth e PostgreSQL são a fonte central de identidade e dados empresariais. SQLite/sql.js foi removido do runtime e das dependências. O servidor local do Electron serve apenas a interface e endpoints de saúde. IndexedDB permanece como cache e fila offline controlada; os fluxos de onboarding, convites e POS foram testados em transações PostgreSQL com ROLLBACK. Ainda faltam testes de browser e validação completa da sincronização offline entre dispositivos.
 
 ## Publicação
 
