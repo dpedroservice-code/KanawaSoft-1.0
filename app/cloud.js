@@ -143,6 +143,37 @@
       return await loadContext(result.data.user);
     },
 
+    normalizePhone(phone) {
+      const normalized = String(phone || '').replace(/[\s().-]/g, '');
+      if (!/^\+[1-9]\d{7,14}$/.test(normalized)) {
+        throw new Error('Introduza o telefone em formato internacional, por exemplo +244923000000.');
+      }
+      return normalized;
+    },
+
+    async requestPhoneChange(phone) {
+      if (!client || !this.ready) throw new Error('Inicie sessão por email antes de associar o telemóvel.');
+      const normalizedPhone = this.normalizePhone(phone);
+      const result = await client.auth.updateUser({ phone: normalizedPhone });
+      if (result.error) throw result.error;
+      return { phone: normalizedPhone, user: result.data.user };
+    },
+
+    async verifyPhoneChange(phone, token) {
+      if (!client) throw new Error('Biblioteca de ligação à base de dados não carregou. Atualize a página.');
+      const normalizedPhone = this.normalizePhone(phone);
+      const code = String(token || '').replace(/\s/g, '');
+      if (!/^\d{6}$/.test(code)) throw new Error('Introduza o código SMS de 6 dígitos.');
+      const result = await client.auth.verifyOtp({
+        phone: normalizedPhone,
+        token: code,
+        type: 'phone_change'
+      });
+      if (result.error) throw result.error;
+      if (!result.data || !result.data.user) throw new Error('Não foi possível confirmar o telefone. Peça um novo código.');
+      return await loadContext(result.data.user);
+    },
+
     async signUp(details) {
       if (!client) throw new Error('Biblioteca de ligação à base de dados não carregou. Atualize a página.');
       const result = await client.auth.signUp({
