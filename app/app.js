@@ -1713,6 +1713,12 @@ async function renderConfig() {
     '<button class="btn btn-sm btn-secondary" type="button" onclick="document.getElementById(\'cfgLogoInput\').click()"><i class="fas fa-folder-open"></i> Escolher imagem</button>' +
     '<button class="btn btn-sm btn-danger" type="button" onclick="removerLogoEmpresa()"><i class="fas fa-undo"></i> Restaurar logo.png</button></div></div></div>' +
     '<button class="btn btn-success btn-lg" style="margin-top:16px" onclick="salvarConfigEmpresa()"><i class="fas fa-save"></i> Salvar Empresa</button></div>' +
+    '<div class="card"><div class="card-header"><h3 class="card-title"><i class="fas fa-mobile-alt"></i> Acesso por SMS</h3></div>' +
+    '<p style="color:var(--text-muted);margin-bottom:12px">Associe e confirme o telefone da empresa na sua conta de acesso. Depois da confirmação, poderá entrar com código SMS.</p>' +
+    '<div class="form-group"><label>Telefone internacional</label><input id="cfgSmsPhone" type="tel" value="' + esc(emp.telefone || '') + '" placeholder="+244923000000"></div>' +
+    '<button class="btn btn-primary" type="button" onclick="solicitarVerificacaoSMS()"><i class="fas fa-paper-plane"></i> Enviar código SMS</button>' +
+    '<div class="form-group" style="margin-top:14px"><label>Código recebido por SMS</label><input id="cfgSmsCode" inputmode="numeric" autocomplete="one-time-code" maxlength="6" placeholder="000000"></div>' +
+    '<button class="btn btn-success" type="button" onclick="confirmarTelefoneSMS()"><i class="fas fa-check"></i> Confirmar telefone</button></div>' +
     '<div class="card"><div class="card-header"><h3 class="card-title"><i class="fas fa-sliders-h"></i> Regras do Sistema</h3></div>' +
     '<div class="form-grid">' +
     '<div class="form-group"><label><input type="checkbox" id="cfgAplicarIVA" ' + (regras.aplicarIVA !== false ? 'checked' : '') + '> Aplicar IVA automaticamente</label></div>' +
@@ -1739,6 +1745,35 @@ async function renderConfig() {
     '<button class="btn btn-warning" onclick="recarregarDemo()"><i class="fas fa-seedling"></i> Dados Demo</button>' +
     '<button class="btn btn-info" onclick="exportarBackupCompleto()"><i class="fas fa-download"></i> Backup</button>' +
     '<button class="btn btn-danger" onclick="resetTotal()"><i class="fas fa-bomb"></i> Reset Total</button></div></div>';
+}
+async function solicitarVerificacaoSMS() {
+  const phone = $('cfgSmsPhone').value.trim();
+  try {
+    if (!window.KanawaCloud || !KanawaCloud.ready) throw new Error('Entre primeiro na sua conta Kanawa Soft por email.');
+    await KanawaCloud.requestPhoneChange(phone);
+    $('cfgSmsPhone').readOnly = true;
+    toast('Código enviado por SMS. Introduza-o para confirmar o telefone.', 'success');
+  } catch (error) {
+    toast(error.message || 'Não foi possível enviar o código SMS.', 'danger');
+  }
+}
+async function confirmarTelefoneSMS() {
+  const phone = $('cfgSmsPhone').value.trim();
+  const code = $('cfgSmsCode').value.trim();
+  try {
+    if (!window.KanawaCloud || !KanawaCloud.ready) throw new Error('Entre primeiro na sua conta Kanawa Soft por email.');
+    const ctx = await KanawaCloud.verifyPhoneChange(phone, code);
+    await KanawaCloud.updateCompany({ telefone: phone });
+    const emp = JSON.parse(localStorage.getItem('kanawa_empresa') || '{}');
+    emp.telefone = phone;
+    localStorage.setItem('kanawa_empresa', JSON.stringify(emp));
+    $('cfgTel').value = phone;
+    $('cfgSmsPhone').readOnly = false;
+    $('cfgSmsCode').value = '';
+    toast('Telefone confirmado. O acesso por SMS está associado à sua conta.', 'success');
+  } catch (error) {
+    toast(error.message || 'Não foi possível confirmar o telefone.', 'danger');
+  }
 }
 function salvarConfigEmpresa() {
   const empAtual = JSON.parse(localStorage.getItem('kanawa_empresa') || '{}');
@@ -2896,7 +2931,7 @@ if (window.kanawaNative && window.kanawaNative.isDesktop) {
 
 /* ====== EXPORT GLOBAL ====== */
 const EXPORTS = [
-  'openModule','closeModal','openModal','toggleTheme','toggleUserMenu','logout','aplicarLogo','setupNextStep','finalizarSetup','abrirCadastroEmpresa','toggleSync','syncNow','mostrarToast','toast',
+  'openModule','closeModal','openModal','toggleTheme','toggleUserMenu','logout','aplicarLogo','setupNextStep','finalizarSetup','abrirCadastroEmpresa','toggleSync','syncNow','mostrarToast','toast','solicitarVerificacaoSMS','confirmarTelefoneSMS',
   'pdvIrParaTela','pdvSelecionarProduto','pdvAltQty','pdvRemoverItem','pdvSalvarCliente','pdvClienteAnonimo','pdvSelecionarPagamento','pdvAtualizarValores','pdvCancelarVenda','pdvSalvarRascunho','pdvSalvarOrcamento','pdvFinalizarVenda','abrirModalPDVCliente','salvarNovoClientePDV','filtrarPDV','toggleFavorito',
   'abrirScanner','fecharScanner','buscarPorCodigo','cadastroRapidoProduto','salvarCadastroRapido',
   'imprimirEtiquetaIndividual','imprimirEtiquetasLote','gerarLoteEtiquetas','imprimirEtiquetaHTML','baixarEtiquetaPDF',
