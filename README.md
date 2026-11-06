@@ -15,6 +15,13 @@ A versão Cloud utiliza Supabase Auth e PostgreSQL:
 
 O browser utiliza apenas a publishable key. Nunca colocar `service_role`, secret keys, JWT secrets ou credenciais de servidor no código público.
 
+## Arquitetura e integração
+
+- [Arquitetura unificada dos módulos](docs/ARCHITECTURE-UNIFICATION.md)
+- [Inventário inicial da persistência e divergências](docs/PERSISTENCE-INVENTORY.md)
+
+Estes documentos descrevem a arquitetura alvo e os pontos ainda por validar; não significam que todas as integrações estejam implementadas.
+
 ## Primeiro acesso
 
 1. Abrir o domínio Kanawa Soft.
