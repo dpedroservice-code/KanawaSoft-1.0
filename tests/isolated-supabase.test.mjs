@@ -5,7 +5,7 @@ import { readFileSync } from 'node:fs';
 const cloud = readFileSync(new URL('../app/cloud.js', import.meta.url), 'utf8');
 const app = readFileSync(new URL('../app/app.js', import.meta.url), 'utf8');
 const html = readFileSync(new URL('../app/index.html', import.meta.url), 'utf8');
-const schema = readFileSync(new URL('../supabase/migrations/20261106140000_kanawasoft_1_0_isolated_schema.sql', import.meta.url), 'utf8');
+const schema = readFileSync(new URL('../supabase/migrations/20261106145917_kanawasoft_1_0_initial_schema.sql', import.meta.url), 'utf8');
 
 test('KanawaSoft 1.0 points only to its dedicated Supabase project', () => {
   assert.match(cloud, /https:\/\/mhaynctedpyqjxdhdisv\.supabase\.co/);
