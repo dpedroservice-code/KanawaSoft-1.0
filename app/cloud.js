@@ -2,9 +2,9 @@
 (function () {
   'use strict';
 
-  const SUPABASE_URL = 'https://jiehrswweoyesbabrpjf.supabase.co';
+  const SUPABASE_URL = 'https://mhaynctedpyqjxdhdisv.supabase.co';
   // Publishable key: designed for browser use. Database access is restricted by RLS.
-  const SUPABASE_PUBLISHABLE_KEY = 'sb_publishable_l9HL3zMMJ5rN7vnXUZPa1g_9ZA1q7PO';
+  const SUPABASE_PUBLISHABLE_KEY = 'sb_publishable_dLDX9aaAZIDJil72JHXUGw_4zVQwO5x';
   const sdk = window.supabase;
   const client = sdk && typeof sdk.createClient === 'function'
     ? sdk.createClient(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY, {
@@ -104,9 +104,22 @@
       }
     },
 
-    async requestOtp(email) {
+    async requestOtp(identifier, method) {
       if (!client) throw new Error('Biblioteca de ligação à base de dados não carregou. Atualize a página.');
-      const normalizedEmail = String(email || '').trim().toLowerCase();
+      const channel = method === 'sms' ? 'sms' : 'email';
+      if (channel === 'sms') {
+        const phone = String(identifier || '').replace(/[\s().-]/g, '');
+        if (!/^\+[1-9]\d{7,14}$/.test(phone)) {
+          throw new Error('Introduza o telefone em formato internacional, por exemplo +244923000000.');
+        }
+        const result = await client.auth.signInWithOtp({
+          phone,
+          options: { shouldCreateUser: false }
+        });
+        if (result.error) throw result.error;
+        return true;
+      }
+      const normalizedEmail = String(identifier || '').trim().toLowerCase();
       if (!normalizedEmail) throw new Error('Introduza o endereço de email.');
       const result = await client.auth.signInWithOtp({
         email: normalizedEmail,
@@ -116,16 +129,15 @@
       return true;
     },
 
-    async verifyOtp(email, token) {
+    async verifyOtp(identifier, token, method) {
       if (!client) throw new Error('Biblioteca de ligação à base de dados não carregou. Atualize a página.');
-      const normalizedEmail = String(email || '').trim().toLowerCase();
+      const channel = method === 'sms' ? 'sms' : 'email';
       const code = String(token || '').replace(/\s/g, '');
-      if (!/^\d{6}$/.test(code)) throw new Error('Introduza o código de 6 dígitos recebido por email.');
-      const result = await client.auth.verifyOtp({
-        email: normalizedEmail,
-        token: code,
-        type: 'email'
-      });
+      if (!/^\d{6}$/.test(code)) throw new Error('Introduza o código de 6 dígitos recebido.');
+      const payload = channel === 'sms'
+        ? { phone: String(identifier || '').replace(/[\s().-]/g, ''), token: code, type: 'sms' }
+        : { email: String(identifier || '').trim().toLowerCase(), token: code, type: 'email' };
+      const result = await client.auth.verifyOtp(payload);
       if (result.error) throw result.error;
       if (!result.data || !result.data.user) throw new Error('Não foi possível validar o código. Peça um novo código.');
       return await loadContext(result.data.user);
