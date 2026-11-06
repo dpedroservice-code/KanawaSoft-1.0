@@ -546,3 +546,64 @@ Referências de execução:
 6. Rever todos os grants, RLS e funções SECURITY DEFINER/INVOKER nas migrações, não apenas na migração de vendas.
 
 **Estado:** problema crítico identificado por leitura estática; não foi feita alteração no SQL da fonte nem no destino. A migração permanece apenas candidata e não está aprovada para integração ou produção.
+
+
+### 13.12 Comparação funcional do frontend e da camada cloud
+
+#### A. Métodos exclusivos e compatibilidade da autenticação
+
+Comparação dos métodos de app/cloud.js:
+
+- A versão do destino contém requestOtp(email) e verifyOtp(email, token), com validação de código numérico de seis dígitos por email. Estes métodos devem ser preservados, pois correspondem ao fluxo de autenticação por código pretendido.
+- A V15.4 contém métodos adicionais: signIn, changePassword, getNativeTrackingConfig, inviteMember, listCompanyMembers, listPaymentProviderStatus, listCompanyPaymentMethods e saveCompanyPaymentMethods.
+- A V15.4 usa signInWithPassword no método signIn; substituir o cloud.js do destino sem adaptação faria desaparecer requestOtp/verifyOtp e contrariaria o fluxo de seis dígitos.
+- Decisão: integrar métodos e correções seletivamente; manter OTP e acrescentar os serviços novos com contratos e testes próprios.
+
+#### B. Diferenças de contexto e permissões
+
+- Na V15.4, loadContext consulta membership com company_id, role, status e permissions; consulta empresa, perfil e administrador de plataforma em paralelo; e inclui permissions no contexto.
+- No destino, loadContext não seleciona permissions da membership e faz consultas sequenciais.
+- A função appRole do destino mapeia owner/admin, manager e cashier; qualquer outro papel cai no perfil operador. A V15.4 mapeia explicitamente operator, cashier, accountant e viewer.
+- O PERMISSOES do destino não define contabilista nem visualizador. Assim, um utilizador com papel accountant ou viewer pode cair no perfil operador, que tem permissões de criação no PDV e acesso operacional mais amplo do que um papel apenas de consulta.
+- A V15.4 carrega permissions.js e usa KanawaPermissions para interpretar grants por módulo/ação. O destino não carrega esse serviço e usa uma matriz estática simplificada.
+
+**Classificação:** bloqueador de autorização/segregação de funções. Preservar e integrar o mapeamento de papéis e permissões da V15.4, sem perder o OTP do destino; acrescentar testes de regressão para viewer, accountant, cashier, operator, manager e admin. A autorização definitiva deve continuar no servidor/RLS, não apenas no menu.
+
+#### C. Proteção de ambientes de preview
+
+- A V15.4 inclui assertPreviewTenant, que impede que um Deploy Preview Netlify use uma empresa de produção, exigindo que a empresa de teste tenha nome iniciado por TESTE.
+- O destino não contém essa verificação.
+- É uma proteção adicional contra operações acidentais em dados de produção; não substitui projeto Supabase separado, credenciais separadas nem RLS. Deve ser integrada e testada, com ambientes preview e produção isolados.
+
+#### D. Módulos e funções adicionais encontrados na V15.4
+
+A comparação estática dos nomes de funções identificou na V15.4, entre outras, estas capacidades que não aparecem no app.js do destino:
+
+- POS: validação de stock no carrinho e atualização local do stock.
+- GPS/logística: abrir e atualizar mapa de rastreio, calcular rota, obter coordenadas, marcar localização manual, iniciar/parar rastreio e sincronizar posições remotamente.
+- Relatórios: carregar dados, aplicar filtros por período, construir tabelas/linhas e imprimir relatórios.
+- Configuração: carregar, guardar e aplicar preferências de configuração.
+- Pagamentos: renderização e gravação de métodos de pagamento.
+- Certificados e impressão: configurar certificados e modelos, gerar documentos e imprimir com HTML seguro.
+- RH: acesso a secções e consulta de funcionário.
+- Navegação: grupos de módulos e menu móvel.
+
+A V15.4 também inclui ficheiros independentes, carregados em app/index.html, para stock, impostos, pagamentos, GPS, mapas, permissões, suite técnica e centro de integrações. A integração deve preservar a ordem de carregamento e provar que cada função tem o serviço, tabela, RLS e permissão correspondentes.
+
+#### E. Diferenças exclusivas do destino a preservar
+
+- O destino contém o fluxo OTP de seis dígitos (requestOtp/verifyOtp), que não existe com os mesmos métodos na V15.4.
+- O destino contém server/agt/client.js e testes dedicados de assinatura/submissão/consulta AGT. Estes ficheiros devem permanecer na consolidação e ser ligados aos módulos AGT da fonte apenas depois de confirmar o contrato oficial.
+- O destino possui resetOtpStep, sendLoginCode e showLoginError no frontend, além de lógica de assinatura/hash que não deve ser removida sem rastrear os respetivos usos.
+
+#### F. Sequência de integração funcional
+
+1. Preservar o fluxo OTP e adaptar o cloud bridge da V15.4 em vez de substituir o ficheiro por inteiro.
+2. Integrar app/permissions.js e atualizar appRole/loadContext/getPerms para transportar e aplicar grants de membership.
+3. Testar que viewer e accountant não recebem permissões de operador/caixa; testar também autorização no backend.
+4. Integrar validação de stock e confirmar que a validação frontend coincide com a RPC e as regras SQL.
+5. Integrar pagamentos, GPS/mapas, relatórios, RH e suite técnica por módulo, cada um com testes de contrato e RLS.
+6. Integrar a proteção de Deploy Preview e configurar ambientes de teste realmente separados.
+7. Revalidar scripts, CSP, dependências externas e execução no browser e Electron.
+
+**Estado:** comparação de nomes de funções e revisão de trechos centrais concluídas; não houve cópia de código nem execução de testes nesta etapa. A matriz funcional permanece em revisão e não autoriza merge.
