@@ -30,3 +30,12 @@ O telefone guardado nos metadados da empresa/perfil não é, por si só, um tele
 ## Segurança e publicação
 
 A branch ainda requer revisão e testes funcionais completos antes de merge. Não publicar no domínio `kanawasoft.shop` nem alterar o site Netlify de produção durante esta etapa. O projeto antigo permanece intocado.
+
+
+## Estado do cliente desktop
+
+O alvo estático publicado pela configuração Netlify é a pasta `app/` e usa a ponte `app/cloud.js` para persistência remota no Supabase. O invólucro Electron ainda inclui o banco legado `sql.js` em `server/database.js`. Esse componente **ainda não foi removido nem convertido** nesta etapa, porque o servidor desktop e as suas rotas dependem dele. Antes de declarar a aplicação desktop totalmente cloud-only, é necessário migrar essas rotas e o armazenamento local de forma controlada, sem apagar dados dos utilizadores.
+
+## Histórico de migrações
+
+Os ficheiros em `supabase/migrations/` foram alinhados com as versões registadas no projeto remoto. A migração de catálogo restringe escrita de produtos a owner/admin/manager; os restantes membros da empresa podem consultar o catálogo. O fluxo de vendas usa a função transacional para validar e debitar stock.
