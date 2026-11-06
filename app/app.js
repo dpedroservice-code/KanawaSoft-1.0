@@ -1945,7 +1945,7 @@ async function finalizarSetup() {
     localStorage.setItem('kanawa_legacy_company', JSON.stringify(sameLocalCompany ? existingLocalCompany : company));
     await DB.put('empresas', company);
     await DB.put('usuarios', localUser);
-    if ($('setupCarregarDemo') && $('setupCarregarDemo').checked) await seedDemo();
+    // 1.0 começa sem registos de demonstração; a empresa inicia com os seus próprios dados.
 
     if (result.session && KanawaCloud.ready) {
       await activateCloudSession(KanawaCloud.context, true);
@@ -2826,26 +2826,6 @@ async function novoServico() { const n = prompt('Nome do serviço:'); if (!n) re
 async function editarServico(id) { const s = await DB.get('servicos', id); if (!s) return; const n = prompt('Novo nome:', s.nome); if (n) { s.nome = n; await saveData('servicos', s); toast('Atualizado', 'success'); openModule('servicos'); } }
 
 /* ====== SEED ====== */
-async function seedDemo() {
-  if ((await DB.count('produtos')) > 0) return;
-  const produtos = [
-    { codigo: 'P001', codigoBarras: '7501234567890', nome: 'Caneta Esferográfica', preco: 150, estoque: 50, estoqueMin: 10, categoria: 'Papelaria' },
-    { codigo: 'P002', codigoBarras: '7501234567891', nome: 'Caderno 100 Folhas', preco: 450, estoque: 30, estoqueMin: 5, categoria: 'Papelaria' },
-    { codigo: 'P003', codigoBarras: '7501234567892', nome: 'Mochila Escolar', preco: 2500, estoque: 15, estoqueMin: 3, categoria: 'Acessórios' },
-    { codigo: 'P004', codigoBarras: '7501234567893', nome: 'Calculadora Científica', preco: 1200, estoque: 8, estoqueMin: 2, categoria: 'Eletrônicos' },
-    { codigo: 'P005', codigoBarras: '7501234567894', nome: 'Fita Adesiva', preco: 80, estoque: 100, estoqueMin: 20, categoria: 'Papelaria' },
-    { codigo: 'P006', codigoBarras: '7501234567895', nome: 'Pasta Arquivo', preco: 200, estoque: 25, estoqueMin: 5, categoria: 'Papelaria' }
-  ];
-  for (const p of produtos) await DB.add('produtos', p);
-  await DB.add('clientes', { nome: 'João Silva', nif: '006518595L', telefone: '+244 900 000 001', email: 'joao@email.com', dataCadastro: now() });
-  await DB.add('clientes', { nome: 'Maria Santos', telefone: '+244 900 000 002', email: 'maria@email.com', dataCadastro: now() });
-  await DB.add('categorias', { nome: 'Papelaria', descricao: 'Materiais de escritório' });
-  await DB.add('categorias', { nome: 'Eletrônicos', descricao: 'Dispositivos' });
-  await DB.add('categorias', { nome: 'Acessórios', descricao: 'Acessórios diversos' });
-  await DB.add('funcionarios', { nome: 'Ana Costa', cargo: 'Vendedora', salario: 120000 });
-  await DB.add('notificacoes', { titulo: '🎉 Bem-vindo', mensagem: 'Kanawa Soft ERP v15.3 Cloud ligado à base central!', tipo: 'success', data: now(), lida: false });
-}
-
 /* ====== INIT ====== */
 async function init() {
   try {
