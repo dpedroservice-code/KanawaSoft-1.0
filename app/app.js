@@ -1763,7 +1763,8 @@ async function confirmarTelefoneSMS() {
   try {
     if (!window.KanawaCloud || !KanawaCloud.ready) throw new Error('Entre primeiro na sua conta Kanawa Soft por email.');
     const ctx = await KanawaCloud.verifyPhoneChange(phone, code);
-    await KanawaCloud.updateCompany({ telefone: phone });
+    try { await KanawaCloud.updateCompany({ telefone: phone }); }
+    catch (companyError) { console.warn('Telefone Auth confirmado; atualização do cadastro da empresa requer perfil de administrador.', companyError); }
     const emp = JSON.parse(localStorage.getItem('kanawa_empresa') || '{}');
     emp.telefone = phone;
     localStorage.setItem('kanawa_empresa', JSON.stringify(emp));
