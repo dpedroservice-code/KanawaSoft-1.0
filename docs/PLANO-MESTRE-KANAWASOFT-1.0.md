@@ -756,14 +756,14 @@ Todos os testes abaixo foram executados em transações com ROLLBACK; nenhum uti
 
 ### 13.20 CI e evidências
 
-- CI mais recente desta ronda antes da etapa de auditoria npm: run `42222901919`, testes Node e verificações sintáticas aprovados; 24 testes passaram e 0 falharam. O workflow foi ampliado para imprimir o detalhe do npm audit.
+- CI mais recente: run `42223730674`, testes Node e verificações sintáticas aprovados; 24 testes passaram e 0 falharam. O `npm audit` final reportou 0 vulnerabilidades.
 - Workflow Netlify executou corretamente a etapa de diagnóstico, mas o preview foi ignorado por falta de `NETLIFY_AUTH_TOKEN`; produção não foi publicada.
 - A PR #1 continua draft e não foi merged.
 
 ### 13.21 Pendências antes de considerar o sistema pronto
 
 1. As 11 situações de políticas RLS sobrepostas foram revistas e consolidadas com predicados equivalentes; o advisor agora reporta 0 avisos de múltiplas políticas.
-2. Reexecutar auditoria npm após remoção de dependências. O workflow agora recolhe o relatório detalhado de advisories; corrigir dependências compatíveis sem `npm audit fix --force`. O relatório anterior indicava 17 vulnerabilidades (4 moderadas, 11 altas e 2 críticas). A primeira atualização do lockfile reduziu o relatório para 2 moderadas (qs); Express foi atualizado para 4.22.3 e qs para 6.17.1. Falta confirmar o resultado do npm audit no CI executado sobre o lockfile final.
+2. Reexecutar auditoria npm após remoção de dependências. O workflow agora recolhe o relatório detalhado de advisories; corrigir dependências compatíveis sem `npm audit fix --force`. O relatório inicial indicava 17 vulnerabilidades (4 moderadas, 11 altas e 2 críticas). Após atualizar Electron 45.2.3, electron-builder 26.18.1, Express 4.22.3, qs 6.17.1 e minimatch 11.0.5, o `npm audit` final reportou 0 vulnerabilidades.
 3. Executar testes de browser completos no onboarding, OTP, troca de dispositivo, convites, alteração de papel e suspensão/reativação de membro.
 4. Testar fila IndexedDB em perda de internet, conflito, repetição e recuperação. O PostgreSQL é a fonte central; uma operação local pendente não pode ser apresentada como confirmada.
 5. A seleção de empresa ativa ainda usa a primeira membership ativa; a experiência de troca entre múltiplas empresas precisa de implementação e testes.
