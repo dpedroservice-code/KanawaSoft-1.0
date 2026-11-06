@@ -32,9 +32,19 @@ O telefone guardado nos metadados da empresa/perfil não é, por si só, um tele
 A branch ainda requer revisão e testes funcionais completos antes de merge. Não publicar no domínio `kanawasoft.shop` nem alterar o site Netlify de produção durante esta etapa. O projeto antigo permanece intocado.
 
 
-## Estado do cliente desktop
+## Estado do cliente desktop e armazenamento local
 
-O alvo estático publicado pela configuração Netlify é a pasta `app/` e usa a ponte `app/cloud.js` para persistência remota no Supabase. O invólucro Electron ainda inclui o banco legado `sql.js` em `server/database.js`. Esse componente **ainda não foi removido nem convertido** nesta etapa, porque o servidor desktop e as suas rotas dependem dele. Antes de declarar a aplicação desktop totalmente cloud-only, é necessário migrar essas rotas e o armazenamento local de forma controlada, sem apagar dados dos utilizadores.
+A pasta `app/` usa a ponte `app/cloud.js` para autenticação e persistência remota no Supabase. O servidor HTTP embutido do Electron foi alterado para **não inicializar `server/database.js` nem criar/abrir `kanawa.db`**. As antigas rotas CRUD SQLite permanecem bloqueadas com HTTP 410; o servidor local serve a interface e endpoints técnicos de saúde/versão.
+
+O código legado `server/database.js`, a dependência `sql.js` e os ficheiros de dados que já existam nos computadores foram preservados. Não são carregados nem apagados automaticamente. Esta preservação é intencional: permite preparar uma ferramenta de exportação/migração e recuperar dados antigos sem os destruir. Não significa que o SQLite continue a ser a base ativa do novo runtime.
+
+**Limites ainda por resolver antes de declarar 100% cloud-only:**
+- A ponte `app/cloud.js` ainda classifica `empresas`, `usuarios`, `config`, `dispositivos`, `sessoes`, dados de segurança e `_sync_queue` como stores locais. É necessário rever cada leitura/escrita correspondente no renderer e migrar os dados empresariais que devem sincronizar entre dispositivos.
+- Não foi disponibilizado um ficheiro real `kanawa.db` de instalação para inventário, exportação, contagem de registos ou reconciliação. Portanto, ainda não foi feita migração de dados de utilizadores.
+- Impressoras, gaveta de dinheiro, seleção de ficheiros e backups locais continuam a ser capacidades nativas do Electron; não devem ser confundidas com armazenamento empresarial.
+- A dependência e o módulo SQLite só devem ser removidos depois de existir exportador validado, reconciliação de dados e confirmação de que nenhum fluxo legado os utiliza.
+
+A mudança nesta etapa elimina a inicialização silenciosa do SQLite em cada arranque do desktop, sem tocar nos ficheiros locais existentes. O próximo marco é migrar e testar os stores locais de negócio para as tabelas/RPCs Supabase, com backup e reconciliação antes de qualquer remoção definitiva.
 
 ## Histórico de migrações
 
