@@ -15,12 +15,13 @@ A versão Cloud utiliza Supabase Auth e PostgreSQL:
 
 O browser utiliza apenas a publishable key. Nunca colocar `service_role`, secret keys, JWT secrets ou credenciais de servidor no código público.
 
-## Arquitetura e integração
+## Plano mestre único
 
-- [Arquitetura unificada dos módulos](docs/ARCHITECTURE-UNIFICATION.md)
-- [Inventário inicial da persistência e divergências](docs/PERSISTENCE-INVENTORY.md)
+Toda a arquitetura, módulos, dependências, segurança, integração AGT, etapas de implementação e critérios de conclusão estão consolidados num único roteiro:
 
-Estes documentos descrevem a arquitetura alvo e os pontos ainda por validar; não significam que todas as integrações estejam implementadas.
+- [Plano Mestre Único — Kanawa Soft ERP 1.0](docs/PLANO-MESTRE-KANAWASOFT-1.0.md)
+
+Este é o documento central a atualizar a cada etapa. O plano distingue claramente funcionalidades existentes, trabalho pendente e validações ainda não realizadas.
 
 ## Primeiro acesso
 
