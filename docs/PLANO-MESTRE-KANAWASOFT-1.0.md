@@ -493,3 +493,56 @@ A comparação dos `<script src>` de `app/index.html` revelou uma diferença fun
 **Estado desta etapa:** auditoria estática dos ficheiros concluída parcialmente; nenhum teste foi executado nesta sessão; nenhum código de aplicação foi copiado, apagado ou substituído. A matriz acima é preliminar e deve ser refinada com revisão das políticas RLS, funções SQL, dependências, contratos e testes.
 
 **Próxima tarefa imediata:** auditar as migrações/RLS e os testes da V15.4, em seguida comparar os serviços e contratos de cada módulo com o destino 1.0.
+
+
+### 13.11 Revisão de segurança SQL e evidência CI — V15.4
+
+#### A. Bloqueio crítico nas políticas de escrita de vendas
+
+Na migração 20261104100000_kanawa_v154_atomic_sales_idempotency.sql:
+
+- A política INSERT de ks_records permite a um utilizador com permissão pdv/criar inserir uma linha no store_key vendas sem restringir o payload para impedir status finalizada.
+- A política UPDATE restringe, em USING, a linha antiga quando já está finalizada. Porém, o WITH CHECK permite a permissão pdv/criar sem exigir que a nova linha permaneça em rascunho.
+- Consequência: um utilizador autenticado com permissão de criação no PDV pode, em princípio, criar diretamente um espelho de venda finalizada ou transformar um rascunho em finalizada através da API de dados, sem executar ks_finalize_sale. Isso pode criar um documento/histórico falso ou divergente sem a transação que grava ks_sales, ks_sale_items, ks_payments e movimentos de stock.
+- A operação normal da interface usar a RPC não elimina o risco: a API PostgreSQL pode ser chamada diretamente por um cliente autenticado com permissões concedidas.
+
+**Classificação:** bloqueador crítico de integridade financeira e de stock. Não integrar nem aplicar esta migração enquanto INSERT/UPDATE não impedirem finalização direta e a finalização não estiver protegida por um caminho transacional exclusivo, com testes de autorização negativos.
+
+#### B. Teste atual não cobre a condição que falha
+
+O teste em tests/atomic-sales-migration.test.mjs tem o título “cashier create permission can only update a draft sales mirror, not a finalized one”, mas verifica apenas:
+- a presença de payload.status <> 'finalizada' na política UPDATE;
+- a presença da permissão pdv/criar dentro de WITH CHECK.
+
+Não verifica que o WITH CHECK bloqueia a nova linha com status finalizada, nem que a política INSERT bloqueia inserção direta de uma venda finalizada. É necessário corrigir o SQL e reforçar o teste com as duas condições, incluindo tentativas diretas de INSERT e UPDATE usando o papel authenticated/cashier numa base PostgreSQL de teste.
+
+#### C. Observações adicionais da migração
+
+- A função ks_finalize_sale define search_path vazio, revoga EXECUTE de PUBLIC e concede EXECUTE a authenticated. Não declara SECURITY DEFINER, pelo que opera por defeito como SECURITY INVOKER; as permissões e políticas RLS das tabelas e funções auxiliares precisam de ser verificadas como parte do teste real.
+- A função calcula um fingerprint de idempotência com MD5. Recomenda-se avaliar digest SHA-256 e canonicalização estável do JSON para reduzir riscos de colisão e garantir que a mesma operação produza sempre o mesmo fingerprint.
+- A migração inclui validação de totais, descontos, quantidades, pagamentos, linhas e stock, e bloqueia repetição com dados diferentes. Estes controlos são positivos, mas não substituem os testes de autorização e concorrência no PostgreSQL.
+- O teste de migração atual faz verificações de texto/regex no ficheiro SQL. Não executa a migração nem prova atomicidade, RLS, locks ou concorrência numa instância PostgreSQL real.
+
+#### D. Evidência de CI observada
+
+- Na fonte V15.2, o workflow “Kanawa CI”, run 368 (ID 41792888374), terminou com failure.
+- O job validate falhou na etapa “Check JavaScript syntax” porque o workflow tentou executar node --check app/hr-attendance.js e esse ficheiro não existe na branch consultada (resposta GitHub 404).
+- As etapas “Check Supabase Edge Function” e “Run unit tests” foram ignoradas depois da falha de sintaxe. Portanto, esta execução não valida a suite de testes da V15.4.
+- O workflow “Netlify deploy” da mesma revisão terminou com success, mas isso não equivale a testes unitários, integração Supabase, validação de migrações ou certificação.
+- No destino 1.0, a execução observada para o commit de documentação desta auditoria foi apenas “Netlify deploy” com success; não foi encontrada nessa execução evidência de uma suite completa de testes.
+
+Referências de execução:
+- CI V15.2 run 368: https://github.com/dpedroservice-code/Kanawasoftv15.2/actions/runs/41792888374
+- Netlify deploy V15.2 run 228: https://github.com/dpedroservice-code/Kanawasoftv15.2/actions/runs/41792888830
+- Netlify deploy destino 1.0 run 12: https://github.com/dpedroservice-code/KanawaSoft-1.0/actions/runs/42213638618
+
+#### E. Próximos critérios de aceitação antes de integrar
+
+1. Corrigir políticas INSERT e UPDATE de ks_records para que um cashier/operador com permissão de criação não possa criar nem promover uma venda para finalizada fora da RPC.
+2. Definir uma estratégia segura para a RPC gravar o espelho finalizado sem abrir uma via REST alternativa; rever SECURITY INVOKER/DEFINER, RLS, grants e funções auxiliares.
+3. Acrescentar testes negativos de INSERT/UPDATE direto e testes positivos da RPC, executados numa base de teste com migrations aplicadas.
+4. Executar testes de concorrência: duas caixas a vender o último artigo, retry da mesma chave, retry com payload diferente e falha entre persistência e resposta.
+5. Corrigir o workflow CI para verificar apenas ficheiros existentes e garantir que a etapa de testes é executada; voltar a executar e registar o resultado.
+6. Rever todos os grants, RLS e funções SECURITY DEFINER/INVOKER nas migrações, não apenas na migração de vendas.
+
+**Estado:** problema crítico identificado por leitura estática; não foi feita alteração no SQL da fonte nem no destino. A migração permanece apenas candidata e não está aprovada para integração ou produção.
