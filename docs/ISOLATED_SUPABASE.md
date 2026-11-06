@@ -38,6 +38,12 @@ A pasta `app/` usa a ponte `app/cloud.js` para autenticação e persistência re
 
 O código legado `server/database.js`, a dependência `sql.js` e os ficheiros de dados que já existam nos computadores foram preservados. Não são carregados nem apagados automaticamente. Esta preservação é intencional: permite preparar uma ferramenta de exportação/migração e recuperar dados antigos sem os destruir. Não significa que o SQLite continue a ser a base ativa do novo runtime.
 
+**Mapa técnico do armazenamento encontrado na branch:**
+- O renderer cria uma base IndexedDB `kanawa_erp_v15` com **143 stores**. Este é o cache local/offline e continua a ser usado como camada de leitura/escrita pelo ecrã.
+- Para os stores que não são locais, `getData/saveData/deleteData` sincronizam com `ks_records` no Supabase; produtos também são espelhados em `ks_products` e vendas finalizadas passam por `ks_finalize_sale`.
+- A ponte marca **13 stores como locais**: `empresas`, `usuarios`, `config`, `dispositivos`, `sessoes`, `tentativasLogin`, `politicasSenha`, `sms2FA`, `acessos`, `logsSeguranca`, `seguranca`, `migracoes` e `_sync_queue`. `empresas` tem uma atualização remota especial via `updateCompany`, mas a leitura ainda depende do cache IndexedDB. `_sync_queue` é uma fila local de sincronização; `dispositivos` também contém configuração de hardware.
+- Os outros **130 stores** usam sincronização genérica por empresa em `ks_records`. Isso não equivale a 130 tabelas relacionais específicas: os registos são guardados como payload JSONB, com normalização adicional para produtos e vendas.
+
 **Limites ainda por resolver antes de declarar 100% cloud-only:**
 - A ponte `app/cloud.js` ainda classifica `empresas`, `usuarios`, `config`, `dispositivos`, `sessoes`, dados de segurança e `_sync_queue` como stores locais. É necessário rever cada leitura/escrita correspondente no renderer e migrar os dados empresariais que devem sincronizar entre dispositivos.
 - Não foi disponibilizado um ficheiro real `kanawa.db` de instalação para inventário, exportação, contagem de registos ou reconciliação. Portanto, ainda não foi feita migração de dados de utilizadores.
