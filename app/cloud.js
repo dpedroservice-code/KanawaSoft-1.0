@@ -296,7 +296,28 @@
           status: 'finalizada',
           notes: item.observacoes || item.notes || null,
           operator_name: item.operador || item.operator_name || null,
-          sold_at: item.data || item.sold_at || new Date().toISOString()
+          sold_at: item.data || item.sold_at || new Date().toISOString(),
+          record_payload: Object.assign({}, item, {
+            id: id,
+            status: 'finalizada',
+            subtotal: Number(item.subtotal) || 0,
+            descontoValor: Number(item.descontoValor !== undefined ? item.descontoValor : item.discount_value) || 0,
+            iva: Number(item.iva !== undefined ? item.iva : item.tax_amount) || 0,
+            total: Number(item.total) || 0,
+            numeroFatura: item.numeroFatura || item.invoice_number || ('FT-' + id),
+            pagamento: item.pagamento || item.payment_method || 'não indicado',
+            valorRecebido: Number(item.valorRecebido !== undefined ? item.valorRecebido : item.amount_received) || 0,
+            troco: Number(item.troco !== undefined ? item.troco : item.change_amount) || 0,
+            itens: saleItems.map(function (line) {
+              return {
+                id: line.product_external_id,
+                nome: line.product_name,
+                preco: line.unit_price,
+                qty: line.quantity,
+                subtotal: line.line_total
+              };
+            })
+          })
         };
         const finalizeSale = await client.rpc('ks_finalize_sale', {
           p_company_id: context.company.id,
@@ -304,6 +325,11 @@
           p_items: saleItems
         });
         if (finalizeSale.error) throw finalizeSale.error;
+
+        // The database RPC writes the finalized mirror atomically with the sale,
+        // payment, stock movement and usage event. Do not upsert the mirror again
+        // through the Data API: restrictive RLS intentionally blocks that path.
+        return true;
       }
 
       const result = await client
