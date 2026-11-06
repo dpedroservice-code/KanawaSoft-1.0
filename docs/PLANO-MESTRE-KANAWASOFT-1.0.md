@@ -679,3 +679,24 @@ O cliente atual constrói um URL com {requestID} e executa GET sem corpo. Portan
 - Não foi enviada nenhuma fatura à AGT nem foi feita qualquer alteração de produção.
 
 **Decisão:** preservar os utilitários criptográficos úteis, mas reestruturar o cliente por contrato oficial antes de integrar a AGT no fluxo de faturação do Kanawa Soft. A integração permanece NÃO CONFORME AO CONTRATO COMPLETO / NÃO HOMOLOGADA / NÃO CERTIFICADA até existirem implementação, testes e evidências oficiais.
+
+
+### 13.14 Correção isolada proposta para a finalização direta de vendas — PR #26
+
+Foi criada no repositório fonte V15.2 uma branch de correção isolada:
+- Branch: fix/v154-sales-mirror-rls
+- PR draft: https://github.com/dpedroservice-code/Kanawasoftv15.2/pull/26
+- Base da PR: feat/kanawasoft-v15.4-maps-gps-tracking
+- Commit mais recente: d16370645bf2f54d05ce6f7033d5fd04cff00479
+
+Alterações propostas:
+1. Nova migração supabase/migrations/20261106120000_kanawa_v154_sales_mirror_rls_hardening.sql com políticas RLS AS RESTRICTIVE para INSERT e UPDATE em ks_records, bloqueando diretamente o estado finalizada em vendas para o papel authenticated.
+2. A RPC ks_finalize_sale é explicitamente atribuída ao owner postgres, configurada SECURITY DEFINER e com search_path vazio. EXECUTE é revogado de PUBLIC/anon e concedido a authenticated. O corpo atual mantém verificação de auth.uid(), empresa e permissão pdv/vendas criar.
+3. Novo teste tests/sales-mirror-rls-hardening.test.mjs com quatro verificações estáticas de regressão.
+4. Workflow CI alterado para verificar apenas ficheiros JavaScript realmente existentes e Edge Functions existentes, evitando referências a ficheiros inexistentes.
+
+**Evidência de CI:** execução GitHub Actions run 447 (ID 42217304800) terminou SUCCESS em 2026-11-06. Sintaxe JavaScript, verificação Deno das Edge Functions e npm test passaram. URL: https://github.com/dpedroservice-code/Kanawasoftv15.2/actions/runs/42217304800
+
+**Limitação importante:** os quatro testes adicionados são verificações estáticas do SQL e da configuração da função. Não substituem execução PostgreSQL real. Ainda é obrigatório aplicar a migração apenas numa base isolada e testar com pgTAP ou testes equivalentes: INSERT direto de venda finalizada deve falhar; UPDATE de rascunho para finalizada deve falhar; UPDATE de venda finalizada deve afetar zero linhas/ser negado; RPC autorizada deve finalizar venda e atualizar stock/pagamento uma única vez; utilizador sem permissão/empresa deve ser rejeitado. Confirmar também owner efetivo da função, atributos SECURITY DEFINER, RLS/FORCE RLS, grants e comportamento da função auxiliar de stock.
+
+**Estado de integração:** PR #26 está em draft e ainda não foi merged. Nenhum SQL foi aplicado ao Supabase, nenhum dado real foi alterado, e a correção ainda não foi copiada para KanawaSoft-1.0. A versão 1.0 continua sem esta correção até haver validação PostgreSQL isolada e integração seletiva aprovada.
