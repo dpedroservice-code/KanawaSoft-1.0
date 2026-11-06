@@ -681,45 +681,76 @@ O cliente atual constrói um URL com {requestID} e executa GET sem corpo. Portan
 **Decisão:** preservar os utilitários criptográficos úteis, mas reestruturar o cliente por contrato oficial antes de integrar a AGT no fluxo de faturação do Kanawa Soft. A integração permanece NÃO CONFORME AO CONTRATO COMPLETO / NÃO HOMOLOGADA / NÃO CERTIFICADA até existirem implementação, testes e evidências oficiais.
 
 
-### 13.14 Correção isolada proposta para a finalização direta de vendas — PR #26
+### 13.14 Retificação da proposta inicial de hardening POS
 
-Foi criada no repositório fonte V15.2 uma branch de correção isolada:
-- Branch: fix/v154-sales-mirror-rls
-- PR draft: https://github.com/dpedroservice-code/Kanawasoftv15.2/pull/26
-- Base da PR: feat/kanawasoft-v15.4-maps-gps-tracking
-- Commit mais recente: d16370645bf2f54d05ce6f7033d5fd04cff00479
+A proposta histórica que atribuía SECURITY DEFINER à função pública `ks_finalize_sale` foi rejeitada. Não deve ser aplicada: elevaria os privilégios da transação financeira completa e poderia contornar RLS nas tabelas de vendas, pagamentos, stock e utilização.
 
-Alterações propostas:
-1. Nova migração supabase/migrations/20261106120000_kanawa_v154_sales_mirror_rls_hardening.sql com políticas RLS AS RESTRICTIVE para INSERT e UPDATE em ks_records, bloqueando diretamente o estado finalizada em vendas para o papel authenticated.
-2. A RPC ks_finalize_sale é explicitamente atribuída ao owner postgres, configurada SECURITY DEFINER e com search_path vazio. EXECUTE é revogado de PUBLIC/anon e concedido a authenticated. O corpo atual mantém verificação de auth.uid(), empresa e permissão pdv/vendas criar.
-3. Novo teste tests/sales-mirror-rls-hardening.test.mjs com quatro verificações estáticas de regressão.
-4. Workflow CI alterado para verificar apenas ficheiros JavaScript realmente existentes e Edge Functions existentes, evitando referências a ficheiros inexistentes.
+A arquitetura aprovada mantém a RPC pública como SECURITY INVOKER e limita o privilégio elevado à função privada que grava o espelho finalizado. A versão anterior desta secção fica apenas como histórico e não é uma instrução de implementação.
 
-**Evidência de CI:** execução GitHub Actions run 447 (ID 42217304800) terminou SUCCESS em 2026-11-06. Sintaxe JavaScript, verificação Deno das Edge Functions e npm test passaram. URL: https://github.com/dpedroservice-code/Kanawasoftv15.2/actions/runs/42217304800
+### 13.15 Arquitetura RLS aprovada para a finalização POS
 
-**Limitação importante:** os quatro testes adicionados são verificações estáticas do SQL e da configuração da função. Não substituem execução PostgreSQL real. Ainda é obrigatório aplicar a migração apenas numa base isolada e testar com pgTAP ou testes equivalentes: INSERT direto de venda finalizada deve falhar; UPDATE de rascunho para finalizada deve falhar; UPDATE de venda finalizada deve afetar zero linhas/ser negado; RPC autorizada deve finalizar venda e atualizar stock/pagamento uma única vez; utilizador sem permissão/empresa deve ser rejeitado. Confirmar também owner efetivo da função, atributos SECURITY DEFINER, RLS/FORCE RLS, grants e comportamento da função auxiliar de stock.
+A correção técnica utiliza:
+- `public.ks_finalize_sale` como SECURITY INVOKER, com `search_path` vazio;
+- políticas RLS RESTRICTIVE que impedem INSERT/UPDATE direto de espelhos `vendas` com estado `finalizada`;
+- `private.ks_upsert_finalized_sale_mirror` como helper SECURITY DEFINER estreito, owner postgres e `search_path` vazio;
+- validação de `auth.uid()`, permissão da empresa, venda persistida, valores monetários e correspondência das linhas de artigos;
+- EXECUTE revogado de PUBLIC/anon e concedido a authenticated;
+- escrita do espelho dentro da mesma transação da venda, sem permitir uma segunda escrita direta pela Data API.
 
-**Estado de integração:** PR #26 está em draft e ainda não foi merged. Nenhum SQL foi aplicado ao Supabase, nenhum dado real foi alterado, e a correção ainda não foi copiada para KanawaSoft-1.0. A versão 1.0 continua sem esta correção até haver validação PostgreSQL isolada e integração seletiva aprovada.
+Referência da revisão no repositório fonte: https://github.com/dpedroservice-code/Kanawasoftv15.2/pull/26. A implementação foi copiada seletivamente para o destino KanawaSoft-1.0 e adaptada ao contrato real de `app/cloud.js`.
 
+### 13.16 Limpeza técnica autorizada e executada no Supabase
 
-### 13.15 Revisão adicional da arquitetura RLS — helper privado e RPC invoker
+Em 2026-11-06, após confirmação explícita do proprietário, foi reutilizado o projeto Supabase existente:
+- Projeto: APP
+- Project ref: `jiehrswweoyesbabrpjf`
+- Estado: ACTIVE_HEALTHY
+- Região: eu-west-1
 
-Em 2026-11-06, a primeira proposta de correção foi revista antes de qualquer aplicação. Tornar a função pública ks_finalize_sale SECURITY DEFINER faria a transação financeira inteira executar com privilégios do owner e contornar RLS em várias tabelas. Essa abordagem foi descartada.
+A limpeza foi executada no próprio projeto, sem criar projeto ou branch adicional:
+- removidos todos os registos operacionais das tabelas públicas do KanawaSoft e da loja D.Pedro;
+- removido o utilizador existente de Auth e respetivos registos dependentes;
+- Storage verificado: 0 objetos; os dois buckets foram preservados;
+- preservados os schemas, as 36 tabelas públicas, funções, políticas RLS e histórico de migrações;
+- preservado o catálogo técnico `ks_saas_plans` com 3 planos, por ser referência base do licenciamento.
 
-A PR draft #26 foi atualizada para:
-- manter public.ks_finalize_sale como SECURITY INVOKER;
-- manter políticas RLS RESTRICTIVE que bloqueiam INSERT/UPDATE direto de espelhos de venda finalizada;
-- delegar apenas a escrita do espelho para private.ks_upsert_finalized_sale_mirror, função auxiliar estreita SECURITY DEFINER, owner postgres e search_path vazio;
-- exigir auth.uid(), permissão de empresa, venda finalizada já persistida, valores monetários correspondentes e igualdade das linhas de artigos;
-- manter os restantes writes (venda, pagamentos, stock, movimentos e utilização) sujeitos às políticas RLS do invocador;
-- revogar EXECUTE da função auxiliar de PUBLIC/anon e conceder apenas a authenticated, com schema private fora dos schemas expostos pela Data API como requisito de validação.
+Verificação posterior: 0 utilizadores Auth, 0 registos operacionais nas tabelas limpas, 0 objetos Storage. O utilizador terá de criar novamente a conta e cada empresa terá de refazer o respetivo cadastro e personalização quando o fluxo de onboarding estiver concluído.
 
-Evidência:
-- PR #26: https://github.com/dpedroservice-code/Kanawasoftv15.2/pull/26
-- CI run 450 SUCCESS: https://github.com/dpedroservice-code/Kanawasoftv15.2/actions/runs/42217789334
-- Commit da migração/helper: 96b1007c9a71cb246597508fffa17486d3f13619
-- Commit dos testes estáticos: 5fbd7872ab363f673a4f76981421bf8fe586cfbe
+### 13.17 Migrações de correção aplicadas no projeto existente
 
-**Base Supabase ligada:** projeto identificado como APP, com tabelas ks_* e dps_* e dados/migrações já existentes. Não foi modificado. A lista de migrações observada vai até 20261105084015. A migração candidata 20261106120000 ainda não foi aplicada.
+Depois de uma execução de ensaio em transação com ROLLBACK, foram aplicadas as seguintes migrações ao projeto APP:
+1. `20261106123854_kanawa_sales_mirror_rls_hardening`: políticas RLS restritivas para espelhos de venda finalizada, helper privado de escrita validada, RPC pública SECURITY INVOKER e coluna/hash de idempotência.
+2. `20261106123908_kanawa_fk_performance_indexes`: índices para `ks_company_branches.created_by` e `ks_store_api_keys.created_by`, cobrindo as duas chaves estrangeiras identificadas pelo advisor.
 
-**Validação isolada pendente:** foi consultado o custo de uma branch de desenvolvimento Supabase: USD 0.01344/hora (aproximadamente USD 9.81 por 730 horas se permanecer ativa continuamente). A branch ainda não foi criada; requer aprovação explícita do custo. Depois da criação, aplicar a migração apenas na branch, confirmar os schemas expostos, executar testes reais de RLS/RPC/idempotência e advisors. Nenhuma alteração em produção.
+Verificações posteriores confirmaram:
+- coluna `ks_sales.idempotency_hash` existente;
+- helper privado existente;
+- RPC pública continua SECURITY INVOKER;
+- dois índices de chaves estrangeiras existentes;
+- advisor de segurança sem findings.
+
+O advisor de performance deixou de apontar as duas chaves estrangeiras sem índice. Mantém avisos de múltiplas políticas permissivas em 11 tabelas, que exigem revisão semântica individual antes de consolidação; também indica índices ainda não utilizados, algo esperado enquanto a base está vazia e sem tráfego real.
+
+### 13.18 Integração seletiva no repositório KanawaSoft-1.0
+
+Na branch `feat/agt-api-foundation`, PR draft #1:
+- adicionada a migração de hardening POS e respetivo teste estático;
+- atualizado `app/cloud.js` para enviar `record_payload` à RPC e terminar o fluxo após a resposta, evitando tentar gravar novamente o espelho finalizado por uma operação direta bloqueada por RLS;
+- adicionada a migração de índices e teste estático;
+- adicionado o script `npm test`;
+- criado workflow CI para testes Node e verificação sintática JavaScript.
+
+A primeira execução CI falhou por o teste apontar para o nome antigo do ficheiro de migração. O caminho foi corrigido; a nova execução é a run 42219465894 e deve ser verificada antes de marcar os testes como aprovados.
+
+A instalação de dependências no CI reportou 17 vulnerabilidades npm (4 moderadas, 11 altas e 2 críticas). A árvore de dependências precisa de auditoria e correção controlada; não executar `npm audit fix --force` sem análise de compatibilidade.
+
+### 13.19 Bloqueadores ainda abertos antes de considerar o sistema pronto
+
+1. `server/database.js` continua a iniciar uma base local `sql.js`/SQLite e a guardar dados em ficheiro. A arquitetura ainda não está unificada em Supabase/PostgreSQL; é necessário mapear os módulos que dependem da base local antes de a remover.
+2. A aplicação ainda precisa de teste integrado autenticado, com utilizador, empresa, permissões, produto, venda, pagamento, decremento de stock e espelho POS na mesma transação. Os testes atuais são estáticos/Node e não substituem um teste PostgreSQL end-to-end.
+3. A consolidação das 11 situações de múltiplas políticas permissivas deve ser feita apenas após comparar os predicados RLS e provar que não altera permissões.
+4. As 17 vulnerabilidades npm precisam de triagem por pacote, dependência direta/transitiva e compatibilidade.
+5. A integração AGT continua incompleta face ao contrato técnico completo e não está homologada/certificada. Não ativar faturação real nem afirmar conformidade.
+6. O PR #1 continua em draft e não foi merged. O workflow Netlify para pull request executa apenas deploy de preview; o deploy de produção está condicionado a push na branch main após merge.
+
+**Estado:** a limpeza e as duas migrações de base de dados foram executadas no projeto existente. O código foi atualizado seletivamente no PR #1, mas o KanawaSoft 1.0 ainda não está pronto para produção nem foi declarado funcional a 100%.
