@@ -607,3 +607,75 @@ A V15.4 também inclui ficheiros independentes, carregados em app/index.html, pa
 7. Revalidar scripts, CSP, dependências externas e execução no browser e Electron.
 
 **Estado:** comparação de nomes de funções e revisão de trechos centrais concluídas; não houve cópia de código nem execução de testes nesta etapa. A matriz funcional permanece em revisão e não autoriza merge.
+
+
+### 13.13 Confronto do cliente AGT com a documentação técnica oficial
+
+**Fontes oficiais consultadas em 2026-11-06:**
+- Registar Factura: https://quiosqueagt.minfin.gov.ao/doc-agt/doc-agt/2/servicos/servicos_solicitar_registo.html
+- Consultar Estado da Fatura: https://quiosqueagt.minfin.gov.ao/doc-agt/doc-agt/2/servicos/servicos_obter_estado.html
+- Estrutura das assinaturas JWS: https://quiosqueagt.minfin.gov.ao/doc-agt/doc-agt/2/estrutura.html
+
+#### A. Contrato oficial de submissão
+
+A documentação consultada especifica POST para:
+- Homologação: https://sifphml.minfin.gov.ao/sigt/fe/v1/registarFactura
+- Produção: https://sifp.minfin.gov.ao/sigt/fe/v1/registarFactura
+
+O envelope de submissão inclui, entre outros campos obrigatórios:
+- schemaVersion;
+- submissionUUID único por pedido;
+- taxRegistrationNumber;
+- submissionTimeStamp ISO 8601;
+- softwareInfo;
+- numberOfEntries;
+- documents (a documentação indica máximo previsto de 30 documentos).
+
+softwareInfo inclui softwareInfoDetail com productId, productVersion, softwareValidationNumber e signatureVersion, além de jwsSoftwareSignature. Cada documento inclui os campos fiscais exigidos, documentStatus e jwsDocumentSignature.
+
+#### B. Divergências concretas do cliente atual
+
+O ficheiro server/agt/client.js:
+- envia diretamente o objeto document recebido, acrescentando apenas jwsDocumentSignature;
+- não constrói o envelope oficial com schemaVersion, submissionUUID, NIF, timestamp, softwareInfo, numberOfEntries e documents[];
+- não gera nem inclui jwsSoftwareSignature no pedido;
+- não inclui signatureVersion no objeto softwareInfoDetail;
+- não gera jwsSignature de pedido;
+- assina o objeto document inteiro, enquanto a documentação da AGT especifica os campos concretos que compõem a assinatura do documento;
+- carrega uma única chave por loadSoftwarePrivateKey e usa-a para assinar o documento. A documentação distingue a chave privada do produtor para jwsSoftwareSignature da chave privada do contribuinte emissor para jwsDocumentSignature. Não existe neste cliente separação explícita das duas chaves.
+
+O ficheiro server/agt/jws.js tem createSoftwareSignature, mas essa função não é usada pelo cliente atual; além disso, o objeto de assinatura implementado contém productId, productVersion e softwareValidationNumber, sem signatureVersion.
+
+**Classificação:** bloqueador de conformidade técnica com o contrato consultado. A implementação atual não deve ser ligada a endpoints reais nem apresentada como integração funcional da API AGT.
+
+#### C. Divergência concreta na consulta de estado
+
+A documentação oficial especifica POST para:
+- Homologação: https://sifphml.minfin.gov.ao/sigt/fe/v1/obterEstado
+- Produção: https://sifp.minfin.gov.ao/sigt/fe/v1/obterEstado
+
+O pedido inclui schemaVersion, submissionUUID, taxRegistrationNumber, submissionTimeStamp, softwareInfo, requestID e jwsSignature. A assinatura do pedido usa, no exemplo documentado, taxRegistrationNumber e requestID.
+
+O cliente atual constrói um URL com {requestID} e executa GET sem corpo. Portanto, o método e o formato do pedido não correspondem ao contrato consultado. O cliente preserva resultCode sem o reinterpretar, o que deve ser mantido; os códigos documentados incluem 0, 1, 2, 7, 8 e 9, e os estados 7/8/9 não devem ser tratados como decisão final de aceitação/rejeição do documento.
+
+#### D. Consequências para a arquitetura e segurança
+
+1. Criar provedores de assinatura separados: chave do produtor para jwsSoftwareSignature e chave do contribuinte emissor para jwsDocumentSignature/jwsSignature, conforme o serviço e a documentação oficial.
+2. Não gerar nem preencher softwareValidationNumber fictício. O campo depende do processo oficial de validação/certificação do software.
+3. Criar construtores de payload por serviço, com schemas versionados e validação antes de assinar.
+4. Implementar registo de série e consulta de séries conforme os serviços oficiais, antes de permitir numeração fiscal como se estivesse autorizada.
+5. Persistir submissionUUID, requestID, payload assinado, timestamp, resposta integral, estado e histórico numa outbox/tabela central; nunca depender apenas da memória do processo.
+6. Implementar consulta POST assinada, respeitando limites e intervalos indicados pela AGT, sem inventar polling agressivo.
+7. Tratar timeout após submissão como resultado desconhecido: reconciliar pelo identificador antes de qualquer repetição.
+8. Usar URLs oficiais por ambiente e uma allowlist de hosts/endpoints; não aceitar URL arbitrário de configuração em produção.
+9. Criar testes com fixtures derivados do schema oficial e testes de assinatura com chaves separadas; os mocks atuais apenas provam o comportamento do cliente simplificado.
+10. Fazer testes de homologação apenas depois de existirem credenciais, chaves, número de validação do software e autorização formal necessários.
+
+#### E. Estado AGT após esta revisão
+
+- Implementado no destino: utilitário JWS RS256, carregamento de chave de software por caminho externo, submissão simplificada, captura de requestID e consulta simplificada de resultCode.
+- Não demonstrado: payload oficial completo, separação de chaves do produtor/contribuinte, assinatura do pedido, gestão de séries, outbox durável, consulta POST oficial, reconciliação completa, testes de homologação ou certificação.
+- Testes existentes usam endpoint fictício agt.example.test e fetch simulado; não comunicam com a AGT.
+- Não foi enviada nenhuma fatura à AGT nem foi feita qualquer alteração de produção.
+
+**Decisão:** preservar os utilitários criptográficos úteis, mas reestruturar o cliente por contrato oficial antes de integrar a AGT no fluxo de faturação do Kanawa Soft. A integração permanece NÃO CONFORME AO CONTRATO COMPLETO / NÃO HOMOLOGADA / NÃO CERTIFICADA até existirem implementação, testes e evidências oficiais.
