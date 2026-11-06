@@ -27,6 +27,23 @@ Para o SMS funcionar em produção, é necessário:
 
 O telefone guardado nos metadados da empresa/perfil não é, por si só, um telefone Auth verificado. Não guardar segredos do fornecedor no GitHub, no browser ou em mensagens de chat.
 
+
+## Utilizadores, memberships e convites cloud
+
+A gestão da equipa foi portada para o banco dedicado, sem reutilizar a versão antiga que guardava senhas no IndexedDB:
+
+- `ks_company_memberships` é a fonte de verdade para papel e estado do membro.
+- `ks_profiles` guarda nome, email e telefone do perfil.
+- `ks_team_invitations` guarda convites por empresa; o banco armazena apenas o hash SHA-256 do código.
+- O código de convite é mostrado uma única vez ao administrador, tem validade de 72 horas e só pode ser resgatado uma vez pelo email correspondente.
+- O colaborador cria a própria senha no Supabase Auth e confirma o email; só depois a membership passa de `invited` para `active`.
+- O proprietário e os administradores ficam protegidos. A UI não permite conceder owner/admin por convite ou por alteração direta de papel.
+- A coleção IndexedDB `usuarios` permanece apenas como cache da sessão atual; não é fonte de verdade e não deve guardar senhas.
+
+Os perfis disponíveis nesta primeira etapa são gerente, operador e caixa. A gestão avançada de papéis/permissões customizadas fica para uma etapa posterior, após testes funcionais multiempresa.
+
+A migração `20261106162000_cloud_team_invitations_and_membership_management` foi aplicada ao projeto dedicado e registada no histórico remoto. O projeto dedicado passou a ter 17 tabelas públicas com RLS. Os avisos de segurança relativos às RPCs `SECURITY DEFINER` estão documentados para revisão; as funções exigem sessão e verificam membership/papel. Não declarar o linter de segurança sem avisos.
+
 ## Segurança e publicação
 
 A branch ainda requer revisão e testes funcionais completos antes de merge. Não publicar no domínio `kanawasoft.shop` nem alterar o site Netlify de produção durante esta etapa. O projeto antigo permanece intocado.
