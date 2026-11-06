@@ -14,6 +14,8 @@ test('finalized sale returns after RPC and does not write a second mirror via Da
   const start = cloud.indexOf("if (store === 'vendas' && item.status === 'finalizada'");
   const end = cloud.indexOf('\n      async deleteRecord', start);
   const block = cloud.slice(start, end);
-  assert.ok(block.includes('return true;'));
-  assert.ok(!block.includes(".from('ks_records')"));
+  const returned = block.indexOf('return true;');
+  const genericWrite = block.indexOf("const result = await client");
+  assert.ok(returned >= 0);
+  assert.ok(genericWrite > returned, 'generic record writes must occur only after the finalized-sale early return');
 });
