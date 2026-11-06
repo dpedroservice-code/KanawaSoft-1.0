@@ -272,3 +272,87 @@ O Kanawa Soft só pode ser considerado integrado quando:
 
 ---
 **Regra final:** este plano é o único roteiro mestre do projeto. Atualizar este ficheiro a cada etapa concluída, mantendo nele o estado real, evidências, commits, testes e próximos passos. Não criar novos documentos de plano paralelos.
+
+
+## 13. Revisão de consolidação — âmbito autorizado e evidências do Git
+
+### 13.1 Âmbito confirmado pelo proprietário
+
+A revisão nesta fase está limitada a estes dois repositórios hospedados no GitHub:
+
+1. **Destino oficial pretendido:** `dpedroservice-code/KanawaSoft-1.0`.
+2. **Fonte de código para comparação e aproveitamento:** `dpedroservice-code/Kanawasoftv15.2`.
+
+Os repositórios existentes no computador do proprietário não fazem parte desta operação. Todos os outros repositórios GitHub ficam fora do âmbito e não devem ser alterados, renomeados, arquivados ou apagados.
+
+A intenção é formar uma única base de código oficial no repositório de destino. O repositório V15.2 serve nesta revisão como fonte de comparação e recolha de implementações; não deve originar uma segunda linha de desenvolvimento permanente. Não copiar ficheiros em massa nem escolher uma versão apenas pelo número.
+
+### 13.2 Estado observado nos dois repositórios
+
+**KanawaSoft-1.0**
+- Branch principal: `main`, commit observado `12050bc352a1671bbb8298af4119bbc21db39baa`.
+- Branch de trabalho existente: `feat/agt-api-foundation`, commit observado `b36bd90bdf290f8fd18df6b4a0c2d8857ca3f5b8`.
+- PR #1 está aberta e em draft; não foi integrada.
+- `netlify.toml` publica a pasta `app/`; portanto, o `index.html` da raiz não é o HTML publicado por esta configuração.
+- Existe uma aplicação em `app/index.html` e outra página HTML grande na raiz. A duplicação precisa de análise de dependências antes de qualquer remoção.
+- `package.json` declara `15.2.0`, `server/server.js` declara `APP_VERSION = '15.2'`, enquanto `app/index.html` identifica a interface como v15.3 Cloud. A versão está inconsistente.
+- O servidor inicializa `data/kanawa.db` com `sql.js`; isto confirma que a persistência local continua ativa no modo servidor/desktop.
+- O README descreve Supabase Auth/PostgreSQL como base cloud. A utilização simultânea dos dois mecanismos ainda precisa de mapa completo de leituras, escritas e sincronização.
+
+**Kanawasoftv15.2**
+- Branch principal observada: `main`, commit `8ba40cfec9db5db4f212e6d879f2e4ac558f5ce6`.
+- `package.json` declara `15.3.0` e `server/server.js` declara `APP_VERSION = '15.3.0'`; o nome do repositório não corresponde à versão declarada pelo código.
+- O README apresenta o produto como versão de produção 1.1.0, mas a documentação de prontidão ainda identifica v15.3. Isto requer normalização, não uma simples substituição textual.
+- O código cloud usa Supabase Auth e PostgreSQL; o servidor Node/Electron continua a inicializar SQLite com `sql.js`. A coexistência exige decisão arquitetural e testes de consistência.
+- Existem funções Supabase, migrações SQL, testes, configuração AGT, GPS/mapas e módulos auxiliares que não estão todos presentes no destino 1.0.
+- O repositório contém branches adicionais de funcionalidades v15.4 e de hardening. Essas branches não são automaticamente parte da branch principal.
+- A branch `feat/kanawa-production-hardening` está divergente da `main` (66 commits à frente e 44 atrás no momento da comparação). Não fazer merge integral nem cherry-pick em bloco.
+- As branches/PRs relacionadas com v15.4, GPS, stock e plano técnico têm de ser avaliadas por ficheiro e por dependência. Estado fechado de uma PR não significa que tenha sido integrada.
+
+### 13.3 Decisões técnicas de consolidação
+
+1. A branch de destino continua a ser a linha oficial do Kanawa Soft 1.0 até a revisão determinar a estrutura final.
+2. O código de V15.2 será tratado como fonte candidata. Cada módulo será comparado com o destino e aproveitado apenas quando for mais completo, seguro e compatível.
+3. Não fazer merge de branches inteiras apenas porque têm número superior ou nome de produção.
+4. A consolidação deve resultar numa única aplicação publicada e numa única implementação de cada serviço, rota, módulo e contrato de dados.
+5. Antes de remover duplicações, identificar qual HTML é realmente carregado, scripts referenciados, imports, rotas, build e comportamento Electron/Netlify.
+6. PostgreSQL/Supabase é o destino de persistência cloud pretendido. SQLite só poderá permanecer se tiver um papel desktop/offline explícito, isolado e sincronizado por contratos testados; não pode competir como segunda fonte de verdade.
+7. IndexedDB pode ser cache/fila offline; localStorage não deve armazenar dados empresariais sensíveis nem ser fonte de verdade.
+8. Migrações Supabase devem ser consolidadas sem perder histórico, ordem, políticas RLS, funções, triggers e compatibilidade com os dados existentes.
+9. O fluxo AGT deve ser mantido isolado no backend, com chaves fora do browser e sem alegações de certificação/homologação.
+10. A versão de produto, `package.json`, servidor, interface, Electron, README e metadados de build devem passar a ter uma única versão coerente após a revisão — não antes.
+
+### 13.4 Próxima sequência concreta
+
+**Fase A — inventário comparativo**
+- Construir uma matriz destino 1.0 versus fonte V15.2 para cada ficheiro e módulo.
+- Comparar `app/app.js`, `app/index.html`, `app/cloud.js`, `server/database.js`, `server/routes.js`, `server/server.js`, `desktop/`, `package.json`, testes, Edge Functions e migrações.
+- Identificar duplicados por hash, divergências funcionais, ficheiros órfãos e dependências.
+- Mapear cada ecrã para os serviços, tabelas, permissões e testes correspondentes.
+
+**Fase B — arquitetura e dados**
+- Resolver a divergência SQLite/Supabase com um desenho de fonte de verdade e modo offline.
+- Inventariar todas as tabelas e migrações; validar RLS por empresa e papel.
+- Definir contratos únicos para autenticação, empresa ativa, permissões, vendas, stock, pagamentos, e-commerce e AGT.
+
+**Fase C — integração controlada**
+- Integrar os módulos selecionados no destino 1.0 em alterações pequenas e revisáveis.
+- Eliminar duplicações somente depois de testes de regressão provarem que a implementação substituta cobre o comportamento.
+- Atualizar este mesmo documento mestre com cada decisão, ficheiro, commit, teste e pendência.
+
+**Fase D — validação e lançamento**
+- Executar testes unitários, integração, segurança, isolamento multiempresa, persistência, sincronização, Electron e build Netlify.
+- Preparar preview isolado. O domínio próprio e a publicação em produção permanecem em pausa.
+- Só considerar lançamento depois de evidência de testes e aprovação explícita.
+
+### 13.5 Estado desta revisão
+
+- Âmbito dos dois repositórios confirmado.
+- Inventário inicial das árvores, branches, PRs e ficheiros centrais realizado.
+- Branch de auditoria criada em V15.2: `audit/consolidacao-kanawasoft-1.0`.
+- PR #1 do destino permanece aberta em draft.
+- Nenhum código foi apagado, nenhum merge foi executado, nenhum repositório foi renomeado e nenhum deploy foi iniciado.
+- Testes de aplicação ainda NÃO EXECUTADOS nesta revisão.
+- Renomear o repositório V15.2 para `KanawaSoft-1.1.0` permanece uma ação administrativa pendente; a ligação GitHub disponível nesta sessão não expõe uma operação de renomeação de repositório. O nome do repositório não deve ser alterado por substituição de texto no código.
+
+**Próximo trabalho obrigatório:** concluir a matriz comparativa por módulo e por dependência. Não começar a apagar nem substituir código antes de essa matriz mostrar qual implementação será preservada.
