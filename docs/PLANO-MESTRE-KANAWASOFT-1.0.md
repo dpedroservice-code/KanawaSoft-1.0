@@ -724,6 +724,8 @@ As seguintes migrações foram aplicadas ao projeto APP e verificadas:
 3. `20261106125752_kanawa_seed_starter_trial_plan`: repõe o plano interno `starter` exigido pelo trigger de onboarding, sem atribuir preço ou limites não aprovados.
 4. `20261106130151_kanawa_invitation_activation`: ativa imediatamente o membership de um colaborador quando o email já chega confirmado; caso contrário mantém `invited` até à confirmação.
 5. `20261106130456_kanawa_pos_idempotency_lock_fix`: remove o `FOR UPDATE` desnecessário na leitura de uma venda já existente, evitando exigir privilégio UPDATE para repetir uma operação idempotente.
+6. `20261106130645_kanawa_rls_policy_overlap_cleanup`: consolida políticas de leitura duplicadas e separa políticas de escrita das políticas de leitura.
+7. `20261106130705_kanawa_installation_policy_merge`: combina os predicados de administrador da plataforma e membro da empresa nas políticas de instalações.
 
 Verificações:
 - coluna `ks_sales.idempotency_hash` e helper privado existentes;
@@ -753,17 +755,18 @@ Todos os testes abaixo foram executados em transações com ROLLBACK; nenhum uti
 - **Convite de equipa:** administrador cria convite, novo Auth user usa o código, membership cashier é criado ativo para email confirmado e as permissões `pdv` são aplicadas.
 - **POS:** finalização autenticada criou venda, linha, pagamento, decremento de stock, movimento e espelho em uma transação.
 - **Idempotência:** repetição da mesma venda devolveu o resultado existente sem duplicar venda, pagamento, movimento ou espelho, nem voltar a decrementar stock. Resultado observado: 1 venda, 1 pagamento, 1 movimento, 1 espelho e stock final 2 (de 3 iniciais).
+- **Stock insuficiente:** tentativa de vender 2 unidades quando existia 1 foi recusada; não deixou venda, pagamento, movimento ou espelho parcial e o stock permaneceu 1.
 
 ### 13.20 CI e evidências
 
-- CI mais recente: run `42223730674`, testes Node e verificações sintáticas aprovados; 24 testes passaram e 0 falharam. O `npm audit` final reportou 0 vulnerabilidades.
+- CI mais recente: run `42223888567`, testes Node e verificações sintáticas aprovados; 24 testes passaram e 0 falharam. O `npm audit` final reportou 0 vulnerabilidades.
 - Workflow Netlify executou corretamente a etapa de diagnóstico, mas o preview foi ignorado por falta de `NETLIFY_AUTH_TOKEN`; produção não foi publicada.
 - A PR #1 continua draft e não foi merged.
 
 ### 13.21 Pendências antes de considerar o sistema pronto
 
-1. As 11 situações de políticas RLS sobrepostas foram revistas e consolidadas com predicados equivalentes; o advisor agora reporta 0 avisos de múltiplas políticas.
-2. Reexecutar auditoria npm após remoção de dependências. O workflow agora recolhe o relatório detalhado de advisories; corrigir dependências compatíveis sem `npm audit fix --force`. O relatório inicial indicava 17 vulnerabilidades (4 moderadas, 11 altas e 2 críticas). Após atualizar Electron 45.2.3, electron-builder 26.18.1, Express 4.22.3, qs 6.17.1 e minimatch 11.0.5, o `npm audit` final reportou 0 vulnerabilidades.
+1. As 11 situações de políticas RLS sobrepostas foram revistas e consolidadas com predicados equivalentes; o advisor agora reporta 0 avisos de múltiplas políticas. Restam 13 avisos INFO de índices não utilizados, esperados numa base recém-limpa sem tráfego.
+2. Auditoria npm final: 0 vulnerabilidades após atualização controlada de Electron, electron-builder, Express, qs e minimatch. Manter a auditoria automática no CI.
 3. Executar testes de browser completos no onboarding, OTP, troca de dispositivo, convites, alteração de papel e suspensão/reativação de membro.
 4. Testar fila IndexedDB em perda de internet, conflito, repetição e recuperação. O PostgreSQL é a fonte central; uma operação local pendente não pode ser apresentada como confirmada.
 5. A seleção de empresa ativa ainda usa a primeira membership ativa; a experiência de troca entre múltiplas empresas precisa de implementação e testes.
