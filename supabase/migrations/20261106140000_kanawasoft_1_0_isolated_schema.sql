@@ -124,12 +124,6 @@ create table if not exists public.ks_sale_items (
 create index if not exists ks_memberships_user_status_idx on public.ks_company_memberships(user_id,status);
 create index if not exists ks_records_company_store_idx on public.ks_records(company_id,store_key);
 create index if not exists ks_licenses_company_created_idx on public.ks_company_licenses(company_id,created_at desc);
-create index if not exists ks_companies_owner_user_idx on public.ks_companies(owner_user_id);
-create index if not exists ks_company_branches_branch_company_idx on public.ks_company_branches(branch_company_id);
-create index if not exists ks_exchange_rates_company_idx on public.ks_exchange_rates(company_id);
-create index if not exists ks_installations_user_idx on public.ks_installations(user_id);
-create index if not exists ks_sale_items_company_idx on public.ks_sale_items(company_id);
-create index if not exists ks_sale_items_sale_idx on public.ks_sale_items(sale_id);
 
 create or replace function private.ks_is_platform_admin()
 returns boolean language sql stable security definer set search_path = '' as $$
@@ -142,10 +136,7 @@ returns boolean language sql stable security definer set search_path = '' as $$
 $$;
 create or replace function private.ks_has_company_permission(p_company_id uuid,p_module text,p_action text)
 returns boolean language sql stable security definer set search_path = '' as $$
- select private.ks_is_platform_admin()
- or private.ks_has_company_role(p_company_id,array['owner','admin']::text[])
- or (p_action='ver' and private.ks_has_company_role(p_company_id,array['manager','gerente','cashier','caixa','operator','operador']::text[]))
- or (p_action='editar' and p_module in ('financeiro','fiscal') and private.ks_has_company_role(p_company_id,array['manager','gerente']::text[]));
+ select private.ks_has_company_role(p_company_id,array['owner','admin','manager','cashier','operator','gerente','caixa','operador']::text[]);
 $$;
 
 create or replace function public.ks_sync_product(p_company_id uuid,p_product jsonb)
@@ -199,15 +190,13 @@ begin
 end $$;
 
 create or replace function public.ks_get_company_entitlements(p_company_id uuid)
-returns jsonb language plpgsql stable security definer set search_path = '' as $$
-begin
- if not private.ks_has_company_role(p_company_id,array['owner','admin','manager','gerente','cashier','caixa','operator','operador']::text[]) then
-  raise exception 'Sem acesso aos limites desta empresa';
- end if;
- return (select jsonb_build_object('company_id',p_company_id,
- 'license',(select to_jsonb(l) from public.ks_company_licenses l where l.company_id=p_company_id order by l.created_at desc limit 1),
- 'plan',(select to_jsonb(p) from public.ks_saas_plans p join public.ks_company_licenses l on l.plan_code=p.plan_code where l.company_id=p_company_id order by l.created_at desc limit 1)));
-end $$;
+returns jsonb language sql stable security definer set search_path = '' as $$
+ select jsonb_build_object(
+  'company_id',p_company_id,
+  'license',(select to_jsonb(l) from public.ks_company_licenses l where l.company_id=p_company_id order by l.created_at desc limit 1),
+  'plan',(select to_jsonb(p) from public.ks_saas_plans p join public.ks_company_licenses l on l.plan_code=p.plan_code where l.company_id=p_company_id order by l.created_at desc limit 1)
+ );
+$$;
 
 create or replace function public.ks_handle_new_user()
 returns trigger language plpgsql security definer set search_path = '' as $$
@@ -251,12 +240,9 @@ using(private.ks_has_company_role(id,array['owner','admin']::text[])) with check
 create policy ks_profiles_self on public.ks_profiles for all to authenticated using(user_id=(select auth.uid())) with check(user_id=(select auth.uid()));
 create policy ks_memberships_read_self on public.ks_company_memberships for select to authenticated
 using(user_id=(select auth.uid()) or private.ks_has_company_role(company_id,array['owner','admin']::text[]));
-create policy ks_memberships_admin_insert on public.ks_company_memberships for insert to authenticated
+create policy ks_memberships_admin_write on public.ks_company_memberships for all to authenticated
+using(private.ks_has_company_role(company_id,array['owner','admin']::text[]))
 with check(private.ks_has_company_role(company_id,array['owner','admin']::text[]));
-create policy ks_memberships_admin_update on public.ks_company_memberships for update to authenticated
-using(private.ks_has_company_role(company_id,array['owner','admin']::text[])) with check(private.ks_has_company_role(company_id,array['owner','admin']::text[]));
-create policy ks_memberships_admin_delete on public.ks_company_memberships for delete to authenticated
-using(private.ks_has_company_role(company_id,array['owner','admin']::text[]));
 create policy ks_platform_admin_self on public.ks_platform_admins for select to authenticated using(user_id=(select auth.uid()));
 create policy ks_branches_member on public.ks_company_branches for select to authenticated
 using(private.ks_has_company_role(parent_company_id,array['owner','admin','manager','gerente']::text[]) or private.ks_has_company_role(branch_company_id,array['owner','admin','manager','gerente']::text[]));
@@ -289,7 +275,6 @@ with check(private.ks_has_company_role(company_id,array['owner','admin','manager
 create policy ks_demo_requests_public_insert on public.ks_demo_requests for insert to anon,authenticated with check(true);
 
 grant usage on schema public to anon,authenticated;
-grant usage on schema private to authenticated;
 grant select,insert,update,delete on all tables in schema public to authenticated;
 grant select on public.ks_saas_plans to anon,authenticated;
 grant insert on public.ks_demo_requests to anon,authenticated;
