@@ -171,7 +171,15 @@
       });
       if (result.error) throw result.error;
       if (!result.data || !result.data.user) throw new Error('Não foi possível confirmar o telefone. Peça um novo código.');
-      return await loadContext(result.data.user);
+      const ctx = await loadContext(result.data.user);
+      const profileUpdate = await client.from('ks_profiles').upsert({
+        user_id: result.data.user.id,
+        phone: normalizedPhone,
+        updated_at: new Date().toISOString()
+      });
+      if (profileUpdate.error) throw profileUpdate.error;
+      ctx.profile = Object.assign({}, ctx.profile, { phone: normalizedPhone });
+      return ctx;
     },
 
     async signUp(details) {
