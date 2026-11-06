@@ -356,3 +356,62 @@ A intenção é formar uma única base de código oficial no repositório de des
 - Renomear o repositório V15.2 para `KanawaSoft-1.1.0` permanece uma ação administrativa pendente; a ligação GitHub disponível nesta sessão não expõe uma operação de renomeação de repositório. O nome do repositório não deve ser alterado por substituição de texto no código.
 
 **Próximo trabalho obrigatório:** concluir a matriz comparativa por módulo e por dependência. Não começar a apagar nem substituir código antes de essa matriz mostrar qual implementação será preservada.
+
+
+### 13.6 Comparação estrutural por árvore Git
+
+Comparação realizada entre `feat/agt-api-foundation` do destino e `main` da fonte V15.2:
+
+- Destino 1.0: 45 ficheiros versionados na árvore comparada.
+- Fonte V15.2: 77 ficheiros versionados na árvore comparada.
+- 11 caminhos partilhados têm conteúdo diferente.
+- 38 caminhos existem na fonte e não existem no destino.
+- 7 caminhos existem no destino e não existem na fonte.
+
+**Diferenças de maior impacto encontradas na fonte V15.2:**
+- Módulos adicionais: `app/agt-config.js`, `app/gps-map.js`, `app/module-hub.js`, `app/operations-validation.js`, `app/performance-bridge.js`, `app/permissions.js`, `app/sales-money.js`, `app/support-center.js` e `app/manual.html`.
+- Funções Supabase: `ks-agt-test`, `ks-company-reset`, `ks-invite-member` e `ks-store-api`.
+- Migrações de segurança AGT, empresas/filiais, permissões, finalização, dados privados, API e preservação de histórico.
+- Testes de finalização, operações, permissões, vendas e prontidão.
+- A fonte tem `data/kanawa.db` versionado. Esse ficheiro contém dados e não pode ser copiado para produção nem tratado como migração de esquema.
+
+**Diferenças de maior impacto no destino 1.0:**
+- `server/agt/client.js` e `tests/agt-client.test.mjs`, ausentes na árvore principal V15.2 comparada.
+- Documento mestre e documentos de arquitetura/inventário.
+- Um `index.html` adicional na raiz, além de `app/index.html`.
+
+**Ficheiros partilhados com divergências:** workflows Netlify, README, `app/app.js`, `app/cloud.js`, `app/index.html`, Electron main/preload, package/lockfile e servidor/routes. Estes exigem comparação de conteúdo e comportamento, não substituição automática.
+
+### 13.7 Ramos avançados V15.4 — descoberta crítica
+
+A comparação de branches V15.4 com a `main` da fonte encontrou uma evolução arquitetural importante, ainda não integrada na main:
+
+- `feat/kanawasoft-v15.4-maps-gps-tracking`: 263 commits à frente e 33 atrás da main no momento da consulta.
+- `feat/kanawasoft-v15.4-angola-fiscal-core`: 158 à frente e 33 atrás.
+- `feat/kanawasoft-v15.4-stock-ledger`: 168 à frente e 33 atrás.
+- A branch GPS/mapas contém `server/supabase-gateway.js`, remove `server/database.js` e remove `sql.js` do `package.json`. O servidor passa a não inicializar SQLite e a declarar Supabase/PostgreSQL como persistência principal.
+- A mesma branch inclui testes de arquitetura cloud-only, gateway Supabase, motor de mapas/GPS, motor de stock e migração de venda atómica/idempotente.
+- A migração `20261104100000_kanawa_v154_atomic_sales_idempotency.sql` implementa uma RPC de finalização de vendas com validação de sessão/permissões, cálculo monetário, controlo de stock e idempotência. É uma candidata relevante, mas requer revisão SQL e execução em base de teste.
+- O gateway de vendas encaminha o JWT do utilizador para PostgREST/RPC e não faz um round-trip adicional ao Auth. A autorização final tem de permanecer na função SQL/RLS; não confiar apenas na validação do gateway.
+- O módulo de mapas usa geocodificação Nominatim e rotas OSRM públicas. Antes de produção, avaliar limites de utilização, política dos fornecedores, disponibilidade, privacidade e eventual serviço contratado.
+- O módulo de mapa tem uma vista inicial centrada em Luanda; a localização efetiva da empresa e do dispositivo deve continuar a ser determinada pelos dados/autorização do utilizador, não por coordenadas fixas.
+
+**Decisão:** esta linha V15.4 é uma candidata forte para resolver a duplicidade SQLite/Supabase, mas não será integrada em bloco. Está divergente da main, remove um módulo de 1.673 linhas e altera o contrato de rotas. Primeiro comparar o comportamento de todas as rotas SQLite, serviços de dados e chamadas frontend; depois validar todas as migrações e testes em ambiente isolado.
+
+### 13.8 Matriz preliminar de aproveitamento
+
+| Área | Fonte candidata | Decisão nesta fase |
+|---|---|---|
+| Persistência | V15.4 cloud-only + gateway Supabase | Candidata prioritária; validar cobertura de todos os casos de uso antes de remover SQLite |
+| Autenticação e memberships | `app/cloud.js` + migrações V15.2/V15.4 | Comparar com destino; testar isolamento e revogação de sessão |
+| AGT | `app/agt-config.js`, Edge Functions e `server/agt/client.js` do destino | Unificar contrato e manter segredos exclusivamente no servidor |
+| POS/vendas | RPC `ks_finalize_sale`, migração de idempotência e testes | Revisão SQL + testes concorrentes antes de integrar |
+| Stock | `app/stock-engine.js`, migrações ledger e testes | Comparar custo médio, concorrência, transferências e histórico |
+| GPS/rotas | `app/map-tracking.js`, `gps-sync-engine.js`, Android service | Aproveitar com origem/destino configuráveis e fornecedor de rotas validado |
+| Permissões | `app/permissions.js`, políticas RLS e RPCs | Validar cada papel no servidor; frontend não é fronteira de segurança |
+| Suporte e formação | `app/support-center.js`, `app/manual.html` | Integrar após validar scripts e permissões |
+| Testes/CI | workflows e testes da V15.2/V15.4 | Consolidar numa pipeline única; executar no destino antes de release |
+| Electron | `desktop/main.js`, `desktop/preload.js` | Comparar contratos IPC e permissões; manter apenas um conjunto coerente |
+
+Esta matriz é preliminar: “candidata” não significa “aprovada”, “integrada” ou “testada”.
+
