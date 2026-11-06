@@ -721,9 +721,9 @@ Verificação após os testes com ROLLBACK: 0 utilizadores Auth, 0 empresas, 0 v
 As seguintes migrações foram aplicadas ao projeto APP e verificadas:
 1. `20261106123854_kanawa_sales_mirror_rls_hardening`: políticas RLS restritivas para espelhos de venda finalizada, helper privado de escrita validada, RPC pública SECURITY INVOKER e coluna/hash de idempotência.
 2. `20261106123908_kanawa_fk_performance_indexes`: índices para `ks_company_branches.created_by` e `ks_store_api_keys.created_by`.
-3. `20261106130000_kanawa_seed_starter_trial_plan`: repõe o plano interno `starter` exigido pelo trigger de onboarding, sem atribuir preço ou limites não aprovados.
-4. `20261106133000_kanawa_invitation_activation`: ativa imediatamente o membership de um colaborador quando o email já chega confirmado; caso contrário mantém `invited` até à confirmação.
-5. `20261106140000_kanawa_pos_idempotency_lock_fix`: remove o `FOR UPDATE` desnecessário na leitura de uma venda já existente, evitando exigir privilégio UPDATE para repetir uma operação idempotente.
+3. `20261106125752_kanawa_seed_starter_trial_plan`: repõe o plano interno `starter` exigido pelo trigger de onboarding, sem atribuir preço ou limites não aprovados.
+4. `20261106130151_kanawa_invitation_activation`: ativa imediatamente o membership de um colaborador quando o email já chega confirmado; caso contrário mantém `invited` até à confirmação.
+5. `20261106130456_kanawa_pos_idempotency_lock_fix`: remove o `FOR UPDATE` desnecessário na leitura de uma venda já existente, evitando exigir privilégio UPDATE para repetir uma operação idempotente.
 
 Verificações:
 - coluna `ks_sales.idempotency_hash` e helper privado existentes;
@@ -755,14 +755,14 @@ Todos os testes abaixo foram executados em transações com ROLLBACK; nenhum uti
 
 ### 13.20 CI e evidências
 
-- CI mais recente desta ronda: run `42222418864`, testes Node e verificações sintáticas aprovados; 22 testes passaram e 0 falharam.
+- CI mais recente desta ronda antes da etapa de auditoria npm: run `42222901919`, testes Node e verificações sintáticas aprovados; 24 testes passaram e 0 falharam. O workflow foi ampliado para imprimir o detalhe do npm audit.
 - Workflow Netlify executou corretamente a etapa de diagnóstico, mas o preview foi ignorado por falta de `NETLIFY_AUTH_TOKEN`; produção não foi publicada.
 - A PR #1 continua draft e não foi merged.
 
 ### 13.21 Pendências antes de considerar o sistema pronto
 
-1. Rever individualmente as 11 situações de políticas RLS permissivas sobrepostas; não consolidar sem provar equivalência dos predicados.
-2. Reexecutar auditoria npm após remoção de dependências e corrigir vulnerabilidades restantes sem `npm audit fix --force`; o relatório anterior indicava 17 vulnerabilidades (4 moderadas, 11 altas e 2 críticas).
+1. As 11 situações de políticas RLS sobrepostas foram revistas e consolidadas com predicados equivalentes; o advisor agora reporta 0 avisos de múltiplas políticas.
+2. Reexecutar auditoria npm após remoção de dependências. O workflow agora recolhe o relatório detalhado de advisories; corrigir dependências compatíveis sem `npm audit fix --force`. O relatório anterior indicava 17 vulnerabilidades (4 moderadas, 11 altas e 2 críticas).
 3. Executar testes de browser completos no onboarding, OTP, troca de dispositivo, convites, alteração de papel e suspensão/reativação de membro.
 4. Testar fila IndexedDB em perda de internet, conflito, repetição e recuperação. O PostgreSQL é a fonte central; uma operação local pendente não pode ser apresentada como confirmada.
 5. A seleção de empresa ativa ainda usa a primeira membership ativa; a experiência de troca entre múltiplas empresas precisa de implementação e testes.
