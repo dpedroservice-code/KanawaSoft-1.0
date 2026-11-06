@@ -25,8 +25,8 @@
     "morgan": "^1.10.0"
   },
   "devDependencies": {
-    "electron": "^41.7.1",
-    "electron-builder": "^26.18.0"
+    "electron": "^45.2.3",
+    "electron-builder": "^26.18.1"
   },
   "build": {
     "appId": "com.kanawasoft.erp",
@@ -77,5 +77,8 @@
       "icon": "build/icon.png",
       "category": "Office"
     }
+  },
+  "overrides": {
+    "minimatch": "^11.0.1"
   }
 }
