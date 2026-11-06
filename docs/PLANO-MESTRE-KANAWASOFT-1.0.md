@@ -743,6 +743,7 @@ Na branch `feat/agt-api-foundation`, PR draft #1:
 - `app/cloud.js` passou a carregar permissões do membership, atualizar perfil no PostgreSQL, listar equipa, criar convites, alterar acessos e aceitar convites via Supabase Auth;
 - a autorização da interface passou a derivar do membership cloud, não do papel guardado em localStorage;
 - o perfil deixou de permitir autoelevação de papel, alteração local de email ou gravação local de senha; a alteração de senha usa Supabase Auth;
+- dependências de desktop/servidor atualizadas no lockfile: Electron 45.2.3, electron-builder 26.18.1, Express 4.22.3, qs 6.17.1 e minimatch 11.0.5, com auditoria de npm reexecutada no CI;
 - a gestão de utilizadores passou a usar convites com validade de 72 horas e perfis manager/operator/cashier/accountant/viewer.
 
 ### 13.19 Testes integrados executados no Supabase
@@ -762,7 +763,7 @@ Todos os testes abaixo foram executados em transações com ROLLBACK; nenhum uti
 ### 13.21 Pendências antes de considerar o sistema pronto
 
 1. As 11 situações de políticas RLS sobrepostas foram revistas e consolidadas com predicados equivalentes; o advisor agora reporta 0 avisos de múltiplas políticas.
-2. Reexecutar auditoria npm após remoção de dependências. O workflow agora recolhe o relatório detalhado de advisories; corrigir dependências compatíveis sem `npm audit fix --force`. O relatório anterior indicava 17 vulnerabilidades (4 moderadas, 11 altas e 2 críticas).
+2. Reexecutar auditoria npm após remoção de dependências. O workflow agora recolhe o relatório detalhado de advisories; corrigir dependências compatíveis sem `npm audit fix --force`. O relatório anterior indicava 17 vulnerabilidades (4 moderadas, 11 altas e 2 críticas). A primeira atualização do lockfile reduziu o relatório para 2 moderadas (qs); Express foi atualizado para 4.22.3 e qs para 6.17.1. Falta confirmar o resultado do npm audit no CI executado sobre o lockfile final.
 3. Executar testes de browser completos no onboarding, OTP, troca de dispositivo, convites, alteração de papel e suspensão/reativação de membro.
 4. Testar fila IndexedDB em perda de internet, conflito, repetição e recuperação. O PostgreSQL é a fonte central; uma operação local pendente não pode ser apresentada como confirmada.
 5. A seleção de empresa ativa ainda usa a primeira membership ativa; a experiência de troca entre múltiplas empresas precisa de implementação e testes.
