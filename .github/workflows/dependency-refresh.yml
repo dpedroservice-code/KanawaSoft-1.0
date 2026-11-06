@@ -1,3 +1,4 @@
+# Re-runnable controlled lockfile refresh; no forced major dependency changes.
 name: Refresh audited dependencies
 
 on:
