@@ -700,3 +700,26 @@ Alterações propostas:
 **Limitação importante:** os quatro testes adicionados são verificações estáticas do SQL e da configuração da função. Não substituem execução PostgreSQL real. Ainda é obrigatório aplicar a migração apenas numa base isolada e testar com pgTAP ou testes equivalentes: INSERT direto de venda finalizada deve falhar; UPDATE de rascunho para finalizada deve falhar; UPDATE de venda finalizada deve afetar zero linhas/ser negado; RPC autorizada deve finalizar venda e atualizar stock/pagamento uma única vez; utilizador sem permissão/empresa deve ser rejeitado. Confirmar também owner efetivo da função, atributos SECURITY DEFINER, RLS/FORCE RLS, grants e comportamento da função auxiliar de stock.
 
 **Estado de integração:** PR #26 está em draft e ainda não foi merged. Nenhum SQL foi aplicado ao Supabase, nenhum dado real foi alterado, e a correção ainda não foi copiada para KanawaSoft-1.0. A versão 1.0 continua sem esta correção até haver validação PostgreSQL isolada e integração seletiva aprovada.
+
+
+### 13.15 Revisão adicional da arquitetura RLS — helper privado e RPC invoker
+
+Em 2026-11-06, a primeira proposta de correção foi revista antes de qualquer aplicação. Tornar a função pública ks_finalize_sale SECURITY DEFINER faria a transação financeira inteira executar com privilégios do owner e contornar RLS em várias tabelas. Essa abordagem foi descartada.
+
+A PR draft #26 foi atualizada para:
+- manter public.ks_finalize_sale como SECURITY INVOKER;
+- manter políticas RLS RESTRICTIVE que bloqueiam INSERT/UPDATE direto de espelhos de venda finalizada;
+- delegar apenas a escrita do espelho para private.ks_upsert_finalized_sale_mirror, função auxiliar estreita SECURITY DEFINER, owner postgres e search_path vazio;
+- exigir auth.uid(), permissão de empresa, venda finalizada já persistida, valores monetários correspondentes e igualdade das linhas de artigos;
+- manter os restantes writes (venda, pagamentos, stock, movimentos e utilização) sujeitos às políticas RLS do invocador;
+- revogar EXECUTE da função auxiliar de PUBLIC/anon e conceder apenas a authenticated, com schema private fora dos schemas expostos pela Data API como requisito de validação.
+
+Evidência:
+- PR #26: https://github.com/dpedroservice-code/Kanawasoftv15.2/pull/26
+- CI run 450 SUCCESS: https://github.com/dpedroservice-code/Kanawasoftv15.2/actions/runs/42217789334
+- Commit da migração/helper: 96b1007c9a71cb246597508fffa17486d3f13619
+- Commit dos testes estáticos: 5fbd7872ab363f673a4f76981421bf8fe586cfbe
+
+**Base Supabase ligada:** projeto identificado como APP, com tabelas ks_* e dps_* e dados/migrações já existentes. Não foi modificado. A lista de migrações observada vai até 20261105084015. A migração candidata 20261106120000 ainda não foi aplicada.
+
+**Validação isolada pendente:** foi consultado o custo de uma branch de desenvolvimento Supabase: USD 0.01344/hora (aproximadamente USD 9.81 por 730 horas se permanecer ativa continuamente). A branch ainda não foi criada; requer aprovação explícita do custo. Depois da criação, aplicar a migração apenas na branch, confirmar os schemas expostos, executar testes reais de RLS/RPC/idempotência e advisors. Nenhuma alteração em produção.
