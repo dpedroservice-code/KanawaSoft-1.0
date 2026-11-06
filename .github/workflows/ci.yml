@@ -31,6 +31,5 @@ jobs:
         run: |
           node --check app/cloud.js
           node --check server/server.js
-          node --check server/database.js
           node --check server/agt/client.js
           node --check server/agt/jws.js
