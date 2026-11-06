@@ -248,7 +248,7 @@ function bootstrap() {
                 detail:
                   'Sistema de Gestão Empresarial\n' +
                   'Certificado AGT — Angola\n\n' +
-                  'Base de dados: SQLite local\n' +
+                  'Base central: Supabase PostgreSQL\nCache offline: IndexedDB\n' +
                   'Servidor: embutido (liga automaticamente)\n' +
                   'Módulos: 100+ (Produção, Logística, E-commerce, RH, Projetos, Ativos, Frota, OS, E-learning, CRM, Marketing)',
                 buttons: ['OK']
@@ -313,7 +313,7 @@ function bootstrap() {
       const serverModule = require('../server/server');
       const startServer = serverModule.startServer || serverModule;
 
-      const result = await startServer({ dataDir: getDataDir(), port: 0 });
+      const result = await startServer({ port: 0 });
 
       /* Aceita tanto número como { port, server } */
       serverPort = typeof result === 'number' ? result : (result && result.port);
