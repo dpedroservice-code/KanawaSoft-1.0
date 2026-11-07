@@ -1,6 +1,6 @@
 'use strict';
 
-const buckets = new Map();
+const { createHash } = require('node:crypto');
 const genericMessage = 'Se os dados corresponderem a uma conta activa, receberá um código.';
 
 function reply(statusCode, data, origin) {
@@ -39,12 +39,21 @@ function normalizeIdentifier(value, channel) {
   return phone;
 }
 
-function allowAttempt(key, max, windowMs, now = Date.now()) {
-  const b = buckets.get(key);
-  if (!b || now - b.start >= windowMs) { buckets.set(key, { start: now, count: 1 }); return true; }
-  if (b.count >= max) return false;
-  b.count += 1;
-  return true;
+function hashRateKey(value) {
+  return createHash('sha256').update(String(value)).digest('hex');
+}
+
+async function consumeRateLimit(c, key, maxRequests) {
+  const allowed = await supabaseRequest(c, '/rest/v1/rpc/ks_consume_auth_otp_rate_limit', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      p_rate_key: hashRateKey(key),
+      p_max_requests: maxRequests,
+      p_window_seconds: 600
+    })
+  });
+  return allowed === true;
 }
 
 function config() {
@@ -136,12 +145,13 @@ async function handler(event) {
   const code = String(body.code || '').replace(/\s/g, '');
   if (body.action === 'verify' && !/^\d{6}$/.test(code)) return reply(400, { error: 'Introduza o código de 6 dígitos recebido.' }, origin);
 
-  const ip = (event.headers && (event.headers['x-nf-client-connection-ip'] || event.headers['x-forwarded-for'])) || 'unknown';
-  const key = String(ip).split(',')[0].trim() + ':' + body.action;
-  if (!allowAttempt(key, body.action === 'start' ? 5 : 10, 600000)) return reply(429, { error: 'Demasiadas tentativas. Aguarde alguns minutos.' }, origin);
-
   try {
     const c = config();
+    const ip = (event.headers && (event.headers['x-nf-client-connection-ip'] || event.headers['x-forwarded-for'])) || 'unknown';
+    const cleanIp = String(ip).split(',')[0].trim();
+    const ipAllowed = await consumeRateLimit(c, 'ip:' + cleanIp + ':' + body.action, 20);
+    const targetAllowed = await consumeRateLimit(c, 'target:' + cleanIp + ':' + channel + ':' + identifier + ':' + body.action, body.action === 'start' ? 5 : 10);
+    if (!ipAllowed || !targetAllowed) return reply(429, { error: 'Demasiadas tentativas. Aguarde alguns minutos.' }, origin);
     const account = await findAccount(c, identifier, channel);
     if (body.action === 'start') {
       if (!account) return reply(202, { ok: true, message: genericMessage }, origin);
