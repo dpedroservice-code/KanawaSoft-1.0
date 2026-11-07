@@ -670,7 +670,7 @@
     },
 
     async getPrivateFileUrl(bucket, path) {
-      if (!this.ready || !context.isPlatformAdmin) throw new Error('Acesso reservado ao administrador da plataforma.');
+      if (!this.ready) throw new Error('Inicie sessão para consultar o ficheiro.');
       const result = await client.storage.from(bucket).createSignedUrl(path, 300);
       if (result.error) throw result.error;
       return result.data.signedUrl;
