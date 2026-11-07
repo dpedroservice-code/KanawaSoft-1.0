@@ -3471,13 +3471,13 @@ async function enviarMensagemInterna(){
 }
 async function partilharFicheiroEmpresa(){
   const file=$('shareFile').files[0];if(!file){toast('Seleccione um ficheiro.','warning');return;}
-  try{const path=await KanawaCloud.uploadPrivateFile('ks-company-documents',file,'shared');
+  try{const path=await KanawaCloud.uploadPrivateFile('ks-shared-files',file,'shared');
     await KanawaCloud.createSharedFile({title:$('shareTitle').value.trim()||file.name,description:$('shareDescription').value,filePath:path,category:'Partilha interna'});
     toast('Ficheiro partilhado com segurança.','success');openModule('comunicacao');
   }catch(e){toast(e.message||'Não foi possível partilhar o ficheiro.','danger');}
 }
 async function abrirFicheiroPartilhado(path){
-  try{const url=await KanawaCloud.getPrivateFileUrl('ks-company-documents',path);window.open(url,'_blank','noopener');}
+  try{const url=await KanawaCloud.getPrivateFileUrl('ks-shared-files',path);window.open(url,'_blank','noopener');}
   catch(e){toast(e.message||'Não foi possível abrir o ficheiro.','danger');}
 }
 
