@@ -9,6 +9,7 @@ const screen = readFileSync(new URL('../app/integracoes.html', import.meta.url),
 const app = readFileSync(new URL('../app/app.js', import.meta.url), 'utf8');
 const legal = readFileSync(new URL('../app/conformidade.html', import.meta.url), 'utf8');
 const legalMigration = readFileSync(new URL('../supabase/migrations/20261107102000_legal_compliance_register.sql', import.meta.url), 'utf8');
+const gateway = readFileSync(new URL('../supabase/functions/ecommerce-gateway/index.ts', import.meta.url), 'utf8');
 
 test('integration secrets and e-commerce API key hashes are server-only', () => {
   assert.match(migration, /ks_company_integration_secrets/);
@@ -53,4 +54,14 @@ test('legal and compliance module is linked and tenant protected', () => {
   assert.match(legalMigration, /ks_policy_acceptances/);
   assert.match(legalMigration, /ks_compliance_tasks/);
   assert.match(legalMigration, /enable row level security/i);
+});
+
+
+test('external e-commerce gateway authenticates keys and enforces scopes and stock', () => {
+  assert.match(gateway, /x-api-key/);
+  assert.match(gateway, /key_hash/);
+  assert.match(gateway, /catalog:read/);
+  assert.match(gateway, /orders:write/);
+  assert.match(gateway, /INSUFFICIENT_STOCK/);
+  assert.match(gateway, /status: "pending"/);
 });
