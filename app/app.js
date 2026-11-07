@@ -414,9 +414,15 @@ const PERMISSOES = {
   contabilista: { modulos: ['dashboard','vendas','compras','clientes','fornecedores','contabilidade','financeiro','fiscal','relatorios','perfil','notificacoes'], acoes: ['ver','criar','editar','exportar'], verFinanceiro: true, excluir: false, configurar: false, descontoMax: 0 }
 };
 function getPerms() {
+  // O papel da associação cloud é a fonte principal; quando ainda não existe
+  // associação carregada, recuperar o perfil persistido da sessão local.
   const membership = window.KanawaCloud && KanawaCloud.context && KanawaCloud.context.membership;
-  const role = membership && membership.role || 'operator';
-  const roleKey = ({ owner: 'admin', admin: 'admin', manager: 'gerente', gerente: 'gerente', operator: 'operador', operador: 'operador', employee: 'operador', funcionario: 'operador', worker: 'operador', trabalhador: 'operador', cashier: 'caixa', caixa: 'caixa', accountant: 'contabilista', contabilista: 'contabilista' })[role] || 'operador';
+  let localUser = {};
+  try { localUser = JSON.parse(localStorage.getItem('kanawa_user') || '{}') || {}; }
+  catch (error) { console.warn('Não foi possível ler o perfil local:', error); }
+  const role = (membership && membership.role) || localUser.perfil || localUser.role || 'operator';
+  const normalizedRole = String(role).trim().toLowerCase();
+  const roleKey = ({ owner: 'admin', admin: 'admin', manager: 'gerente', gerente: 'gerente', operator: 'operador', operador: 'operador', employee: 'operador', funcionario: 'operador', worker: 'operador', trabalhador: 'operador', cashier: 'caixa', caixa: 'caixa', accountant: 'contabilista', contabilista: 'contabilista' })[normalizedRole] || normalizedRole;
   return PERMISSOES[roleKey] || PERMISSOES.operador;
 }
 function podeAcessar(m) { const p = getPerms(); return p.modulos === '*' || p.modulos.indexOf(m) !== -1; }
