@@ -10,6 +10,7 @@ const privacy = readFileSync(new URL('../supabase/migrations/20261107115000_ente
 const employeePolicies = readFileSync(new URL('../supabase/migrations/20261107112000_employee_workflows_payroll_policies.sql', import.meta.url), 'utf8');
 const keyBinding = readFileSync(new URL('../supabase/migrations/20261107113000_license_request_binding_and_meeting_participants.sql', import.meta.url), 'utf8');
 const tenantRelations = readFileSync(new URL('../supabase/migrations/20261107116000_tenant_safe_relationships.sql', import.meta.url), 'utf8');
+const privateFunctions = readFileSync(new URL('../supabase/migrations/20261107117000_private_security_definer_functions.sql', import.meta.url), 'utf8');
 
 test('first-run marketing screen, package selection and one-time presentation are wired', () => {
   assert.match(html, /id="planWelcome"/);
@@ -96,4 +97,12 @@ test('enterprise schema adds 28 tables and tenant-safe composite relationships',
   assert.ok(tenantRelations.includes('foreign key(company_id,employee_id) references public.ks_employees(company_id,id)'));
   assert.ok(tenantRelations.includes('foreign key(company_id,payroll_run_id) references public.ks_payroll_runs(company_id,id)'));
   assert.ok(tenantRelations.includes('foreign key(company_id,meeting_id) references public.ks_meetings(company_id,id)'));
+});
+
+
+test('privileged SECURITY DEFINER implementations are moved to the private schema', () => {
+  assert.match(privateFunctions,/alter function public\.ks_finalize_sale\(uuid,jsonb,jsonb\) set schema private/i);
+  assert.match(privateFunctions,/alter function public\.ks_redeem_license_key\(text,uuid\) set schema private/i);
+  assert.match(privateFunctions,/security invoker/i);
+  assert.match(privateFunctions,/revoke all on function public\.ks_finalize_sale/i);
 });
