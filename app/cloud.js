@@ -103,39 +103,43 @@
     async requestOtp(identifier, method) {
       if (!client) throw new Error('Biblioteca de ligação à base de dados não carregou. Atualize a página.');
       const channel = method === 'sms' ? 'sms' : 'email';
-      if (channel === 'sms') {
-        const phone = String(identifier || '').replace(/[\s().-]/g, '');
-        if (!/^\+[1-9]\d{7,14}$/.test(phone)) {
-          throw new Error('Introduza o telefone em formato internacional, por exemplo +244923000000.');
-        }
-        const result = await client.auth.signInWithOtp({
-          phone,
-          options: { shouldCreateUser: false }
-        });
-        if (result.error) throw result.error;
-        return true;
+      const normalized = channel === 'sms'
+        ? this.normalizePhone(identifier)
+        : String(identifier || '').trim().toLowerCase();
+      if (channel === 'email' && (!normalized || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(normalized))) {
+        throw new Error('Introduza um endereço de email válido.');
       }
-      const normalizedEmail = String(identifier || '').trim().toLowerCase();
-      if (!normalizedEmail) throw new Error('Introduza o endereço de email.');
-      const result = await client.auth.signInWithOtp({
-        email: normalizedEmail,
-        options: { shouldCreateUser: false }
+      const response = await fetch('/.netlify/functions/kanawa-auth-otp', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        cache: 'no-store',
+        body: JSON.stringify({ action: 'start', channel: channel, identifier: normalized })
       });
-      if (result.error) throw result.error;
+      const payload = await response.json().catch(function () { return {}; });
+      if (!response.ok) throw new Error(payload.error || 'Não foi possível enviar o código. Tente novamente.');
       return true;
     },
 
     async verifyOtp(identifier, token, method) {
       if (!client) throw new Error('Biblioteca de ligação à base de dados não carregou. Atualize a página.');
       const channel = method === 'sms' ? 'sms' : 'email';
+      const normalized = channel === 'sms'
+        ? this.normalizePhone(identifier)
+        : String(identifier || '').trim().toLowerCase();
       const code = String(token || '').replace(/\s/g, '');
       if (!/^\d{6}$/.test(code)) throw new Error('Introduza o código de 6 dígitos recebido.');
-      const payload = channel === 'sms'
-        ? { phone: String(identifier || '').replace(/[\s().-]/g, ''), token: code, type: 'sms' }
-        : { email: String(identifier || '').trim().toLowerCase(), token: code, type: 'email' };
-      const result = await client.auth.verifyOtp(payload);
+      const response = await fetch('/.netlify/functions/kanawa-auth-otp', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        cache: 'no-store',
+        body: JSON.stringify({ action: 'verify', channel: channel, identifier: normalized, code: code })
+      });
+      const payload = await response.json().catch(function () { return {}; });
+      if (!response.ok) throw new Error(payload.error || 'Não foi possível validar o código. Peça um novo.');
+      if (!payload.token_hash) throw new Error('A verificação foi aceite, mas não foi possível criar a sessão.');
+      const result = await client.auth.verifyOtp({ token_hash: payload.token_hash, type: 'magiclink' });
       if (result.error) throw result.error;
-      if (!result.data || !result.data.user) throw new Error('Não foi possível validar o código. Peça um novo código.');
+      if (!result.data || !result.data.user) throw new Error('Não foi possível iniciar a sessão Kanawa Soft.');
       return await loadContext(result.data.user);
     },
 
