@@ -33,3 +33,8 @@ begin
 end $$;
 revoke all on function public.ks_get_company_entitlements(uuid) from public,anon;
 grant execute on function public.ks_get_company_entitlements(uuid) to authenticated;
+
+drop policy if exists ks_leave_requests_manager_read on public.ks_leave_requests;
+create policy ks_leave_requests_employee_or_manager_read on public.ks_leave_requests for select to authenticated
+ using(private.ks_has_company_role(company_id,array['owner','admin','manager','gerente']::text[])
+ or requested_by=(select auth.uid()));
