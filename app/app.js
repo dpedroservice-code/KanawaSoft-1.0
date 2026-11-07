@@ -1025,7 +1025,11 @@ function pdvRenderResumoFinal() {
 }
 function pdvCancelarVenda() { if (!confirm('Cancelar esta venda?')) return; pdvState.carrinho = []; pdvState.cliente = { nome: 'Cliente Anônimo', nif: '', telefone: '' }; pdvState.desconto = 0; pdvState.valorRecebido = 0; toast('Venda cancelada', 'info'); openModule('pdv'); }
 async function pdvSalvarRascunho() { await saveData('vendas', Object.assign(copy(pdvState), { status: 'rascunho', data: now() })); toast('📝 Rascunho salvo', 'success'); }
-async function pdvSalvarOrcamento() { const c = pdvAtualizarValores(); await saveData('orcamentos', Object.assign(copy(pdvState), { total: c.total, status: 'pendente', data: now() })); toast('📄 Orçamento gerado', 'success'); }
+async function pdvSalvarOrcamento() {
+  const c=pdvAtualizarValores(),user=JSON.parse(localStorage.getItem('kanawa_user')||'{}');
+  const quote=Object.assign(copy(pdvState),{total:c.total,status:'rascunho',empresaCliente:pdvState.cliente.nome||'Consumidor Final',responsavel:user.nome||'Admin',data:now(),dataEnvio:null,dataValidade:null,historico:[{evento:'Proposta criada',data:now(),responsavel:user.nome||'Admin'}]});
+  await saveData('orcamentos',quote);toast('Proposta comercial guardada como rascunho.','success');
+}
 async function pdvFinalizarVenda(modo) {
   modo = modo || 'finalizada';
   if (!pdvState.carrinho.length) { toast('Carrinho vazio', 'warning'); return; }
@@ -1033,17 +1037,18 @@ async function pdvFinalizarVenda(modo) {
   const emp = JSON.parse(localStorage.getItem('kanawa_empresa') || '{}');
   const user = JSON.parse(localStorage.getItem('kanawa_user') || '{}');
   const numeroFatura = 'FT-' + new Date().getFullYear() + '-' + String(Date.now()).slice(-6);
-  const venda = { numeroFatura, clienteNome: pdvState.cliente.nome, clienteNif: pdvState.cliente.nif, clienteTelefone: pdvState.cliente.telefone, itens: pdvState.carrinho.map(i => ({ id: i.id, nome: i.nome, preco: i.preco, qty: i.qty, subtotal: i.subtotal })), subtotal: c.subtotal, desconto: pdvState.desconto, descontoValor: c.descontoValor, iva: c.iva, total: c.total, valorRecebido: pdvState.valorRecebido, troco: c.troco, pagamento: pdvState.pagamento, regime: pdvState.regime, aplicarIVA: pdvState.aplicarIVA, observacoes: pdvState.observacoes, status: modo, data: now(), hash: gerarHash({ total: c.total, data: Date.now() }), operador: user.nome || 'Admin', empresa: emp };
+  const venda = { numeroFatura, clienteNome: pdvState.cliente.nome, clienteNif: pdvState.cliente.nif, clienteTelefone: pdvState.cliente.telefone, itens: pdvState.carrinho.map(i => ({ id: i.id, nome: i.nome, preco: i.preco, qty: i.qty, subtotal: i.subtotal })), subtotal: c.subtotal, desconto: pdvState.desconto, descontoValor: c.descontoValor, iva: c.iva, total: c.total, valorRecebido: pdvState.valorRecebido, troco: c.troco, pagamento: pdvState.pagamento, regime: pdvState.regime, aplicarIVA: pdvState.aplicarIVA, observacoes: pdvState.observacoes, status: modo, data: now(), hash: gerarHash({ total: c.total, data: Date.now() }), operador: user.nome || 'Admin', empresa: emp, orcamentoOrigem: pdvState.orcamentoOrigem || null };
   venda.assinatura = gerarAssinatura(venda);
   try { await saveData('vendas', venda); }
   catch (saleError) { toast('Venda não finalizada no servidor: ' + (saleError.message || 'verifique licença e stock'), 'error'); return; }
+  if (pdvState.orcamentoOrigem) { const quote=await DB.get('orcamentos',pdvState.orcamentoOrigem); if(quote){quote.status='convertida';quote.vendaId=venda.id||null;quote.dataCompra=now();quote.historico=Array.isArray(quote.historico)?quote.historico:[];quote.historico.push({evento:'Convertida em venda '+numeroFatura,data:now(),responsavel:user.nome||'Admin'});await saveData('orcamentos',quote);} }
   for (const item of pdvState.carrinho) { const p = await DB.get('produtos', item.id); if (p) { p.estoque = Math.max(0, (p.estoque || 0) - item.qty); await saveData('produtos', p, { skipStockSync: true }); } }
   await saveData('movimentacoesEstoque', { tipo: 'saida', descricao: 'Venda ' + numeroFatura, itens: pdvState.carrinho.map(i => ({ id: i.id, nome: i.nome, qtd: i.qty })), data: now() });
   if (pdvState.pagamento === 'credito') await saveData('contasReceber', { cliente: pdvState.cliente.nome, valor: c.total, descricao: 'Venda ' + numeroFatura, vencimento: new Date(Date.now() + 30 * 86400000).toISOString(), status: 'pendente', data: now() });
   await criarNotificacao('Nova Venda', numeroFatura + ' - ' + fmt(c.total), 'success', 'vendas');
   toast('✅ Venda ' + numeroFatura + ': ' + fmt(c.total), 'success');
   abrirFatura(venda); abrirGavetaAutomatico(); pdvCache.ts = 0;
-  pdvState.carrinho = []; pdvState.cliente = { nome: 'Cliente Anônimo', nif: '', telefone: '' }; pdvState.desconto = 0; pdvState.valorRecebido = 0;
+  pdvState.carrinho = []; pdvState.cliente = { nome: 'Cliente Anônimo', nif: '', telefone: '' }; pdvState.desconto = 0; pdvState.valorRecebido = 0; pdvState.orcamentoOrigem = null;
 }
 function filtrarPDV(termo) {
   const t = (termo || '').toLowerCase().trim(); const grid = $('pdvProductsGrid'); if (!grid) return;
@@ -1643,14 +1648,39 @@ async function verFatura(id) { const v = await DB.get('vendas', id); if (v) abri
 
 /* ====== ORÇAMENTOS ====== */
 async function renderOrcamentos() {
-  const o = await getData('orcamentos');
-  const rows = o.map(x => [x.id, esc((x.cliente && x.cliente.nome) || '-'), (x.carrinho || []).length, '<strong>' + fmt(x.total) + '</strong>', badge(x.status || 'pendente', 'warning'),
-    '<button class="btn btn-sm btn-success" onclick="converterOrcamento(' + x.id + ')"><i class="fas fa-arrow-right"></i></button> <button class="btn btn-sm btn-danger" onclick="excluirItem(\'orcamentos\',' + x.id + ')"><i class="fas fa-trash"></i></button>']);
-  return header('Orçamentos', o.length + ' orçamentos', 'var(--info)', '', 'fa-file-invoice') + '<div class="card">' + table(['#', 'Cliente', 'Itens', 'Total', 'Status', 'Ações'], rows) + '</div>';
+  const o=await getData('orcamentos')||[];
+  const counts={rascunho:o.filter(x=>x.status==='rascunho'||x.status==='pendente').length,enviada:o.filter(x=>x.status==='enviada').length,aceite:o.filter(x=>x.status==='aceite').length,convertida:o.filter(x=>x.status==='convertida').length,perdida:o.filter(x=>x.status==='perdida').length};
+  const rows=o.slice().reverse().map(x=>[
+    '#'+x.id,esc(x.empresaCliente||(x.cliente&&x.cliente.nome)||'-'),esc(x.responsavel||'-'),(x.carrinho||[]).length,
+    '<strong>'+fmt(x.total)+'</strong>',fmtD(x.dataEnvio||x.data),badge(x.status||'rascunho',x.status==='convertida'?'success':x.status==='perdida'?'danger':x.status==='aceite'?'info':'warning'),
+    '<button class="btn btn-sm btn-info" title="Marcar enviada" onclick="atualizarEstadoOrcamento('+x.id+',\'enviada\')"><i class="fas fa-paper-plane"></i></button> '+
+    '<button class="btn btn-sm btn-success" title="Aceite pelo cliente" onclick="atualizarEstadoOrcamento('+x.id+',\'aceite\')"><i class="fas fa-check"></i></button> '+
+    '<button class="btn btn-sm btn-warning" title="Proposta perdida" onclick="atualizarEstadoOrcamento('+x.id+',\'perdida\')"><i class="fas fa-times"></i></button> '+
+    '<button class="btn btn-sm btn-primary" title="Converter em venda" onclick="converterOrcamento('+x.id+')"><i class="fas fa-arrow-right"></i></button>'
+  ]);
+  return header('Propostas e Negócios',o.length+' propostas comerciais','var(--info)','', 'fa-file-invoice')+
+    '<div class="metric-grid">'+
+    '<div class="metric-card"><div class="label">Rascunhos</div><div class="value">'+counts.rascunho+'</div></div>'+
+    '<div class="metric-card"><div class="label">Enviadas</div><div class="value">'+counts.enviada+'</div></div>'+
+    '<div class="metric-card"><div class="label">Aceites</div><div class="value">'+counts.aceite+'</div></div>'+
+    '<div class="metric-card"><div class="label">Convertidas em compra</div><div class="value">'+counts.convertida+'</div></div></div>'+
+    '<div class="card"><p style="color:var(--text-muted);font-size:.84rem;margin-bottom:12px">Acompanhe para que empresa foi enviada cada proposta, quem é o responsável, o estado da negociação e a venda que resultou da proposta.</p>'+
+    table(['Referência','Empresa cliente','Responsável','Itens','Valor','Data','Estado','Acções'],rows)+'</div>';
+}
+async function atualizarEstadoOrcamento(id,status) {
+  const q=await DB.get('orcamentos',id);if(!q)return;
+  const user=JSON.parse(localStorage.getItem('kanawa_user')||'{}');
+  q.status=status;
+  if(status==='enviada')q.dataEnvio=now();
+  if(status==='aceite')q.dataAceite=now();
+  if(status==='perdida')q.dataPerda=now();
+  q.historico=Array.isArray(q.historico)?q.historico:[];
+  q.historico.push({evento:'Estado alterado para '+status,data:now(),responsavel:user.nome||'Admin'});
+  await saveData('orcamentos',q);toast('Estado da proposta actualizado.','success');openModule('orcamentos');
 }
 async function converterOrcamento(id) {
   const o = await DB.get('orcamentos', id); if (!o) return;
-  pdvState.carrinho = o.carrinho || []; pdvState.cliente = o.cliente || { nome: 'Cliente Anônimo', nif: '', telefone: '' }; pdvState.desconto = o.desconto || 0;
+  pdvState.carrinho = o.carrinho || []; pdvState.cliente = o.cliente || { nome: 'Cliente Anônimo', nif: '', telefone: '' }; pdvState.desconto = o.desconto || 0; pdvState.orcamentoOrigem=o.id;
   toast('Orçamento carregado no PDV', 'success'); openModule('pdv');
 }
 
