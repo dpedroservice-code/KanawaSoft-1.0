@@ -1422,14 +1422,14 @@ async function renderContabilidade() {
     fmt(e.credit_total),
     badge(e.status || 'posted', 'success')
   ]);
-  const accountRows = accounts.map(a => [esc(a.account_code), esc(a.name), esc(a.account_type)]);
+  const accountRows = accounts.map(a => [esc(a.account_code), esc(a.name), esc(a.account_type), fmt(a.debit_total), fmt(a.credit_total), fmt(a.balance)]);
   return header('Contabilidade', 'Plano de contas e diário contabilístico', 'var(--primary)', '<button class="btn btn-light" onclick="abrirContaContabilistica()"><i class="fas fa-plus"></i> Nova conta</button> <button class="btn btn-success" onclick="abrirLancamentoContabilistico()"><i class="fas fa-plus-circle"></i> Novo lançamento</button>', 'fa-book') +
     '<div class="metric-grid">' +
     '<div class="metric-card"><div class="label">Contas activas</div><div class="value">' + accounts.length + '</div></div>' +
     '<div class="metric-card"><div class="label">Lançamentos</div><div class="value">' + entries.length + '</div></div>' +
     '<div class="metric-card"><div class="label">Débitos registados</div><div class="value">' + fmt(debit) + '</div></div>' +
     '<div class="metric-card"><div class="label">Créditos registados</div><div class="value">' + fmt(credit) + '</div></div></div>' +
-    '<div class="card"><div class="card-header"><h3 class="card-title">Plano de contas</h3></div>' + table(['Código','Conta','Tipo'], accountRows) + '</div>' +
+    '<div class="card"><div class="card-header"><h3 class="card-title">Plano de contas</h3></div>' + table(['Código','Conta','Tipo','Débito','Crédito','Saldo'], accountRows) + '</div>' +
     '<div class="card"><div class="card-header"><h3 class="card-title">Diário contabilístico</h3></div>' + table(['N.º','Data','Descrição','Débito','Crédito','Estado'], rows) + '</div>';
 }
 function abrirContaContabilistica() {
