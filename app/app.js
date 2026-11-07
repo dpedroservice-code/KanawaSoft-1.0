@@ -1039,7 +1039,7 @@ async function pdvFinalizarVenda(modo) {
   const numeroFatura = 'FT-' + new Date().getFullYear() + '-' + String(Date.now()).slice(-6);
   const venda = { numeroFatura, clienteNome: pdvState.cliente.nome, clienteNif: pdvState.cliente.nif, clienteTelefone: pdvState.cliente.telefone, itens: pdvState.carrinho.map(i => ({ id: i.id, nome: i.nome, preco: i.preco, qty: i.qty, subtotal: i.subtotal })), subtotal: c.subtotal, desconto: pdvState.desconto, descontoValor: c.descontoValor, iva: c.iva, total: c.total, valorRecebido: pdvState.valorRecebido, troco: c.troco, pagamento: pdvState.pagamento, regime: pdvState.regime, aplicarIVA: pdvState.aplicarIVA, observacoes: pdvState.observacoes, status: modo, data: now(), hash: gerarHash({ total: c.total, data: Date.now() }), operador: user.nome || 'Admin', empresa: emp, orcamentoOrigem: pdvState.orcamentoOrigem || null };
   venda.assinatura = gerarAssinatura(venda);
-  try { await saveData('vendas', venda); }
+  try { venda.id = await saveData('vendas', venda); }
   catch (saleError) { toast('Venda não finalizada no servidor: ' + (saleError.message || 'verifique licença e stock'), 'error'); return; }
   if (pdvState.orcamentoOrigem) { const quote=await DB.get('orcamentos',pdvState.orcamentoOrigem); if(quote){quote.status='convertida';quote.vendaId=venda.id||null;quote.dataCompra=now();quote.historico=Array.isArray(quote.historico)?quote.historico:[];quote.historico.push({evento:'Convertida em venda '+numeroFatura,data:now(),responsavel:user.nome||'Admin'});await saveData('orcamentos',quote);} }
   for (const item of pdvState.carrinho) { const p = await DB.get('produtos', item.id); if (p) { p.estoque = Math.max(0, (p.estoque || 0) - item.qty); await saveData('produtos', p, { skipStockSync: true }); } }
