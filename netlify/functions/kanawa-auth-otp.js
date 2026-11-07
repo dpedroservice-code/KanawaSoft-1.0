@@ -171,4 +171,4 @@ async function handler(event) {
   }
 }
 
-module.exports = { handler, normalizeIdentifier, allowedOrigin, allowAttempt, resetRateLimitsForTests: () => buckets.clear() };
+module.exports = { handler, normalizeIdentifier, allowedOrigin, hashRateKey, consumeRateLimit };
