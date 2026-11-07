@@ -663,7 +663,7 @@
     async listAllPaymentRequests() {
       if (!this.ready || !context.isPlatformAdmin) throw new Error('Acesso reservado ao administrador da plataforma.');
       const result = await client.from('ks_payment_requests')
-        .select('id,company_id,plan_code,duration_months,amount,payment_method,transaction_reference,proof_path,status,created_at')
+        .select('id,company_id,plan_code,duration_months,amount,payment_method,transaction_reference,proof_path,status,created_at,company:ks_companies(legal_name,trade_name,email,phone)')
         .eq('status','pending').order('created_at',{ascending:true});
       if (result.error) throw result.error;
       return result.data || [];
@@ -674,6 +674,84 @@
       const result = await client.storage.from(bucket).createSignedUrl(path, 300);
       if (result.error) throw result.error;
       return result.data.signedUrl;
+    },
+
+    async savePayrollRun(details) {
+      if (!this.ready) throw new Error('Sessão cloud não disponível.');
+      const runResult = await client.from('ks_payroll_runs').insert({
+        company_id:context.company.id, period_start:details.periodStart, period_end:details.periodEnd,
+        status:'processed', gross_total:details.grossTotal, deductions_total:details.deductionsTotal,
+        net_total:details.netTotal
+      }).select('id').single();
+      if (runResult.error) throw runResult.error;
+      const items = (details.items || []).filter(x=>x.employeeId).map(x=>({
+        company_id:context.company.id, payroll_run_id:runResult.data.id, employee_id:x.employeeId,
+        gross_pay:x.gross, irt:x.irt, social_security:x.employeeInss, employer_social_security:x.employerInss,
+        bonus:x.bonus, allowances:x.allowances, net_pay:x.net
+      }));
+      if(items.length){
+        const itemResult=await client.from('ks_payroll_items').insert(items);
+        if(itemResult.error) throw itemResult.error;
+      }
+      return runResult.data.id;
+    },
+
+    async listMeetings() {
+      if (!this.ready) return [];
+      const result=await client.from('ks_meetings').select('*').eq('company_id',context.company.id).order('starts_at',{ascending:true});
+      if(result.error) throw result.error;
+      return result.data||[];
+    },
+
+    async createMeeting(details) {
+      if (!this.ready) throw new Error('Sessão cloud não disponível.');
+      const result=await client.from('ks_meetings').insert({
+        company_id:context.company.id,title:details.title,agenda:details.agenda||null,
+        meeting_type:details.meetingType||'internal',starts_at:details.startsAt,ends_at:details.endsAt||null,
+        location:details.location||null,meeting_url:details.meetingUrl||null,
+        organizer_user_id:context.user.id,status:'scheduled'
+      }).select('*').single();
+      if(result.error) throw result.error;
+      const attendees=(details.attendees||[]).filter(Boolean).map(email=>({
+        company_id:context.company.id,meeting_id:result.data.id,email,external_name:email,attendance_status:'invited'
+      }));
+      if(attendees.length){const a=await client.from('ks_meeting_attendees').insert(attendees);if(a.error)throw a.error;}
+      return result.data;
+    },
+
+    async listInternalMessages() {
+      if (!this.ready) return [];
+      const result=await client.from('ks_internal_messages').select('*').eq('company_id',context.company.id).is('deleted_at',null).order('created_at',{ascending:false}).limit(100);
+      if(result.error) throw result.error;
+      return result.data||[];
+    },
+
+    async sendInternalMessage(body, channel) {
+      if (!this.ready) throw new Error('Sessão cloud não disponível.');
+      const result=await client.from('ks_internal_messages').insert({
+        company_id:context.company.id,sender_user_id:context.user.id,body:String(body||'').slice(0,10000),
+        channel_id:channel||null
+      }).select('*').single();
+      if(result.error) throw result.error;
+      return result.data;
+    },
+
+    async listSharedFiles() {
+      if (!this.ready) return [];
+      const result=await client.from('ks_shared_files').select('*').eq('company_id',context.company.id).order('created_at',{ascending:false});
+      if(result.error) throw result.error;
+      return result.data||[];
+    },
+
+    async createSharedFile(details) {
+      if (!this.ready) throw new Error('Sessão cloud não disponível.');
+      const result=await client.from('ks_shared_files').insert({
+        company_id:context.company.id,title:details.title,description:details.description||null,
+        file_path:details.filePath,category:details.category||'Geral',
+        shared_by:context.user.id,visibility:details.visibility||'company'
+      }).select('*').single();
+      if(result.error) throw result.error;
+      return result.data;
     },
 
     async getPaymentRequests() {
