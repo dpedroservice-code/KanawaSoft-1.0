@@ -68,3 +68,14 @@ test('official invoice numbering is atomic, per company and reserved server-side
   assert.match(app,/await KanawaCloud\.nextInvoiceNumber\(\)/);
   assert.match(app,/RASCUNHO-/);
 });
+
+test('paid tiers are unlimited while the 14-day evaluation remains bounded', () => {
+  const plans = readFileSync(new URL('../supabase/migrations/20261107125000_paid_plans_unlimited_usage.sql', import.meta.url), 'utf8');
+  const html = readFileSync(new URL('../app/index.html', import.meta.url), 'utf8');
+  assert.match(plans,/max_users = 0/);
+  assert.match(plans,/max_installations = 0/);
+  assert.match(plans,/max_invoices_period = 0/);
+  assert.match(plans,/all_modules',true/);
+  assert.match(html,/Facturas e operações ilimitadas/);
+  assert.match(app,/Facturas ilimitadas/);
+});
