@@ -653,6 +653,29 @@
       return result.data;
     },
 
+    async issueLicenseKey(planCode, durationMonths) {
+      if (!this.ready || !context.isPlatformAdmin) throw new Error('Apenas o administrador da plataforma pode emitir chaves.');
+      const result = await client.rpc('ks_issue_license_key', { p_plan_code: planCode, p_duration_months: Number(durationMonths) });
+      if (result.error) throw result.error;
+      return result.data;
+    },
+
+    async listAllPaymentRequests() {
+      if (!this.ready || !context.isPlatformAdmin) throw new Error('Acesso reservado ao administrador da plataforma.');
+      const result = await client.from('ks_payment_requests')
+        .select('id,company_id,plan_code,duration_months,amount,payment_method,transaction_reference,proof_path,status,created_at')
+        .eq('status','pending').order('created_at',{ascending:true});
+      if (result.error) throw result.error;
+      return result.data || [];
+    },
+
+    async getPrivateFileUrl(bucket, path) {
+      if (!this.ready || !context.isPlatformAdmin) throw new Error('Acesso reservado ao administrador da plataforma.');
+      const result = await client.storage.from(bucket).createSignedUrl(path, 300);
+      if (result.error) throw result.error;
+      return result.data.signedUrl;
+    },
+
     async getPaymentRequests() {
       if (!this.ready) return [];
       const result = await client.from('ks_payment_requests').select('id,plan_code,duration_months,amount,payment_method,status,created_at,review_note').eq('company_id', context.company.id).order('created_at', { ascending: false });
