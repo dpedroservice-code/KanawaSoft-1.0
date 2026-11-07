@@ -2584,15 +2584,78 @@ async function renderAtivosDepreciacao() {
       ativos.map(a => { const anos = Math.floor((new Date() - new Date(a.dataAquisicao)) / (1000 * 60 * 60 * 24 * 365)); const dt = (a.valor || 0) * ((a.depreciacao || 0) / 100) * Math.min(anos, 10); const va = Math.max(0, (a.valor || 0) - dt); return ['<strong>' + esc(a.nome) + '</strong>', fmt(a.valor || 0), (a.depreciacao || 0) + '% ao ano', fmt(va)]; })) + '</div>';
 }
 async function renderAtivosManutencao() {
-  const m = await getData('manutencoes') || [];
-  return header('Manutenção de Ativos', m.length + ' manutenções', 'var(--warning)',
-    '<button class="btn btn-success" onclick="novaManutencaoAtivo()"><i class="fas fa-plus"></i> Nova Manutenção</button>', 'fa-tools') +
-    '<div class="card">' + table(['Ativo', 'Data', 'Custo', 'Status', 'Ações'],
-      m.map(x => [esc(x.ativo || '-'), fmtD(x.data), fmt(x.custo || 0), badge(x.status === 'concluida' ? 'Concluída' : 'Pendente', x.status === 'concluida' ? 'success' : 'warning'),
-      '<button class="btn btn-sm btn-success" onclick="concluirManutencaoAtivo(' + x.id + ')"><i class="fas fa-check"></i></button> <button class="btn btn-sm btn-danger" onclick="excluirItem(\'manutencoes\',' + x.id + ')"><i class="fas fa-trash"></i></button>'])) + '</div>';
+  const m=await getData('manutencoes')||[];
+  const rows=m.slice().sort((a,b)=>String(b.dataAgendada||b.data||'').localeCompare(String(a.dataAgendada||a.data||''))).map(x=>[
+    esc(x.ativo||x.equipamento||'-'),
+    esc(x.empresaCliente||x.cliente||'-'),
+    esc(x.tecnicoNome||x.tecnico||'-'),
+    esc(x.tipoManutencao||'Correctiva'),
+    fmtD(x.dataAgendada||x.data),
+    fmtD(x.proximaManutencao),
+    badge(x.status==='concluida'?'Concluída':(x.status||'Pendente'),x.status==='concluida'?'success':(x.status==='em_curso'?'info':'warning')),
+    fmt(x.custo||0),
+    '<button class="btn btn-sm btn-primary" onclick="verDetalheManutencao('+x.id+')"><i class="fas fa-eye"></i></button> <button class="btn btn-sm btn-success" onclick="concluirManutencaoAtivo('+x.id+')"><i class="fas fa-check"></i></button> <button class="btn btn-sm btn-danger" onclick="excluirItem(\\'manutencoes\\','+x.id+')"><i class="fas fa-trash"></i></button>'
+  ]);
+  return header('Manutenção e Intervenções',m.length+' registos de manutenção','var(--warning)',
+    '<button class="btn btn-success" onclick="novaManutencaoAtivo()"><i class="fas fa-plus"></i> Agendar manutenção</button>','fa-tools')+
+    '<div class="card"><p style="color:var(--text-muted);font-size:.84rem;margin-bottom:12px">Registe a empresa atendida, equipamento, técnico responsável, data, relatório, custo e próxima intervenção. O histórico permanece associado ao ativo e ao cliente.</p>'+
+    table(['Ativo / Equipamento','Empresa cliente','Técnico','Tipo','Data agendada','Próxima','Estado','Custo','Ações'],rows)+'</div>';
 }
-async function novaManutencaoAtivo() { const a = prompt('Nome do ativo:'); if (!a) return; await saveData('manutencoes', { ativo: a, data: now(), custo: parseFloat(prompt('Custo:', '0')) || 0, status: 'pendente' }); toast('Manutenção registrada', 'success'); openModule('ativos-manutencao'); }
-async function concluirManutencaoAtivo(id) { const m = await DB.get('manutencoes', id); if (m) { m.status = 'concluida'; await saveData('manutencoes', m); toast('Manutenção concluída', 'success'); openModule('ativos-manutencao'); } }
+async function novaManutencaoAtivo() {
+  const [clients,staff]=await Promise.all([getData('clientes'),getData('funcionarios')]);
+  const clientOptions=clients.map(c=>'<option value="'+esc(c.nome)+'">'+esc(c.nome)+'</option>').join('');
+  const techOptions=staff.map(t=>'<option value="'+esc(t.nome)+'">'+esc(t.nome)+'</option>').join('');
+  openModal('Agendar manutenção / intervenção',
+    '<div class="form-grid">'+
+    '<div class="form-group"><label>Empresa cliente *</label><input id="maintCompany" list="maintClients" placeholder="Nome da empresa atendida"><datalist id="maintClients">'+clients.map(c=>'<option value="'+esc(c.nome)+'">').join('')+'</datalist></div>'+
+    '<div class="form-group"><label>Ativo / Equipamento *</label><input id="maintAsset" placeholder="Ex.: CCTV, servidor, viatura, máquina"></div>'+
+    '<div class="form-group"><label>Tipo de manutenção</label><select id="maintType"><option>Preventiva</option><option>Correctiva</option><option>Inspecção</option><option>Instalação</option><option>Assistência técnica</option></select></div>'+
+    '<div class="form-group"><label>Técnico responsável</label><select id="maintTech"><option value="">Atribuir mais tarde</option>'+techOptions+'</select></div>'+
+    '<div class="form-group"><label>Data agendada</label><input id="maintDate" type="date" value="'+new Date().toISOString().slice(0,10)+'"></div>'+
+    '<div class="form-group"><label>Próxima manutenção</label><input id="maintNext" type="date"></div>'+
+    '<div class="form-group"><label>Custo estimado (Kz)</label><input id="maintCost" type="number" min="0" value="0"></div>'+
+    '<div class="form-group"><label>Prioridade</label><select id="maintPriority"><option>Normal</option><option>Alta</option><option>Urgente</option></select></div>'+
+    '<div class="form-group full"><label>Problema / trabalho solicitado</label><textarea id="maintDescription" rows="2"></textarea></div>'+
+    '<div class="form-group full"><label>Peças / materiais previstos</label><textarea id="maintParts" rows="2"></textarea></div></div>'+
+    '<button class="btn btn-success btn-block" onclick="salvarManutencaoAtivo()">Guardar ordem de manutenção</button>',true);
+}
+async function salvarManutencaoAtivo() {
+  const company=$('maintCompany').value.trim(),asset=$('maintAsset').value.trim();
+  if(!company||!asset){toast('Indique a empresa cliente e o equipamento.','warning');return;}
+  const staff=await getData('funcionarios'),tech=$('maintTech').value;
+  const assigned=staff.find(x=>x.nome===tech);
+  await saveData('manutencoes',{
+    empresaCliente:company,ativo:asset,equipamento:asset,tipoManutencao:$('maintType').value,
+    tecnicoNome:tech||'',tecnicoId:assigned?assigned.id:null,
+    dataAgendada:$('maintDate').value,proximaManutencao:$('maintNext').value||null,
+    custo:num($('maintCost').value,0),prioridade:$('maintPriority').value,
+    descricao:$('maintDescription').value,pecasMateriais:$('maintParts').value,
+    status:'pendente',dataCriacao:now(),historico:[{evento:'Ordem criada',data:now(),responsavel:(JSON.parse(localStorage.getItem('kanawa_user')||'{}').nome||'Administrador')}]
+  });
+  toast('Ordem de manutenção registada.','success');closeModal();openModule('ativos-manutencao');
+}
+async function verDetalheManutencao(id) {
+  const m=await DB.get('manutencoes',id);if(!m)return;
+  openModal('Histórico da intervenção',
+    '<div class="card"><strong>'+esc(m.empresaCliente||m.cliente||'—')+'</strong><p>'+esc(m.ativo||m.equipamento||'—')+'</p>'+
+    '<p>Técnico: '+esc(m.tecnicoNome||m.tecnico||'Por atribuir')+'</p><p>Tipo: '+esc(m.tipoManutencao||'—')+'</p>'+
+    '<p>Agendada: '+fmtD(m.dataAgendada||m.data)+'</p><p>Concluída: '+fmtD(m.dataConclusao)+'</p>'+
+    '<p>Próxima: '+fmtD(m.proximaManutencao)+'</p><p>Custo: '+fmt(m.custo||0)+'</p>'+
+    '<p>Descrição: '+esc(m.descricao||'—')+'</p><p>Relatório técnico: '+esc(m.relatorioTecnico||'Ainda não registado')+'</p>'+
+    '<p>Peças: '+esc(m.pecasMateriais||'—')+'</p></div>'+
+    '<button class="btn btn-secondary" onclick="closeModal()">Fechar</button>',true);
+}
+async function concluirManutencaoAtivo(id) {
+  const m=await DB.get('manutencoes',id);if(!m)return;
+  const report=prompt('Relatório do técnico / trabalho executado:',m.relatorioTecnico||'');
+  if(report===null)return;
+  const user=JSON.parse(localStorage.getItem('kanawa_user')||'{}');
+  m.status='concluida';m.dataConclusao=now();m.relatorioTecnico=report;
+  m.tecnicoNome=m.tecnicoNome||user.nome||'Administrador';
+  m.historico=Array.isArray(m.historico)?m.historico:[];
+  m.historico.push({evento:'Manutenção concluída',data:now(),responsavel:m.tecnicoNome,relatorio:report});
+  await saveData('manutencoes',m);toast('Manutenção concluída e histórico actualizado.','success');openModule('ativos-manutencao');
+}
 async function renderAtivosGarantia() {
   const g = await getData('garantias') || [];
   return header('Controle de Garantia', g.length + ' garantias', 'var(--success)',
@@ -3040,6 +3103,9 @@ async function init() {
         event.preventDefault();
         if (errorBox) { errorBox.textContent = ''; errorBox.classList.remove('show'); }
         submit.disabled = true;
+        const idleLoginLabel = submit.innerHTML;
+        submit.setAttribute('aria-busy','true');
+        submit.innerHTML = '<i class="fas fa-spinner fa-spin" aria-hidden="true"></i> A processar acesso...';
         try {
           if (!otpStep) {
             await sendLoginCode();
@@ -3049,11 +3115,14 @@ async function init() {
           await activateCloudSession(ctx, true);
           if (loginMethod() === 'email') localStorage.removeItem('kanawa_pending_email');
           mostrarAplicacaoAutenticada(ctx);
-          toast('Sessão iniciada. Os dados estão ligados à base de dados central.', 'success');
+          toast('Sessão iniciada. Os seus dados estão disponíveis no espaço de trabalho.', 'success');
         } catch (error) {
           showLoginError(error.message || 'Não foi possível validar o acesso. Verifique o email e o código.');
         } finally {
           submit.disabled = false;
+          submit.removeAttribute('aria-busy');
+          if (!otpStep) submit.innerHTML = idleLoginLabel;
+          else if (submit.innerHTML.indexOf('fa-spinner') !== -1) submit.innerHTML = '<i class="fas fa-unlock-alt"></i> Validar código e entrar';
         }
       });
 
@@ -3635,6 +3704,6 @@ async function processarFolhaSalarial(){
   try{
     await KanawaCloud.savePayrollRun({periodStart:start.toISOString().slice(0,10),periodEnd:end.toISOString().slice(0,10),grossTotal:gross,deductionsTotal:deductions,netTotal:net,items});
     await saveData('folhasPagamento',{periodo:start.toLocaleDateString('pt-AO',{month:'long',year:'numeric'}),quantidade:items.length,bruto:gross,liquido:net,data:now()});
-    toast('Folha salarial processada e guardada no PostgreSQL.','success');openModule('folha-salarial');
+    toast('Folha salarial processada e guardada com sucesso.','success');openModule('folha-salarial');
   }catch(e){toast(e.message||'Não foi possível processar a folha.','danger');}
 }
