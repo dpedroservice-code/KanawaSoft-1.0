@@ -356,6 +356,17 @@ async function activateCloudSession(ctx, migrateLocal) {
       if (license.status === 'expired' || days < 0) toast('A licença Kanawa Soft expirou. Contacte a D.PEDRO SOLUÇÕES.', 'warning');
       else if (days <= 5) toast('A licença expira em ' + Math.max(0, days) + ' dia(s).', 'warning');
     }
+    const pendingKey = sessionStorage.getItem('kanawa_pending_license_key');
+    if (pendingKey) {
+      try {
+        const activation = await KanawaCloud.redeemLicenseKey(pendingKey);
+        sessionStorage.removeItem('kanawa_pending_license_key');
+        if ($('preLoginLicenseKey')) $('preLoginLicenseKey').value = '';
+        toast('Licença '+activation.plan_code+' activada.','success');
+      } catch (keyError) {
+        toast('A chave de licença não foi activada: '+(keyError.message||'verifique a chave'),'warning');
+      }
+    }
   } catch (e) { console.warn('Não foi possível consultar a licença:', e); }
   await API.checkHealth();
   return { company: company, user: user };
@@ -380,6 +391,8 @@ function mostrarAplicacaoAutenticada(ctx) {
 }
 
 async function abrirCadastroEmpresa() {
+  localStorage.setItem('kanawa_plan_intro_seen','true');
+  if ($('planWelcome')) $('planWelcome').classList.remove('active');
   if ($('authScreen')) $('authScreen').classList.remove('active');
   if ($('setupWizard')) $('setupWizard').classList.add('active');
 }
@@ -1521,13 +1534,21 @@ function abrirModalFuncionario() {
 }
 async function salvarFuncionario() {
   const n = $('fnNome').value.trim(); if (!n) { toast('Informe o nome do funcionário', 'warning'); return; }
-  await saveData('funcionarios', {
+  const employeeData = {
     nome:n, bi:$('fnBI').value.trim(), nif:$('fnNIF').value.trim(), cargo:$('fnCargo').value.trim(),
     departamento:$('fnDepartamento').value.trim(), dataContratacao:$('fnDataInicio').value || now(),
     tipoContrato:$('fnContrato').value, salario:num($('fnSalario').value,0), bonus:num($('fnBonus').value,0),
     subsidioTransporte:num($('fnTransporte').value,0), subsidioAlimentacao:num($('fnAlimentacao').value,0),
     email:$('fnEmail').value.trim(), telefone:$('fnTelefone').value.trim(), status:'activo'
-  });
+  };
+  const localId=await saveData('funcionarios',employeeData);
+  if(window.KanawaCloud&&KanawaCloud.ready){
+    try{
+      const remote=await KanawaCloud.upsertEmployee({employeeNumber:'EMP-'+localId,fullName:n,email:employeeData.email,phone:employeeData.telefone,taxId:employeeData.nif,department:employeeData.departamento,jobTitle:employeeData.cargo,hireDate:employeeData.dataContratacao,salary:employeeData.salario,status:'active'});
+      employeeData.id=localId;employeeData.cloud_id=remote.id;await DB.put('funcionarios',employeeData);
+      await KanawaCloud.saveEmployeeCompensation({employeeId:remote.id,effectiveFrom:employeeData.dataContratacao,baseSalary:employeeData.salario,transportAllowance:employeeData.subsidioTransporte,mealAllowance:employeeData.subsidioAlimentacao,bonus:employeeData.bonus});
+    }catch(syncError){console.warn('Sincronização RH pendente:',syncError);toast('Funcionário guardado. A sincronização dos dados laborais será repetida.','warning');}
+  }
   toast('Funcionário registado', 'success'); closeModal(); openModule('rh');
 }
 
@@ -1975,7 +1996,19 @@ async function finalizarSetup() {
       phone: $('setupTelefone').value,
       companyName: companyName,
       taxId: taxId,
-      taxRegime: $('setupRegime').value
+      taxRegime: $('setupRegime').value,
+      selectedPlan: localStorage.getItem('kanawa_selected_plan') || 'trial',
+      legalProfile: {
+        legal_form:$('setupLegalForm').value, incorporation_date:$('setupIncorporationDate').value,
+        commercial_registry_number:$('setupRegistryNumber').value, commercial_registry_date:$('setupRegistryDate').value,
+        publication_number:$('setupPublicationNumber').value, publication_date:$('setupPublicationDate').value,
+        publication_url:$('setupPublicationUrl').value, capital_amount:$('setupCapital').value,
+        activity_code:$('setupActivityCode').value, activity_description:$('setupActivityDescription').value,
+        alvara_number:$('setupAlvaraNumber').value, alvara_type:$('setupAlvaraType').value,
+        alvara_issue_date:$('setupAlvaraIssue').value, alvara_expiry_date:$('setupAlvaraExpiry').value,
+        inss_employer_number:$('setupInssNumber').value, registered_address:$('setupEndereco').value,
+        province:$('setupProvince').value, municipality:$('setupMunicipality').value, parish:$('setupParish').value
+      }
     });
 
     const existingLocalCompany = await DB.get('empresas', 1);
@@ -2898,8 +2931,12 @@ async function init() {
       localStorage.removeItem('kanawa_user');
       if ($('app')) $('app').classList.remove('active');
       if ($('setupWizard')) $('setupWizard').classList.remove('active');
-      if ($('authScreen')) $('authScreen').classList.add('active');
-      if ($('loginEmail')) $('loginEmail').value = localStorage.getItem('kanawa_pending_email') || '';
+      if (!localStorage.getItem('kanawa_plan_intro_seen')) {
+        if ($('planWelcome')) $('planWelcome').classList.add('active');
+      } else {
+        if ($('authScreen')) $('authScreen').classList.add('active');
+        if ($('loginEmail')) $('loginEmail').value = localStorage.getItem('kanawa_pending_email') || '';
+      }
     }
 
     const loginForm = $('loginForm');
@@ -2952,6 +2989,8 @@ async function init() {
           emailInput.reportValidity();
           return;
         }
+        const pendingKey = $('preLoginLicenseKey') && $('preLoginLicenseKey').value.trim();
+        if (pendingKey) sessionStorage.setItem('kanawa_pending_license_key', pendingKey);
         await KanawaCloud.requestOtp(identifier, method);
         otpStep = true;
         emailInput.readOnly = true;
@@ -3279,16 +3318,17 @@ async function adicionarDocumentoEmpresa() {
 async function renderDocumentosFuncionarios() {
   const employees=await getData('funcionarios');
   let docs=[];try{docs=await KanawaCloud.getEmployeeDocuments();}catch(e){console.warn(e);}
-  const options=employees.map(x=>'<option value="'+x.id+'">'+esc(x.nome)+'</option>').join('');
+  const options=employees.map(x=>'<option value="'+esc(x.cloud_id||'')+'" data-local-id="'+x.id+'" '+(!x.cloud_id?'disabled':'')+'>'+esc(x.nome)+(x.cloud_id?'':' · sincronização pendente')+'</option>').join('');
   return header('Documentos dos Funcionários',docs.length+' documentos pessoais e laborais','var(--info)','', 'fa-id-card')+
     '<div class="card"><div class="form-grid"><div class="form-group"><label>Funcionário</label><select id="empDocEmployee">'+options+'</select></div><div class="form-group"><label>Tipo</label><select id="empDocType"><option>Bilhete de Identidade</option><option>Passaporte</option><option>NIF</option><option>Contrato de trabalho</option><option>Atestado / exame médico</option><option>Certificado profissional</option><option>Visto / autorização de trabalho</option><option>Seguro</option><option>Outro</option></select></div><div class="form-group"><label>Título</label><input id="empDocTitle"></div><div class="form-group"><label>Número</label><input id="empDocNumber"></div><div class="form-group"><label>Emissão</label><input id="empDocIssue" type="date"></div><div class="form-group"><label>Validade</label><input id="empDocExpiry" type="date"></div><div class="form-group full"><label>Ficheiro privado</label><input id="empDocFile" type="file" accept=".pdf,image/jpeg,image/png,image/webp"></div></div><button class="btn btn-primary" onclick="adicionarDocumentoFuncionario()">Guardar documento</button></div>'+
     '<div class="card">'+table(['Funcionário','Documento','Número','Emissão','Validade','Alerta'],docs.map(d=>{const emp=employees.find(x=>String(x.id)===String(d.employee_local_id));return[esc(emp?emp.nome:'Funcionário'),esc(d.title),esc(d.document_number||'-'),fmtD(d.issued_at),fmtD(d.expires_at),ksExpiryLabel(d.expires_at)];}))+'</div>';
 }
 async function adicionarDocumentoFuncionario() {
-  const file=$('empDocFile').files[0],employeeId=$('empDocEmployee').value;
-  if(!employeeId||!file){toast('Seleccione funcionário e ficheiro.','warning');return;}
+  const select=$('empDocEmployee'),employeeId=select.value,file=$('empDocFile').files[0];
+  if(!employeeId||!file){toast('Seleccione um funcionário sincronizado e anexe o ficheiro.','warning');return;}
+  const localId=select.options[select.selectedIndex].dataset.localId;
   try{const path=await KanawaCloud.uploadPrivateFile('ks-company-documents',file,'employee');
-    await KanawaCloud.saveEmployeeDocument({employee_id:employeeId,employee_local_id:employeeId,document_type:$('empDocType').value,title:$('empDocTitle').value.trim()||$('empDocType').value,document_number:$('empDocNumber').value.trim(),issued_at:$('empDocIssue').value||null,expires_at:$('empDocExpiry').value||null,file_path:path,status:'valid',reminder_days:[60,30,15,7]});
+    await KanawaCloud.saveEmployeeDocument({employeeId,documentType:$('empDocType').value,title:$('empDocTitle').value.trim()||$('empDocType').value,documentNumber:$('empDocNumber').value.trim(),issuedAt:$('empDocIssue').value||null,expiresAt:$('empDocExpiry').value||null,filePath:path});
     toast('Documento do funcionário guardado.','success');openModule('rh-documentos');
   }catch(e){toast(e.message||'Falha ao guardar documento.','danger');}
 }
@@ -3304,11 +3344,13 @@ async function renderLicenca() {
   const pct=limit?Math.min(100,Math.round(used/limit*100)):0;
   const selected=localStorage.getItem('kanawa_selected_plan')||'mini';
   const opts=plans.filter(x=>x.plan_code!=='trial').map(x=>'<option value="'+x.plan_code+'" '+(x.plan_code===selected?'selected':'')+'>'+esc(x.name)+' · '+(Number(x.price)?fmt(x.price)+' Kz/mês':'Sob consulta')+' · '+Number(x.max_invoices_period).toLocaleString('pt-AO')+' facturas/mês</option>').join('');
+  const selectedTerm=localStorage.getItem('kanawa_selected_term')||'1';
+  const selectedMethod=localStorage.getItem('kanawa_selected_payment')||'bank_transfer';
   const requestRows=requests.map(x=>[esc(x.plan_code),x.duration_months+' meses',fmt(x.amount)+' Kz',esc(x.payment_method),badge(x.status,x.status==='approved'?'success':'warning'),fmtD(x.created_at)]);
   return header('Licença e Pacotes','Teste de 14 dias, activação por chave e controlo de facturas','var(--primary)','', 'fa-key')+
     '<div class="metric-grid"><div class="metric-card"><div class="label">Pacote actual</div><div class="value" style="font-size:1.25rem">'+esc(plan?plan.name:(current.plan_code||'Pendente'))+'</div></div><div class="metric-card"><div class="label">Estado</div><div class="value" style="font-size:1.1rem">'+badge(current.status||'sem licença',current.status==='active'||current.status==='trial'?'success':'warning')+'</div></div><div class="metric-card"><div class="label">Facturas este mês</div><div class="value">'+used.toLocaleString('pt-AO')+' / '+(limit?limit.toLocaleString('pt-AO'):'—')+'</div><div style="height:8px;background:var(--border);border-radius:8px;margin-top:8px"><div style="height:8px;width:'+pct+'%;background:var(--success);border-radius:8px"></div></div></div><div class="metric-card"><div class="label">Validade</div><div class="value" style="font-size:1rem">'+(current.expires_at?fmtD(current.expires_at):'A aguardar activação')+'</div></div></div>'+
     '<div class="card"><h3>Introduzir chave de licença</h3><p style="color:var(--text-muted);font-size:.84rem">A chave é validada no servidor. Não a partilhe com outros utilizadores.</p><div class="form-group"><input id="licenseActivationKey" autocomplete="off" placeholder="KANAWA-XXXX-XXXX-XXXX"></div><button class="btn btn-success" onclick="ativarChaveLicenca()">Validar e activar</button></div>'+
-    '<div class="card"><h3>Solicitar activação de pacote</h3><div class="form-grid"><div class="form-group"><label>Pacote</label><select id="activationPlan" onchange="atualizarTotalLicenca()">'+opts+'</select></div><div class="form-group"><label>Duração</label><select id="activationDuration" onchange="atualizarTotalLicenca()"><option value="1">1 mês</option><option value="12">12 meses</option><option value="24">24 meses</option><option value="36">36 meses</option></select></div><div class="form-group"><label>Meio de pagamento</label><select id="activationMethod"><option value="bank_transfer">Transferência bancária</option><option value="card">Cartão</option><option value="multicaixa_express">Multicaixa Express</option><option value="cash_without_card">Levantamento sem cartão</option></select></div><div class="form-group"><label>Referência / comprovativo</label><input id="activationReference" placeholder="Referência da operação"></div><div class="form-group full"><label>Comprovativo de pagamento (PDF/JPG/PNG)</label><input id="activationProof" type="file" accept=".pdf,image/jpeg,image/png,image/webp"></div></div><p id="activationTotal" style="font-weight:800">Total: —</p><button class="btn btn-primary" onclick="solicitarAtivacaoLicenca()">Enviar comprovativo para validação</button><p style="font-size:.76rem;color:var(--text-muted)">A licença permanece pendente até o pagamento ser verificado e o administrador emitir uma chave. O sistema nunca activa uma licença apenas porque um ficheiro foi carregado.</p></div>'+
+    '<div class="card"><h3>Solicitar activação de pacote</h3><div class="form-grid"><div class="form-group"><label>Pacote</label><select id="activationPlan" onchange="atualizarTotalLicenca()">'+opts+'</select></div><div class="form-group"><label>Duração</label><select id="activationDuration" onchange="atualizarTotalLicenca()"><option value="1" '+(selectedTerm==='1'?'selected':'')+'>1 mês</option><option value="12" '+(selectedTerm==='12'?'selected':'')+'>12 meses</option><option value="24" '+(selectedTerm==='24'?'selected':'')+'>24 meses</option><option value="36" '+(selectedTerm==='36'?'selected':'')+'>36 meses</option></select></div><div class="form-group"><label>Meio de pagamento</label><select id="activationMethod"><option value="bank_transfer" '+(selectedMethod==='bank_transfer'?'selected':'')+'>Transferência bancária</option><option value="card" '+(selectedMethod==='card'?'selected':'')+'>Cartão</option><option value="multicaixa_express" '+(selectedMethod==='multicaixa_express'?'selected':'')+'>Multicaixa Express</option><option value="cash_without_card" '+(selectedMethod==='cash_without_card'?'selected':'')+'>Levantamento sem cartão</option></select></div><div class="form-group"><label>Referência / comprovativo</label><input id="activationReference" placeholder="Referência da operação"></div><div class="form-group full"><label>Comprovativo de pagamento (PDF/JPG/PNG)</label><input id="activationProof" type="file" accept=".pdf,image/jpeg,image/png,image/webp"></div></div><p id="activationTotal" style="font-weight:800">Total: —</p><button class="btn btn-primary" onclick="solicitarAtivacaoLicenca()">Enviar comprovativo para validação</button><p style="font-size:.76rem;color:var(--text-muted)">A licença permanece pendente até o pagamento ser verificado e o administrador emitir uma chave. O sistema nunca activa uma licença apenas porque um ficheiro foi carregado.</p></div>'+
     '<div class="card"><h3>Histórico de pedidos</h3>'+table(['Pacote','Período','Valor','Método','Estado','Data'],requestRows)+'</div>';
 }
 function atualizarTotalLicenca(){
