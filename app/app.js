@@ -349,6 +349,12 @@ async function activateCloudSession(ctx, migrateLocal) {
     if (license) localStorage.setItem('kanawa_license', JSON.stringify(license));
     const entitlements = await KanawaCloud.getEntitlements();
     if (entitlements) localStorage.setItem('kanawa_entitlements', JSON.stringify(entitlements));
+    try {
+      const expiryAlerts = await KanawaCloud.getExpiringDocuments(90);
+      localStorage.setItem('kanawa_document_expiry_alerts', JSON.stringify(expiryAlerts));
+      const urgent = expiryAlerts.filter(function (item) { return item.days_remaining <= 30; });
+      if (urgent.length) toast(urgent.length + ' documento(s) expirado(s) ou a vencer nos próximos 30 dias. Consulte Empresa e Documentos Legais.', 'warning');
+    } catch (expiryError) { console.warn('Alertas de validade indisponíveis:', expiryError); }
     if (entitlements && entitlements.read_only) toast('A licença ou os limites do plano estão em modo de consulta. Verifique a subscrição.', 'warning');
     if (license && license.expires_at) {
       const expiry = new Date(license.expires_at);
