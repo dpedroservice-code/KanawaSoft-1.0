@@ -8,7 +8,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="Kanawa Soft">
-<title>Kanawa Soft ERP v15.3 Cloud</title>
+<title>Kanawa Soft ERP 1.0 Enterprise</title>
 <link rel="icon" href="logo.png">
 <link rel="apple-touch-icon" href="logo.png">
 <link rel="manifest" href="manifest.json">
@@ -217,6 +217,42 @@ tr:hover td{background:var(--bg-hover)}
 @media(max-width:900px){.form-grid{grid-template-columns:1fr}.metric-grid{grid-template-columns:1fr 1fr}.pdv-products-grid{grid-template-columns:repeat(2,1fr)}.topbar-title h1{font-size:.95rem}.topbar-title p{display:none}}
 @media(max-width:600px){:root{--sidebar-w:80px}.sidebar-item i{font-size:1.3rem}.sidebar-item span{font-size:.6rem}.topbar-user .info{display:none}.metric-grid{grid-template-columns:1fr}.pdv-products-grid{grid-template-columns:repeat(2,1fr)}.pdv-prod-card .img{height:110px}}
 @media print{body{overflow:visible;height:auto}.sidebar,.topbar,.pdv-breadcrumb,.btn,.no-print{display:none!important}}
+
+/* ====== FIRST-RUN PLAN SELECTOR ====== */
+#planWelcome{position:fixed;inset:0;z-index:10050;display:none;overflow:auto;background:radial-gradient(circle at 82% 12%,#2b6ca6 0,transparent 32%),linear-gradient(135deg,#091b31,#173c62 58%,#0c2847);color:#fff;padding:28px 16px}
+#planWelcome.active{display:block}
+.plan-shell{max-width:1180px;margin:0 auto}
+.plan-hero{display:grid;grid-template-columns:1.15fr .85fr;gap:28px;align-items:center;padding:28px 0 34px}
+.plan-kicker{display:inline-flex;gap:8px;align-items:center;border:1px solid #ffffff45;background:#ffffff12;border-radius:40px;padding:7px 13px;font-size:.78rem;letter-spacing:.08em;text-transform:uppercase}
+.plan-hero h1{font-size:clamp(2.2rem,5vw,4.1rem);line-height:1.04;margin:18px 0 14px;letter-spacing:-.04em}
+.plan-hero h1 span{color:#8ee0bd}
+.plan-hero p{max-width:650px;color:#d5e5f5;font-size:1.05rem}
+.plan-art{min-height:270px;border:1px solid #ffffff28;border-radius:28px;background:linear-gradient(145deg,#ffffff1a,#ffffff06);display:grid;place-items:center;position:relative;overflow:hidden}
+.plan-orbit{width:210px;height:210px;border:1px solid #8ee0bd75;border-radius:50%;display:grid;place-items:center;animation:planFloat 7s ease-in-out infinite;box-shadow:0 0 60px #5bc9a433}
+.plan-core{width:112px;height:112px;border-radius:28px;background:linear-gradient(135deg,#8ee0bd,#4c9fd1);display:grid;place-items:center;color:#10304e;font-size:3rem;box-shadow:0 20px 50px #07182b88}
+.plan-chip{position:absolute;padding:10px 13px;border:1px solid #ffffff35;background:#102e4ddd;border-radius:12px;font-size:.78rem;box-shadow:0 10px 30px #06182a55}
+.plan-chip.one{top:18%;left:8%}.plan-chip.two{right:6%;top:27%}.plan-chip.three{bottom:16%;left:18%}.plan-chip.four{bottom:12%;right:10%}
+@keyframes planFloat{0%,100%{transform:translateY(0) rotate(-4deg)}50%{transform:translateY(-10px) rotate(4deg)}}
+.plan-benefits{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin:4px 0 26px}
+.plan-benefit{background:#ffffff0e;border:1px solid #ffffff22;border-radius:15px;padding:14px}
+.plan-benefit strong{display:block;margin:7px 0 3px}.plan-benefit small{color:#c7d9eb}
+.plan-heading{display:flex;justify-content:space-between;gap:14px;align-items:end;margin:22px 0 14px}.plan-heading h2{font-size:1.7rem;margin:0}.plan-heading p{color:#c7d9eb;margin:0;font-size:.85rem}
+.plan-cards{display:grid;grid-template-columns:repeat(4,1fr);gap:14px}
+.plan-card{background:#fff;color:#17283a;border:1px solid #d9e4ee;border-radius:18px;padding:20px;display:flex;flex-direction:column;min-height:300px;position:relative}
+.plan-card.featured{border:2px solid #77d6b1;box-shadow:0 12px 35px #04192c55;transform:translateY(-5px)}
+.plan-card h3{font-size:1.15rem;margin:0}.plan-card .price{font-size:1.8rem;font-weight:850;letter-spacing:-.04em;margin:12px 0 2px}.plan-card .period{font-size:.78rem;color:#64748b}
+.plan-card ul{padding-left:18px;color:#475569;font-size:.85rem;line-height:1.8;flex:1}
+.plan-card button{border:0;border-radius:10px;padding:12px;font-weight:800;background:#1d5687;color:#fff;cursor:pointer}.plan-card.featured button{background:#16865b}
+.plan-proposal{font-size:.72rem;color:#8a5b14;background:#fff4d8;border-radius:8px;padding:6px 8px;margin-top:10px}
+.plan-trial{display:flex;align-items:center;justify-content:space-between;gap:20px;margin:20px 0;padding:18px 20px;border:1px solid #8ee0bd75;border-radius:18px;background:linear-gradient(100deg,#16865b44,#ffffff0c)}
+.plan-trial button{border:0;background:#8ee0bd;color:#0d2b42;font-weight:850;border-radius:10px;padding:13px 18px;cursor:pointer;white-space:nowrap}
+#planPaymentChoice{display:none;background:#fff;color:#17283a;border-radius:16px;padding:18px;margin:18px 0}
+#planPaymentChoice.active{display:block}
+#planPaymentChoice select{padding:11px;border:1px solid #cbd5e1;border-radius:9px;width:100%;margin:6px 0 12px}
+.plan-footer{color:#b9cde0;font-size:.76rem;text-align:center;padding:20px 0}
+@media(max-width:900px){.plan-cards{grid-template-columns:repeat(2,1fr)}.plan-benefits{grid-template-columns:repeat(2,1fr)}.plan-hero{grid-template-columns:1fr}.plan-art{min-height:220px}.plan-card.featured{transform:none}}
+@media(max-width:560px){#planWelcome{padding:18px 12px}.plan-cards{grid-template-columns:1fr}.plan-benefits{grid-template-columns:1fr 1fr}.plan-trial{align-items:flex-start;flex-direction:column}.plan-trial button{width:100%}.plan-hero{padding-top:12px}}
+
 </style>
 </head>
 <body>
@@ -228,6 +264,59 @@ tr:hover td{background:var(--bg-hover)}
   <p style="opacity:.7;font-size:.9rem;margin-top:4px">ERP Multi-Empresa v15.3 Cloud</p>
   <div class="loading-bar"><div></div></div>
 </div>
+
+
+<!-- FIRST-RUN PRODUCT INTRO / PACKAGE SELECTOR -->
+<section id="planWelcome" aria-label="Apresentação e pacotes Kanawa Soft">
+  <div class="plan-shell">
+    <div style="display:flex;justify-content:space-between;align-items:center;gap:12px">
+      <div style="font-weight:900;letter-spacing:.08em"><i class="fas fa-layer-group"></i> KANAWA SOFT ERP</div>
+      <button type="button" onclick="ignorarApresentacaoPlanos()" style="background:transparent;color:#fff;border:1px solid #ffffff55;border-radius:9px;padding:9px 12px">Já tenho conta · Entrar</button>
+    </div>
+    <div class="plan-hero">
+      <div>
+        <span class="plan-kicker"><i class="fas fa-building"></i> Gestão empresarial numa só plataforma</span>
+        <h1>Da primeira factura à <span>empresa inteira.</span></h1>
+        <p>Vendas, finanças, pessoas, documentos, produção, reuniões, stock, logística e inteligência operacional — organizados num único ERP, preparado para empresas angolanas de diferentes dimensões.</p>
+        <div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:20px">
+          <button type="button" onclick="selecionarPlano('trial')" style="border:0;border-radius:11px;padding:14px 18px;background:#8ee0bd;color:#0c2a42;font-weight:900"><i class="fas fa-play"></i> Testar gratuitamente 14 dias</button>
+          <button type="button" onclick="document.getElementById('planPackages').scrollIntoView({behavior:'smooth'})" style="border:1px solid #ffffff66;border-radius:11px;padding:14px 18px;background:#ffffff12;color:#fff;font-weight:800">Ver pacotes</button>
+        </div>
+      </div>
+      <div class="plan-art" aria-hidden="true">
+        <div class="plan-orbit"><div class="plan-core"><i class="fas fa-cubes"></i></div></div>
+        <span class="plan-chip one"><i class="fas fa-chart-line"></i> Finanças</span>
+        <span class="plan-chip two"><i class="fas fa-users"></i> Pessoas</span>
+        <span class="plan-chip three"><i class="fas fa-industry"></i> Produção</span>
+        <span class="plan-chip four"><i class="fas fa-file-invoice"></i> Fiscalidade</span>
+      </div>
+    </div>
+    <div class="plan-benefits">
+      <div class="plan-benefit"><i class="fas fa-shield-alt" style="color:#8ee0bd;font-size:1.2rem"></i><strong>Dados protegidos</strong><small>Separação por empresa e permissões.</small></div>
+      <div class="plan-benefit"><i class="fas fa-cloud" style="color:#8ee0bd;font-size:1.2rem"></i><strong>Cloud e mobilidade</strong><small>Acesso em vários dispositivos.</small></div>
+      <div class="plan-benefit"><i class="fas fa-bell" style="color:#8ee0bd;font-size:1.2rem"></i><strong>Alertas inteligentes</strong><small>Validades, tarefas e limites.</small></div>
+      <div class="plan-benefit"><i class="fas fa-plug" style="color:#8ee0bd;font-size:1.2rem"></i><strong>Integrações</strong><small>APIs, lojas e canais digitais.</small></div>
+    </div>
+    <div id="planPackages">
+      <div class="plan-heading"><div><h2>Escolha o seu pacote</h2><p>Os limites de facturação são mensais. A licença pode ser contratada por 1, 12, 24 ou 36 meses.</p></div></div>
+      <div class="plan-cards">
+        <article class="plan-card"><h3>Mini</h3><div class="price">15.000 Kz</div><div class="period">por mês · valor proposto</div><ul><li>Até 3 utilizadores</li><li>Até 500 facturas/mês</li><li>Operação comercial e financeira</li><li>Gestão de clientes e stock</li></ul><button onclick="selecionarPlano('mini')">Escolher Mini</button><div class="plan-proposal">Preço inicial proposto, sujeito a aprovação comercial.</div></article>
+        <article class="plan-card"><h3>Standard</h3><div class="price">35.000 Kz</div><div class="period">por mês · valor proposto</div><ul><li>Até 10 utilizadores</li><li>Até 2.500 facturas/mês</li><li>RH, despesas e projectos</li><li>Agenda, documentos e relatórios</li></ul><button onclick="selecionarPlano('standard')">Escolher Standard</button><div class="plan-proposal">Preço inicial proposto, sujeito a aprovação comercial.</div></article>
+        <article class="plan-card featured"><span style="font-size:.7rem;font-weight:900;color:#16865b">MAIS RECURSOS</span><h3>Premium</h3><div class="price">75.000 Kz</div><div class="period">por mês · valor proposto</div><ul><li>Até 30 utilizadores</li><li>Até 10.000 facturas/mês</li><li>Multi-filial e operações avançadas</li><li>Produção, qualidade e integrações</li></ul><button onclick="selecionarPlano('premium')">Escolher Premium</button><div class="plan-proposal">Preço inicial proposto, sujeito a aprovação comercial.</div></article>
+        <article class="plan-card"><h3>Enterprise</h3><div class="price">Sob consulta</div><div class="period">contrato personalizado</div><ul><li>Até 100 utilizadores base</li><li>Até 50.000 facturas/mês base</li><li>Indústria, fábricas e multi-empresa</li><li>Configuração e limites negociáveis</li></ul><button onclick="selecionarPlano('enterprise')">Solicitar proposta</button><div class="plan-proposal">Limites e preço final definidos em contrato.</div></article>
+      </div>
+      <div class="plan-trial"><div><strong style="font-size:1.08rem">Ainda quer conhecer o sistema?</strong><div style="color:#d6efe4;font-size:.88rem">Experimente durante 14 dias. Sem inserir dados de cartão para iniciar o teste.</div></div><button onclick="selecionarPlano('trial')">Começar teste gratuito</button></div>
+      <div id="planPaymentChoice">
+        <h3 style="margin:0 0 6px">Pedido do pacote <span id="chosenPlanLabel"></span></h3>
+        <p style="font-size:.85rem;color:#64748b">Escolha o período e o meio de pagamento. Depois de criar a conta, poderá anexar o comprovativo na área Licença e Pacotes. A activação só ocorre após validação e emissão da chave pelo administrador.</p>
+        <label for="chosenTerm">Duração da licença</label><select id="chosenTerm"><option value="1">1 mês</option><option value="12">12 meses</option><option value="24">24 meses</option><option value="36">36 meses</option></select>
+        <label for="chosenPayment">Meio de pagamento</label><select id="chosenPayment"><option value="bank_transfer">Transferência bancária</option><option value="card">Cartão</option><option value="multicaixa_express">Multicaixa Express</option><option value="cash_without_card">Levantamento sem cartão</option></select>
+        <button type="button" onclick="continuarComPlanoPago()" style="border:0;border-radius:9px;background:#16865b;color:#fff;padding:12px 16px;font-weight:850;width:100%">Continuar para criar empresa e conta</button>
+      </div>
+    </div>
+    <div class="plan-footer">Kanawa Soft ERP · Angola · Kwanza (AOA) · Os preços apresentados são uma proposta de configuração comercial e não representam uma cobrança activa.</div>
+  </div>
+</section>
 
 <!-- SETUP -->
 <div id="setupWizard">
@@ -261,6 +350,32 @@ tr:hover td{background:var(--bg-hover)}
           <select id="setupMoeda"><option value="AOA">AOA - Kwanza</option><option value="USD">USD - Dólar</option><option value="EUR">EUR - Euro</option></select>
         </div>
       </div>
+
+      <div class="form-grid" style="margin-top:14px">
+        <div class="form-group"><label>Natureza jurídica</label><select id="setupLegalForm"><option value="">Seleccionar</option><option value="comerciante_individual">Comerciante em Nome Individual</option><option value="sociedade_unipessoal_quotas">Sociedade por Quotas Unipessoal</option><option value="sociedade_pluripessoal_quotas">Sociedade por Quotas Pluripessoal</option><option value="sociedade_anonima">Sociedade Anónima</option><option value="cooperativa">Cooperativa</option><option value="sucursal">Sucursal</option><option value="agrupamento">Agrupamento de Empresas</option></select></div>
+        <div class="form-group"><label>Data de constituição</label><input id="setupIncorporationDate" type="date"></div>
+        <div class="form-group"><label>N.º matrícula / registo comercial</label><input id="setupRegistryNumber" placeholder="Número da Conservatória"></div>
+        <div class="form-group"><label>N.º verbete / ficha da empresa</label><input id="setupEntryNumber"></div>
+        <div class="form-group"><label>Conservatória / entidade de registo</label><input id="setupRegistryOffice"></div>
+        <div class="form-group"><label>Data da certidão comercial</label><input id="setupRegistryDate" type="date"></div>
+        <div class="form-group"><label>Validade da certidão (se indicada)</label><input id="setupRegistryExpiry" type="date"></div>
+        <div class="form-group"><label>N.º da publicação online GUE</label><input id="setupPublicationNumber" placeholder="Referência da publicação"></div>
+        <div class="form-group"><label>Data da publicação GUE</label><input id="setupPublicationDate" type="date"></div>
+        <div class="form-group full"><label>Link da publicação online GUE</label><input id="setupPublicationUrl" type="url" placeholder="https://gue.gov.ao/portal/public/publicacoes"></div>
+        <div class="form-group"><label>Capital social (Kz)</label><input id="setupCapital" type="number" min="0" step="0.01"></div>
+        <div class="form-group"><label>Código de actividade (CAE/sector)</label><input id="setupActivityCode"></div>
+        <div class="form-group full"><label>Descrição da actividade principal</label><input id="setupActivityDescription"></div>
+        <div class="form-group"><label>N.º do alvará/licença</label><input id="setupAlvaraNumber"></div>
+        <div class="form-group"><label>Tipo de alvará/licença</label><input id="setupAlvaraType" placeholder="Comercial, serviços, industrial…"></div>
+        <div class="form-group"><label>Data de emissão do alvará</label><input id="setupAlvaraIssue" type="date"></div>
+        <div class="form-group"><label>Validade do alvará</label><input id="setupAlvaraExpiry" type="date"></div>
+        <div class="form-group"><label>N.º de inscrição INSS empregador</label><input id="setupInssNumber"></div>
+        <div class="form-group"><label>Província</label><input id="setupProvince" placeholder="Ex.: Luanda"></div>
+        <div class="form-group"><label>Município</label><input id="setupMunicipality"></div>
+        <div class="form-group"><label>Distrito / comuna / bairro</label><input id="setupParish"></div>
+      </div>
+      <p style="font-size:.76rem;color:var(--text-muted);margin-top:8px">Preencha os campos disponíveis. Pode completar e anexar os documentos depois, em Configurações da Empresa. A lista depende da natureza e da actividade da empresa.</p>
+
       <div style="display:flex;justify-content:flex-end;margin-top:16px">
         <button class="btn btn-primary btn-lg" onclick="setupNextStep(2)">Próximo <i class="fas fa-arrow-right"></i></button>
       </div>
@@ -280,6 +395,9 @@ tr:hover td{background:var(--bg-hover)}
             <option value="caixa">Operador de Caixa</option>
           </select>
         </div>
+        <div class="form-group full"><label>Documento de identificação do proprietário / representante</label><input id="setupOwnerBI" placeholder="Número do BI ou passaporte"></div>
+        <div class="form-group"><label>NIF do proprietário (se aplicável)</label><input id="setupOwnerNIF"></div>
+        <div class="form-group"><label>Nacionalidade</label><input id="setupOwnerNationality" value="Angolana"></div>
       </div>
       <div style="display:flex;justify-content:space-between;margin-top:16px">
         <button class="btn btn-secondary" onclick="setupNextStep(1)"><i class="fas fa-arrow-left"></i> Voltar</button>
@@ -305,7 +423,7 @@ tr:hover td{background:var(--bg-hover)}
     <div class="auth-logo">
       <div class="logo-circle" id="authLogo"><img src="logo.png" alt="Logo" onerror="this.parentElement.textContent='K'"></div>
       <h1>Kanawa <span>Soft</span></h1>
-      <p style="color:var(--text-muted);font-size:.9rem">ERP Multi-Empresa Angola v15.3 Cloud</p>
+      <p style="color:var(--text-muted);font-size:.9rem">ERP Multi-Empresa Angola v1.0 Enterprise</p>
     </div>
     <div id="loginError" class="alert alert-danger"></div>
     <form id="loginForm">
@@ -322,6 +440,12 @@ tr:hover td{background:var(--bg-hover)}
         <button type="button" id="changeOtpEmailBtn" class="btn btn-block" style="background:transparent;border:1px solid var(--border);color:var(--text-muted)">Alterar email</button>
       </div>
     </form>
+
+    <div style="margin-top:16px;padding:13px;border:1px dashed var(--primary);border-radius:12px;text-align:left">
+      <strong style="font-size:.86rem"><i class="fas fa-key"></i> Já recebeu uma chave de licença?</strong>
+      <div class="form-group" style="margin:8px 0"><input id="preLoginLicenseKey" autocomplete="off" placeholder="KANAWA-XXXX-XXXX-XXXX" aria-label="Chave de licença"></div>
+      <p style="font-size:.74rem;color:var(--text-muted);margin:0">Introduza a chave antes de entrar. Será validada no servidor depois da autenticação da sua empresa.</p>
+    </div>
     <div style="text-align:center;margin-top:12px">
       <button type="button" class="btn btn-block" style="background:transparent;border:1px solid var(--border);color:var(--text-muted)" onclick="toggleInviteSignup()">Tenho um convite de colaborador</button>
       <div id="inviteSignupPanel" style="display:none;text-align:left;margin-top:14px;padding:14px;border:1px solid var(--border);border-radius:12px">
@@ -399,7 +523,7 @@ tr:hover td{background:var(--bg-hover)}
 
 <!-- App principal -->
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.116.0"></script>
-<script src="cloud.js?v=15.3.20261101.2"></script>
-<script src="app.js?v=15.3.20261101.2"></script>
+<script src="cloud.js?v=1.0.20261107.1"></script>
+<script src="app.js?v=1.0.20261107.1"></script>
 </body>
 </html>
