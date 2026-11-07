@@ -438,6 +438,7 @@ const MENU = [
   { id: 'crm-score', icon: 'fa-chart-line', label: 'Score Leads' },
   { id: 'crm-remarketing', icon: 'fa-retweet', label: 'Remarketing' },
   { id: 'marketing-campanhas', icon: 'fa-bullhorn', label: 'Marketing' },
+  { id: 'integracoes', icon: 'fa-plug', label: 'Integrações API' },
   { id: 'marketing-analise', icon: 'fa-chart-pie', label: 'Análise Marketing' },
   { id: 'financeiro', icon: 'fa-coins', label: 'Financeiro' },
   { id: 'fiscal', icon: 'fa-landmark', label: 'Fiscal AGT' },
@@ -512,6 +513,7 @@ async function openModule(id) {
   c.innerHTML = '<div style="text-align:center;padding:60px"><i class="fas fa-spinner fa-spin" style="font-size:3rem;color:var(--primary)"></i></div>';
   const R = {
     dashboard: renderDashboard, pdv: renderPDV, vendas: renderVendas, orcamentos: renderOrcamentos,
+    integracoes: renderIntegracoes,
     produtos: renderProdutos, categorias: renderCategorias, ecommerce: renderEcommerce,
     estoque: renderEstoque, compras: renderCompras, clientes: renderClientes,
     fornecedores: renderFornecedores, transportadoras: renderTransportadoras, crm: renderCRM,
@@ -3095,3 +3097,28 @@ EXPORTS.forEach(name => { try { window[name] = eval(name); } catch (e) { } });
 
 /* ====== START ====== */
 if (document.readyState === 'loading') { document.addEventListener('DOMContentLoaded', init); } else { init(); }
+
+/* ====== CENTRO DE INTEGRAÇÕES (credenciais apenas no backend) ====== */
+function renderIntegracoes() {
+  const cloudReady = !!(window.KanawaCloud && window.KanawaCloud.ready);
+  return `
+    <div class="card" style="background:linear-gradient(120deg,var(--primary),var(--primary-light));color:#fff;border:0">
+      <h2 style="font-size:1.25rem;margin-bottom:6px"><i class="fas fa-plug"></i> Centro de Integrações</h2>
+      <p style="opacity:.85">Ligue o Kanawa Soft a WhatsApp, Facebook, Instagram, lojas virtuais e aplicações externas.</p>
+    </div>
+    <div class="metric-grid">
+      <div class="metric-card"><div class="label">Meta / WhatsApp</div><div class="value" style="font-size:1rem">Credenciais protegidas</div><div class="sub">Segredos cifrados no servidor</div></div>
+      <div class="metric-card"><div class="label">E-commerce API</div><div class="value" style="font-size:1rem">Chaves por empresa</div><div class="sub">Gerar, consultar prefixo e revogar</div></div>
+      <div class="metric-card"><div class="label">Conectores</div><div class="value" style="font-size:1rem">Entrada e saída</div><div class="sub">Arquitetura para webhooks e ERP externo</div></div>
+    </div>
+    <div class="card">
+      <h3 style="margin-bottom:8px">Configuração segura</h3>
+      <p style="color:var(--text-muted);margin-bottom:12px">Cada empresa utiliza as suas próprias credenciais. O Kanawa Soft não apresenta App Secret ou Access Token depois de guardar e nunca os coloca no HTML ou no armazenamento local.</p>
+      <p style="margin-bottom:14px"><span class="badge ${cloudReady ? 'badge-success' : 'badge-warning'}">${cloudReady ? 'Empresa cloud ligada' : 'Sessão cloud não confirmada'}</span></p>
+      <a class="btn btn-primary" href="integracoes.html" target="_blank" rel="noopener"><i class="fas fa-shield-alt"></i> Abrir gestão de credenciais</a>
+    </div>
+    <div class="card">
+      <h3 style="margin-bottom:8px">Assistente inteligente</h3>
+      <p style="color:var(--text-muted)">Base de conhecimento e conector futuro para ChatGPT preparados na arquitetura. A ativação do modelo, permissões e políticas de dados será feita numa etapa separada; nenhuma informação financeira ou credencial será enviada automaticamente a um modelo externo.</p>
+    </div>`;
+}
