@@ -414,7 +414,7 @@ const PERMISSOES = {
 function getPerms() {
   const membership = window.KanawaCloud && KanawaCloud.context && KanawaCloud.context.membership;
   const role = membership && membership.role || 'operator';
-  const roleKey = ({ owner: 'admin', admin: 'admin', manager: 'gerente', gerente: 'gerente', operator: 'operador', operador: 'operador', cashier: 'caixa', caixa: 'caixa', accountant: 'contabilista', contabilista: 'contabilista' })[role] || 'operador';
+  const roleKey = ({ owner: 'admin', admin: 'admin', manager: 'gerente', gerente: 'gerente', operator: 'operador', operador: 'operador', employee: 'operador', funcionario: 'operador', worker: 'operador', trabalhador: 'operador', cashier: 'caixa', caixa: 'caixa', accountant: 'contabilista', contabilista: 'contabilista' })[role] || 'operador';
   return PERMISSOES[roleKey] || PERMISSOES.operador;
 }
 function podeAcessar(m) { const p = getPerms(); return p.modulos === '*' || p.modulos.indexOf(m) !== -1; }
@@ -1565,14 +1565,15 @@ async function renderFiscal() {
     '<div class="card"><div class="card-header"><h3 class="card-title"><i class="fas fa-percent"></i> Tabela IRT</h3></div>' + table(['Faixa', 'Taxa', 'Parcela'], irtRows) + '</div>' +
     '<div class="card"><div class="card-header"><h3 class="card-title"><i class="fas fa-download"></i> Exportações AGT</h3></div>' +
     '<div style="display:flex;gap:10px;flex-wrap:wrap">' +
-    '<button class="btn btn-success" onclick="exportarSAFTCompleto()"><i class="fas fa-file-code"></i> SAF-T Completo</button>' +
+    '<button class="btn btn-success" onclick="exportarSAFTCompleto()"><i class="fas fa-file-code"></i> Prévia fiscal (JSON)</button>' +
     '<button class="btn btn-info" onclick="exportarIRTDeclaracao()"><i class="fas fa-file-invoice"></i> Declaração IRT</button>' +
     '<button class="btn btn-warning" onclick="exportarIVADeclaracao()"><i class="fas fa-percent"></i> Declaração IVA</button>' +
     '<button class="btn btn-primary" onclick="exportarInventario()"><i class="fas fa-boxes"></i> Inventário</button></div></div>' +
     '<div class="card"><div class="card-header"><h3 class="card-title"><i class="fas fa-plug"></i> Ligação à AGT e fiscalização</h3><span class="badge badge-warning">Aguardando credenciais oficiais</span></div>' +
-    '<p style="color:var(--text-muted);margin-bottom:10px">Área preparada para a chave, certificado e parâmetros que serão atribuídos oficialmente pela AGT. As credenciais deverão ser guardadas no servidor, nunca no navegador nem neste ficheiro.</p>' +
-    '<div class="form-grid"><div class="form-group"><label>Ambiente</label><input value="Homologação / produção — a confirmar com a AGT" disabled></div><div class="form-group"><label>Estado da integração</label><input value="Não ligada — falta chave oficial e endpoint de servidor" disabled></div></div>' +
-    '<p class="text-muted" style="font-size:.8rem">Não enviar documentos fiscais reais nem declarar certificação enquanto a AGT não disponibilizar credenciais e aprovar a integração.</p></div>';
+    '<p style="color:var(--text-muted);margin-bottom:10px">Área de preparação técnica. A ligação oficial depende de credenciais atribuídas à empresa e ao produtor de software, certificado válido e endpoint de servidor confirmado pela AGT. Nenhum segredo deve ser guardado no navegador ou neste ficheiro.</p>' +
+    '<div class="form-grid"><div class="form-group"><label>Ambiente</label><input value="Homologação / produção — por confirmar oficialmente" disabled></div><div class="form-group"><label>Estado da ligação</label><input value="Não ligada — endpoint e credenciais não confirmados" disabled></div><div class="form-group"><label>Chave do produtor de software</label><input value="Pendente de atribuição / validação" disabled></div><div class="form-group"><label>Credenciais fiscais da empresa</label><input value="Pendente de confirmação" disabled></div></div>' +
+    '<div class="card" style="margin-top:14px"><h3>Checklist para activação AGT</h3><ul style="padding-left:20px;line-height:1.9"><li>Confirmar documentação técnica e endpoint oficial de homologação.</li><li>Obter e validar a chave/certificado do produtor de software.</li><li>Obter as credenciais próprias do contribuinte/empresa.</li><li>Configurar segredos exclusivamente no servidor e testar assinatura e autenticação.</li><li>Validar SAF-T AO e tipos de documento com os esquemas oficiais aplicáveis.</li><li>Executar testes de homologação e guardar evidências antes de qualquer uso em produção.</li></ul><p class="text-muted" style="font-size:.82rem">Estado actual: preparação visual e fiscal apenas. Não existe submissão oficial activa nesta versão. Não enviar documentos fiscais reais nem declarar certificação/homologação.</p></div>' +
+    '<p class="text-muted" style="font-size:.8rem">A exportação fiscal disponível nesta versão é uma prévia de dados e não substitui o ficheiro SAF-T AO oficial nem uma resposta da AGT.</p></div>';
 }
 async function exportarSAFTCompleto() {
   const [vendas, produtos, clientes, emp] = await Promise.all([getData('vendas'), getData('produtos'), getData('clientes'), Promise.resolve(JSON.parse(localStorage.getItem('kanawa_empresa') || '{}'))]);
@@ -1588,8 +1589,8 @@ async function exportarSAFTCompleto() {
   };
   const blob = new Blob([JSON.stringify(saft, null, 2)], { type: 'application/json' });
   const url = URL.createObjectURL(blob); const a = document.createElement('a');
-  a.href = url; a.download = 'SAFT_' + (emp.nif || 'empresa') + '_' + new Date().getFullYear() + '.xml'; a.click();
-  URL.revokeObjectURL(url); toast('📄 SAF-T completo exportado', 'success');
+  a.href = url; a.download = 'PREVIA_FISCAL_JSON_' + (emp.nif || 'empresa') + '_' + new Date().getFullYear() + '.json'; a.click();
+  URL.revokeObjectURL(url); toast('Prévia de dados fiscais JSON exportada. Não é SAF-T AO oficial.', 'warning');
 }
 async function exportarIRTDeclaracao() {
   const funcs = await getData('funcionarios'); const emp = JSON.parse(localStorage.getItem('kanawa_empresa') || '{}');
@@ -1636,11 +1637,23 @@ async function renderRH() {
     '<div class="card">' + table(['#','Nome','Cargo','Admissão','Salário base','Bónus','IRT + INSS','Líquido estimado','Ações'], rows) + '</div>' +
     '<div class="card"><p style="font-size:.78rem;color:var(--text-muted)">Para calcular e registar a folha completa, incluindo contribuições do empregador e histórico mensal, utilize o módulo Folha Salarial.</p></div>';
 }
-function abrirModalFuncionario() {
+async function abrirModalFuncionario() {
+  const departments = ['Administração','Contabilidade','Comercial e Vendas','Compras','Financeiro','Fiscalidade','Gestão de Stock','Logística','Marketing','Operações','Recursos Humanos','Suporte Técnico','Tecnologia e Informática'];
+  try {
+    if (window.KanawaCloud && KanawaCloud.ready && typeof KanawaCloud.listDepartments === 'function') {
+      const remote = await KanawaCloud.listDepartments();
+      departments.push.apply(departments, (remote || []).map(item => item.name).filter(Boolean));
+    }
+  } catch (error) { console.warn('Não foi possível carregar departamentos cloud:', error); }
+  try {
+    const local = await DB.getAll('departamentos');
+    departments.push.apply(departments, (local || []).map(item => item.name).filter(Boolean));
+  } catch (error) { console.warn('Não foi possível carregar departamentos locais:', error); }
+  const uniqueDepartments = Array.from(new Set(departments));
   openModal('Novo Funcionário', '<div class="form-grid">' +
     '<div class="form-group full"><label>Nome completo *</label><input id="fnNome"></div>' +
     '<div class="form-group"><label>BI / Passaporte</label><input id="fnBI"></div><div class="form-group"><label>NIF</label><input id="fnNIF"></div>' +
-    '<div class="form-group"><label>Cargo</label><input id="fnCargo"></div><div class="form-group"><label>Departamento</label><select id="fnDepartamento"><option value="">Seleccione...</option><option>Administração</option><option>Contabilidade</option><option>Comercial e Vendas</option><option>Compras</option><option>Financeiro</option><option>Fiscalidade</option><option>Gestão de Stock</option><option>Logística</option><option>Marketing</option><option>Operações</option><option>Recursos Humanos</option><option>Suporte Técnico</option><option>Tecnologia e Informática</option><option>Outro</option></select></div>' +
+    '<div class="form-group"><label>Cargo</label><input id="fnCargo"></div><div class="form-group"><label>Departamento</label><select id="fnDepartamento"><option value="">Seleccione...</option>' + uniqueDepartments.map(name => '<option value="' + esc(name) + '">' + esc(name) + '</option>').join('') + '<option value="Outro">Outro</option></select></div>' +
     '<div class="form-group"><label>Data de admissão</label><input id="fnDataInicio" type="date"></div><div class="form-group"><label>Tipo de contrato</label><select id="fnContrato"><option>Indeterminado</option><option>Determinado</option><option>Temporário</option><option>Prestação de serviços</option></select></div>' +
     '<div class="form-group"><label>Salário base (Kz)</label><input id="fnSalario" type="number" min="0" value="0"></div><div class="form-group"><label>Bónus mensal (Kz)</label><input id="fnBonus" type="number" min="0" value="0"></div>' +
     '<div class="form-group"><label>Subsídio transporte</label><input id="fnTransporte" type="number" min="0" value="0"></div><div class="form-group"><label>Subsídio alimentação</label><input id="fnAlimentacao" type="number" min="0" value="0"></div>' +
@@ -1864,8 +1877,8 @@ async function exportarVendasCSV() {
 
 /* ====== UTILIZADORES E PERMISSÕES CLOUD ====== */
 async function renderUsuarios() {
-  if (!podeAcessar('usuarios')) return '<div class="card"><h3>Sem permissão</h3></div>';
-  if (!window.KanawaCloud || !KanawaCloud.ready) return '<div class="card"><h3>Ligação cloud necessária</h3><p>Os utilizadores e permissões são geridos na base central.</p></div>';
+  if (!podeAcessar('usuarios')) return '<div class="card"><h3>Sem permissão</h3><p>Somente o administrador pode gerir utilizadores e convites.</p></div>';
+  if (!window.KanawaCloud || !KanawaCloud.ready) return '<div class="card"><h3>Ligação cloud necessária</h3><p>Os utilizadores e permissões são geridos na base central. Inicie sessão com a conta administradora.</p></div>';
   try {
     const members = await KanawaCloud.listTeamMembers();
     const invitations = await KanawaCloud.listTeamInvitations();
@@ -1873,7 +1886,9 @@ async function renderUsuarios() {
     const labels = { owner: 'Proprietário', admin: 'Administrador', manager: 'Gerente', operator: 'Operador', cashier: 'Caixa', accountant: 'Contabilista' };
     const rows = members.map(member => {
       const id = esc(member.user_id);
+      const memberId = JSON.stringify(String(member.user_id));
       const role = member.role || 'operator';
+      const profile = member.permissions && member.permissions.profile && typeof member.permissions.profile === 'object' ? member.permissions.profile : {};
       const protectedMember = role === 'owner' || role === 'admin' || member.user_id === currentUserId;
       const active = member.status === 'active';
       const options = ['manager','operator','cashier','accountant'].map(value =>
@@ -1881,36 +1896,76 @@ async function renderUsuarios() {
       ).join('');
       const actions = protectedMember ? '<span class="text-muted">Protegido</span>' :
         '<select id="teamRole_' + id + '" class="form-control">' + options + '</select>' +
-        '<button class="btn btn-sm btn-primary" onclick="alterarAcessoMembro(\'' + id + '\', \'active\')">Guardar perfil</button>' +
-        '<button class="btn btn-sm ' + (active ? 'btn-warning' : 'btn-success') + '" onclick="alterarAcessoMembro(\'' + id + '\', \' ' + (active ? 'suspended' : 'active') + '\')">' + (active ? 'Suspender' : 'Reativar') + '</button>';
-      return ['<strong>' + esc(member.full_name || 'Utilizador') + '</strong>', esc(member.email || '—'), badge(labels[role] || role, 'primary'), badge(active ? 'Ativo' : 'Suspenso', active ? 'success' : 'danger'), actions];
+        '<button class="btn btn-sm btn-primary" onclick="alterarAcessoMembro(' + memberId + ', &quot;active&quot;)">Guardar perfil</button>' +
+        '<button class="btn btn-sm ' + (active ? 'btn-warning' : 'btn-success') + '" onclick="alterarAcessoMembro(' + memberId + ', &quot;' + (active ? 'suspended' : 'active') + '&quot;)">' + (active ? 'Suspender' : 'Reativar') + '</button>';
+      return [
+        '<strong>' + esc(member.full_name || 'Utilizador') + '</strong>',
+        esc(member.email || '—'),
+        badge(profile.label || labels[role] || role, 'primary'),
+        esc(profile.jobTitle || '—'),
+        esc(profile.department || '—'),
+        badge(active ? 'Ativo' : 'Suspenso', active ? 'success' : 'danger'),
+        actions
+      ];
     });
     const pending = invitations.filter(inv => !inv.accepted_at && new Date(inv.expires_at).getTime() > Date.now());
     const inviteRows = pending.map(inv => [esc(inv.full_name), esc(inv.email), badge(labels[inv.role] || inv.role, 'primary'), fmtDT(inv.expires_at)]);
     return header('Utilizadores e permissões', members.length + ' membros · ' + pending.length + ' convites pendentes', 'var(--danger)', '<button class="btn btn-success" onclick="abrirModalUsuario()"><i class="fas fa-plus"></i> Convidar</button>', 'fa-user-shield') +
-      '<div class="card"><h3>Membros da empresa</h3>' + table(['Nome', 'Email', 'Perfil', 'Estado', 'Ações'], rows) + '</div>' +
+      '<div class="card"><h3>Membros da empresa</h3>' + table(['Nome', 'Email', 'Perfil de acesso', 'Cargo', 'Departamento', 'Estado', 'Ações'], rows) +
+      '<p class="text-muted" style="margin-top:10px">Gerente, operador, caixa e contabilista têm perfis limitados. O perfil de funcionário/trabalhador utiliza a base de permissões de operador, com cargo e departamento próprios.</p></div>' +
       '<div class="card"><h3>Convites pendentes</h3>' + table(['Nome', 'Email', 'Perfil', 'Expira em'], inviteRows) + '<p class="text-muted">O colaborador deve usar o código no formulário “Tenho um convite” e confirmar o mesmo email.</p></div>';
   } catch (error) {
     return '<div class="card"><h3>Não foi possível carregar a equipa</h3><p>' + esc(error.message || 'Erro de ligação') + '</p></div>';
   }
 }
 function abrirModalUsuario() {
+  if (!podeAcessar('usuarios')) { toast('Somente o administrador pode convidar utilizadores.', 'error'); return; }
+  if (!window.KanawaCloud || !KanawaCloud.ready) { toast('É necessária uma sessão cloud activa para criar convites.', 'warning'); return; }
+  const departments = ['Administração','Contabilidade','Comercial e Vendas','Compras','Financeiro','Fiscalidade','Gestão de Stock','Logística','Marketing','Operações','Recursos Humanos','Suporte Técnico','Tecnologia e Informática','Outro'];
   openModal('Convidar colaborador',
-    '<div class="form-group"><label>Nome completo *</label><input id="uNome" autocomplete="name"></div>' +
-    '<div class="form-group"><label>Email do colaborador *</label><input id="uEmail" type="email" autocomplete="email"></div>' +
-    '<div class="form-group"><label>Perfil inicial</label><select id="uPerfil"><option value="manager">Gerente</option><option value="operator" selected>Operador</option><option value="cashier">Caixa</option></select></div>' +
-    '<p class="text-muted">Será gerado um código único válido por 72 horas. O colaborador cria a própria senha e confirma o email.</p>' +
+    '<div class="form-grid">' +
+    '<div class="form-group full"><label>Nome completo *</label><input id="uNome" autocomplete="name" required></div>' +
+    '<div class="form-group full"><label>Email do colaborador *</label><input id="uEmail" type="email" autocomplete="email" required></div>' +
+    '<div class="form-group"><label>Perfil de acesso *</label><select id="uPerfil">' +
+    '<option value="manager">Gerente</option><option value="operator" selected>Operador</option>' +
+    '<option value="employee">Funcionário / trabalhador (acesso operacional)</option>' +
+    '<option value="cashier">Caixa</option><option value="accountant">Contabilista</option></select></div>' +
+    '<div class="form-group"><label>Cargo / função</label><input id="uCargo" maxlength="100" placeholder="Ex.: Assistente de armazém"></div>' +
+    '<div class="form-group full"><label>Departamento</label><select id="uDepartamento"><option value="">Sem departamento definido</option>' +
+    departments.map(name => '<option value="' + esc(name) + '">' + esc(name) + '</option>').join('') +
+    '</select></div></div>' +
+    '<p class="text-muted">Será gerado um código único válido por 72 horas. O colaborador cria a própria senha e confirma o email. “Funcionário / trabalhador” usa as permissões operacionais de operador; o cargo e departamento ficam associados ao membro.</p>' +
     '<button class="btn btn-primary btn-block" onclick="salvarUsuario()">Gerar convite</button>');
 }
-function defaultTeamPermissions() { return {}; }
+function defaultTeamPermissions(role, profile) {
+  const current = profile && typeof profile === 'object' ? profile : {};
+  const labels = { manager: 'Gerente', operator: 'Operador', cashier: 'Caixa', accountant: 'Contabilista' };
+  return {
+    profile: {
+      label: String(current.label || labels[role] || 'Funcionário'),
+      jobTitle: String(current.jobTitle || '').trim(),
+      department: String(current.department || '').trim()
+    }
+  };
+}
 async function salvarUsuario() {
+  if (!podeAcessar('usuarios')) { toast('Somente o administrador pode criar utilizadores.', 'error'); return; }
+  if (!window.KanawaCloud || !KanawaCloud.ready) { toast('A ligação cloud é necessária para criar o convite.', 'warning'); return; }
   const name = $('uNome').value.trim();
-  const email = $('uEmail').value.trim();
-  const role = $('uPerfil').value;
-  if (!name || !email) { toast('Preencha nome e email', 'warning'); return; }
+  const email = $('uEmail').value.trim().toLowerCase();
+  const selectedProfile = $('uPerfil').value;
+  const role = selectedProfile === 'employee' ? 'operator' : selectedProfile;
+  const profile = {
+    label: selectedProfile === 'employee' ? 'Funcionário / trabalhador' :
+      ({ manager: 'Gerente', operator: 'Operador', cashier: 'Caixa', accountant: 'Contabilista' })[role],
+    jobTitle: $('uCargo').value.trim(),
+    department: $('uDepartamento').value
+  };
+  if (!name || !email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) { toast('Preencha um nome e um email válido.', 'warning'); return; }
   try {
-    const invitation = await KanawaCloud.createTeamInvitation({ fullName: name, email: email, role: role, permissions: defaultTeamPermissions(role) });
+    const invitation = await KanawaCloud.createTeamInvitation({ fullName: name, email: email, role: role, permissions: defaultTeamPermissions(role, profile) });
     openModal('Convite criado', '<p>Envie este código ao colaborador. Ele deve abrir “Tenho um convite”, usar o mesmo email e criar a própria senha.</p>' +
+      '<p><strong>Perfil:</strong> ' + esc(profile.label) + ' · <strong>Cargo:</strong> ' + esc(profile.jobTitle || 'Não definido') + ' · <strong>Departamento:</strong> ' + esc(profile.department || 'Não definido') + '</p>' +
       '<div class="form-group"><label>Código de convite</label><input id="teamInvitationCode" readonly value="' + esc(invitation.invitation_code) + '"></div>' +
       '<button class="btn btn-primary btn-block" onclick="copiarCodigoConvite()">Copiar código</button>');
     toast('Convite criado. Expira em 72 horas.', 'success');
@@ -1925,12 +1980,15 @@ async function copiarCodigoConvite() {
   catch (error) { input.focus(); input.select(); toast('Selecione e copie o código manualmente.', 'info'); }
 }
 async function alterarAcessoMembro(userId, status) {
+  if (!podeAcessar('usuarios')) { toast('Somente o administrador pode alterar acessos.', 'error'); return; }
+  if (!window.KanawaCloud || !KanawaCloud.ready) { toast('A ligação cloud é necessária para alterar acessos.', 'warning'); return; }
   const member = (await KanawaCloud.listTeamMembers()).find(x => x.user_id === userId);
   if (!member) { toast('Membro não encontrado.', 'error'); return; }
   const roleInput = $('teamRole_' + userId);
   const role = roleInput ? roleInput.value : member.role;
   try {
-    await KanawaCloud.updateTeamMemberAccess({ userId: userId, role: role, status: status.trim(), permissions: defaultTeamPermissions(role) });
+    const currentProfile = member.permissions && member.permissions.profile;
+    await KanawaCloud.updateTeamMemberAccess({ userId: userId, role: role, status: status.trim(), permissions: defaultTeamPermissions(role, currentProfile) });
     toast('Acesso atualizado.', 'success');
     openModule('usuarios');
   } catch (error) { toast('Não foi possível atualizar o acesso: ' + (error.message || 'erro'), 'error'); }
@@ -3493,7 +3551,7 @@ function renderIntegracoes() {
       <p style="opacity:.85">Ligue o Kanawa Soft a WhatsApp, Facebook, Instagram, lojas virtuais e aplicações externas.</p>
     </div>
     <div class="metric-grid">
-      <div class="metric-card"><div class="label">Meta / WhatsApp</div><div class="value" style="font-size:1rem">Credenciais protegidas</div><div class="sub">Segredos cifrados no servidor</div></div>
+      <div class="metric-card"><div class="label">Meta / WhatsApp</div><div class="value" style="font-size:1rem">API pendente</div><div class="sub">Partilha manual por wa.me disponível</div></div>
       <div class="metric-card"><div class="label">E-commerce API</div><div class="value" style="font-size:1rem">Chaves por empresa</div><div class="sub">Gerar, consultar prefixo e revogar</div></div>
       <div class="metric-card"><div class="label">Conectores</div><div class="value" style="font-size:1rem">Entrada e saída</div><div class="sub">Arquitetura para webhooks e ERP externo</div></div>
     </div>
@@ -3502,6 +3560,15 @@ function renderIntegracoes() {
       <p style="color:var(--text-muted);margin-bottom:12px">Cada empresa utiliza as suas próprias credenciais. O Kanawa Soft não apresenta App Secret ou Access Token depois de guardar e nunca os coloca no HTML ou no armazenamento local.</p>
       <p style="margin-bottom:14px"><span class="badge ${cloudReady ? 'badge-success' : 'badge-warning'}">${cloudReady ? 'Empresa cloud ligada' : 'Sessão cloud não confirmada'}</span></p>
       <a class="btn btn-primary" href="integracoes.html" target="_blank" rel="noopener"><i class="fas fa-shield-alt"></i> Abrir gestão de credenciais</a>
+    </div>
+    <div class="card">
+      <h3 style="margin-bottom:8px">Autenticação, telefone e WhatsApp</h3>
+      <div class="form-grid">
+        <div><strong>Email OTP</strong><p class="text-muted">Código de 6 dígitos via Supabase Auth; o fluxo de pedido e validação está implementado no conector.</p><span class="badge badge-success">Implementado no código</span></div>
+        <div><strong>Telefone / SMS OTP</strong><p class="text-muted">Pedido e confirmação de telefone usam Supabase Auth. A entrega depende de um fornecedor SMS e das configurações activas no projecto Supabase.</p><span class="badge badge-warning">Requer teste de entrega</span></div>
+        <div><strong>WhatsApp</strong><p class="text-muted">A partilha actual abre um link wa.me com a mensagem preparada. A API oficial WhatsApp Business, webhooks e envio automático ainda não estão ligados no conector desta branch.</p><span class="badge badge-warning">API oficial pendente</span></div>
+      </div>
+      <p class="text-muted" style="margin-top:12px;font-size:.82rem">Não introduza tokens Meta, segredos ou códigos de verificação neste ecrã. A integração oficial exige funções de servidor e credenciais próprias da empresa.</p>
     </div>
     <div class="card">
       <h3 style="margin-bottom:8px">Assistente inteligente</h3>
