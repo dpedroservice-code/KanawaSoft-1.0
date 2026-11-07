@@ -79,3 +79,14 @@ test('paid tiers are unlimited while the 14-day evaluation remains bounded', () 
   assert.match(html,/Facturas e operações ilimitadas/);
   assert.match(app,/Facturas ilimitadas/);
 });
+
+test('only the single server-registered platform owner can manage license keys', () => {
+  const owner = readFileSync(new URL('../supabase/migrations/20261107126000_single_platform_owner_for_license_management.sql', import.meta.url), 'utf8');
+  const cloud = readFileSync(new URL('../app/cloud.js', import.meta.url), 'utf8');
+  assert.match(owner,/private\.ks_platform_owner/);
+  assert.match(owner,/singleton boolean primary key/);
+  assert.match(owner,/user_id = \(select auth\.uid\(\)\)/);
+  assert.match(owner,/revoke all on table private\.ks_platform_owner from public, anon, authenticated/);
+  assert.match(cloud,/client\.rpc\('ks_is_platform_admin'\)/);
+  assert.doesNotMatch(cloud,/from\('ks_platform_admins'\)/);
+});
