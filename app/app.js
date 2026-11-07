@@ -233,12 +233,12 @@ async function syncNow(showMessage) {
   }
   const indicator = $('syncIndicator'), label = $('syncText');
   if (indicator) indicator.className = 'sync-indicator show syncing';
-  if (label) label.textContent = 'A sincronizar com PostgreSQL...';
+  if (label) label.textContent = 'A preparar sincronização segura...';
   try {
     const sent = await processSyncQueue();
     const received = await pullFromServer();
     if (indicator) indicator.className = 'sync-indicator show online';
-    if (label) label.textContent = 'Base de dados sincronizada ✓';
+    if (label) label.textContent = 'Dados sincronizados ✓';
     if (showMessage) toast('Sincronização concluída: ' + sent + ' enviados, ' + received + ' recebidos.', 'success');
     setTimeout(() => { if (indicator) indicator.className = 'sync-indicator'; }, 2200);
     return true;
@@ -807,46 +807,16 @@ function abrirGavetaAutomatico() {
 }
 /* ====== FATURA COM QR CODE + AGT ====== */
 async function abrirFatura(venda) {
-  const emp = venda.empresa || JSON.parse(localStorage.getItem('kanawa_empresa') || '{}');
+  const emp = Object.assign({}, venda.empresa || {}, JSON.parse(localStorage.getItem('kanawa_empresa') || '{}'));
   const logo = (emp.logo && emp.logo.indexOf('data:') === 0) ? emp.logo : (emp.logo || 'logo.png');
-  const qrText = ['KANAWA-AGT-v1', 'NIF:' + (emp.nif || ''), 'FAT:' + venda.numeroFatura, 'DT:' + venda.data, 'TOT:' + Number(venda.total || 0).toFixed(2), 'IVA:' + Number(venda.iva || 0).toFixed(2), 'HASH:' + venda.hash, 'ASS:' + (venda.assinatura || gerarAssinatura(venda))].join('|');
+  const qrText = JSON.stringify({ document: venda.numeroFatura, date: venda.data, companyTaxId: emp.nif || null, total: Number(venda.total || 0), currency: 'AOA' });
   const subtotal = Number(venda.subtotal || 0), desconto = Number(venda.descontoValor || 0), base = subtotal - desconto, iva = Number(venda.iva || 0), total = Number(venda.total || 0);
   const totalExtenso = numeroPorExtenso(total);
   const itensHTML = (venda.itens || []).map((it, i) => '<tr style="border-bottom:1px solid #e2e8f0"><td style="padding:6px;font-size:.75rem">' + (i + 1) + '</td><td style="padding:6px;font-size:.75rem">' + esc(it.nome) + '</td><td style="padding:6px;text-align:center;font-size:.75rem">' + it.qty + '</td><td style="padding:6px;text-align:right;font-size:.75rem">' + fmt(it.preco) + '</td><td style="padding:6px;text-align:right;font-size:.75rem">' + fmt(it.subtotal || it.preco * it.qty) + '</td></tr>').join('');
-  const faturaHTML = '<div id="faturaPreview" style="background:#fff;color:#000;padding:24px;max-width:820px;margin:0 auto;font-family:Arial;font-size:.85rem">' +
-    '<div style="display:flex;justify-content:space-between;align-items:flex-start;border-bottom:3px solid #1a3a5c;padding-bottom:12px;margin-bottom:12px">' +
-    '<div style="display:flex;align-items:center;gap:12px"><img src="' + logo + '" alt="Logo" style="width:70px;height:70px;object-fit:contain" onerror="this.style.display=\'none\'">' +
-    '<div><h2 style="color:#1a3a5c;font-size:1.2rem;margin:0">' + esc(emp.firma || emp.nome || 'KANAWA SOFT') + '</h2>' +
-    (emp.nome && emp.firma && emp.nome !== emp.firma ? '<div style="font-size:.75rem;color:#666">' + esc(emp.nome) + '</div>' : '') +
-    '<div style="font-size:.7rem;color:#555;line-height:1.5;margin-top:4px"><div><strong>NIF:</strong> ' + esc(emp.nif || '-') + '</div>' +
-    (emp.regime ? '<div><strong>Regime:</strong> ' + esc(emp.regime) + '</div>' : '') +
-    '<div>' + esc(emp.endereco || 'Luanda, Angola') + '</div><div><strong>Tel:</strong> ' + esc(emp.telefone || '-') + (emp.email ? ' | ' + esc(emp.email) : '') + '</div>' +
-    (emp.alvara ? '<div><strong>Alvará:</strong> ' + esc(emp.alvara) + '</div>' : '') + '</div></div></div>' +
-    '<div style="text-align:right"><div style="font-size:.65rem;color:#999">FATURA / RECIBO</div>' +
-    '<div style="font-size:1rem;font-weight:800;color:#1a3a5c">' + esc(venda.numeroFatura) + '</div>' +
-    '<div style="font-size:.7rem;color:#555;margin-top:2px"><strong>Data:</strong> ' + fmtDT(venda.data) + '</div>' +
-    '<div style="font-size:.7rem;color:#555"><strong>Origem:</strong> ' + esc(venda.operador || 'Admin') + '</div></div></div>' +
-    '<div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;background:#f8fafc;padding:10px;border-radius:6px;margin-bottom:12px;font-size:.78rem">' +
-    '<div style="line-height:1.6"><strong style="color:#1a3a5c;display:block;margin-bottom:2px">CLIENTE</strong><div>Nome: ' + esc(venda.clienteNome || 'Consumidor Final') + '</div>' +
-    (venda.clienteNif ? '<div>NIF: ' + esc(venda.clienteNif) + '</div>' : '') + (venda.clienteTelefone ? '<div>Tel: ' + esc(venda.clienteTelefone) + '</div>' : '') + '</div>' +
-    '<div style="line-height:1.6"><strong style="color:#1a3a5c;display:block;margin-bottom:2px">OPERAÇÃO</strong><div>Pagamento: ' + esc(venda.pagamento || '-') + '</div><div>Regime: ' + esc(venda.regime || 'geral') + '</div><div>Tipo Doc: Fatura-Recibo</div></div></div>' +
-    '<table style="width:100%;border-collapse:collapse;margin-bottom:12px"><thead><tr style="background:#1a3a5c;color:#fff"><th style="padding:6px;text-align:left;font-size:.75rem">#</th><th style="padding:6px;text-align:left;font-size:.75rem">Descrição</th><th style="padding:6px;text-align:center;font-size:.75rem">Qtd</th><th style="padding:6px;text-align:right;font-size:.75rem">Preço Unit.</th><th style="padding:6px;text-align:right;font-size:.75rem">Total</th></tr></thead><tbody>' + itensHTML + '</tbody></table>' +
-    '<div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;align-items:start">' +
-    '<div style="text-align:center"><div id="qrcodeContainer" style="display:inline-block;padding:6px;background:#fff;border:2px solid #1a3a5c;border-radius:6px;min-width:130px;min-height:130px"></div>' +
-    '<div style="font-size:.6rem;color:#777;margin-top:4px"><strong>Código de Autenticação AGT</strong></div>' +
-    '<div style="font-size:.55rem;color:#999;font-family:monospace;margin-top:2px;word-break:break-all;max-width:200px;line-height:1.3">' + esc(venda.hash) + '</div>' +
-    '<div style="font-size:.55rem;color:#999;margin-top:2px">Verifique em: quiosqueagt.minfin.gov.ao</div></div>' +
-    '<div style="font-size:.82rem;line-height:1.8">' +
-    '<div style="display:flex;justify-content:space-between"><span>Subtotal:</span><strong>' + fmt(subtotal) + '</strong></div>' +
-    (desconto > 0 ? '<div style="display:flex;justify-content:space-between;color:#dc3545"><span>Desconto (' + venda.desconto + '%):</span><strong>-' + fmt(desconto) + '</strong></div>' : '') +
-    '<div style="display:flex;justify-content:space-between"><span><strong>Montante Ilíquido:</strong></span><strong>' + fmt(base) + '</strong></div>' +
-    '<div style="display:flex;justify-content:space-between"><span>Imposto (IVA ' + (venda.regime === 'simplificado' ? '7' : '14') + '%):</span><strong>' + fmt(iva) + '</strong></div>' +
-    '<div style="display:flex;justify-content:space-between;color:#999;font-size:.7rem"><span>Imposto Devido:</span><span>' + fmt(iva) + '</span></div>' +
-    '<div style="display:flex;justify-content:space-between;border-top:2px solid #1a3a5c;padding-top:6px;margin-top:6px;font-size:1rem;color:#1a3a5c"><strong>TOTAL LÍQUIDO:</strong><strong>' + fmt(total) + '</strong></div>' +
-    (venda.valorRecebido > 0 ? '<div style="display:flex;justify-content:space-between;margin-top:4px"><span>Valor Recebido:</span><strong>' + fmt(venda.valorRecebido) + '</strong></div><div style="display:flex;justify-content:space-between;color:#10b981"><span>Troco:</span><strong>' + fmt(venda.troco) + '</strong></div>' : '') + '</div></div>' +
-    '<div style="margin-top:12px;padding:8px;background:#f8fafc;border-radius:6px;font-size:.75rem;border-left:3px solid #1a3a5c"><strong>Valor por extenso:</strong> <em>' + esc(totalExtenso) + '</em></div>' +
-    '<div style="margin-top:14px;padding-top:10px;border-top:1px solid #e2e8f0;font-size:.6rem;color:#666;line-height:1.5"><strong style="color:#1a3a5c">TERMOS E CONDIÇÕES — AGT ANGOLA</strong><br>• Documento emitido nos termos do Decreto Executivo n.º 29/22 de 20 de Março (Facturação Electrónica).<br>• IVA à taxa de ' + (venda.regime === 'simplificado' ? '7%' : '14%') + ' conforme Código do IVA (Lei n.º 7/19 de 24 de Abril).<br>• Processado por computador — Programa certificado Kanawa Soft ERP v' + APP_VERSION + '.<br>• Autenticidade verificável em https://quiosqueagt.minfin.gov.ao<br>• Hash de assinatura: ' + esc(venda.hash) + '<br>• Assinatura digital: ' + esc(venda.assinatura || gerarAssinatura(venda)) + '</div>' +
-    '<div style="text-align:center;margin-top:12px;padding-top:10px;border-top:1px solid #e2e8f0;font-size:.7rem;color:#777"><strong>Obrigado pela preferência!</strong><br><span style="font-size:.65rem">' + esc(emp.firma || emp.nome || 'KANAWA SOFT') + ' — ' + new Date().getFullYear() + '</span></div></div>';
+  const invoiceSettings = window.KanawaInvoiceTemplates ? KanawaInvoiceTemplates.getSettings() : {};
+  const faturaHTML = window.KanawaInvoiceTemplates
+    ? KanawaInvoiceTemplates.render(venda, emp, logo, invoiceSettings)
+    : '<div id="faturaPreview"><h2>' + esc(emp.firma || emp.nome || 'Empresa') + '</h2><p>Modelo de fatura indisponível.</p></div>';
   window._vendaAtual = venda;
   openModal('🖨️ Fatura / Recibo — ' + venda.numeroFatura,
     '<div style="max-height:65vh;overflow-y:auto;background:#fff;padding:0;border-radius:var(--radius-sm)">' + faturaHTML + '</div>' +
@@ -857,25 +827,22 @@ async function abrirFatura(venda) {
     '<button class="btn btn-warning" onclick="compartilharWhatsApp(window._vendaAtual)"><i class="fab fa-whatsapp"></i> WhatsApp</button>' +
     '<button class="btn btn-purple" onclick="abrirGaveta()"><i class="fas fa-cash-register"></i> Abrir Gaveta</button>' +
     '<button class="btn btn-secondary" onclick="closeModal()">Fechar</button></div>', true);
-  setTimeout(() => gerarQRCodeFatura(qrText), 250);
+  if (invoiceSettings.showQr === true) setTimeout(() => gerarQRCodeFatura(qrText), 250);
 }
 
 function gerarQRCodeFatura(texto) {
   const container = $('qrcodeContainer'); if (!container) return;
   container.innerHTML = '';
-  if (typeof QRCode !== 'undefined') {
-    try { new QRCode(container, { text: texto, width: 130, height: 130, colorDark: '#1a3a5c', colorLight: '#ffffff', correctLevel: QRCode.CorrectLevel.M }); return; } catch (e) { console.warn(e); }
+  if (typeof QRCode === 'undefined') {
+    container.textContent = 'QR indisponível neste dispositivo';
+    return;
   }
   try {
-    const canvas = document.createElement('canvas'); canvas.width = 130; canvas.height = 130;
-    const ctx = canvas.getContext('2d'); ctx.fillStyle = '#fff'; ctx.fillRect(0, 0, 130, 130); ctx.fillStyle = '#1a3a5c';
-    let hash = 0; for (let i = 0; i < texto.length; i++) { hash = ((hash << 5) - hash) + texto.charCodeAt(i); hash = hash & hash; }
-    hash = Math.abs(hash); const grid = 25, cell = 130 / grid;
-    for (let i = 0; i < grid; i++) for (let j = 0; j < grid; j++) { const val = ((hash * (i + 1) * (j + 1)) % 11); if (val < 5) ctx.fillRect(i * cell, j * cell, cell, cell); }
-    ctx.fillStyle = '#1a3a5c';
-    [[0, 0], [grid - 7, 0], [0, grid - 7]].forEach(([x, y]) => { ctx.fillRect(x * cell, y * cell, 7 * cell, 7 * cell); ctx.fillStyle = '#fff'; ctx.fillRect((x + 1) * cell, (y + 1) * cell, 5 * cell, 5 * cell); ctx.fillStyle = '#1a3a5c'; ctx.fillRect((x + 2) * cell, (y + 2) * cell, 3 * cell, 3 * cell); });
-    container.appendChild(canvas);
-  } catch (e) { container.innerHTML = '<div style="width:130px;height:130px;display:flex;align-items:center;justify-content:center;font-size:.6rem;color:#666;padding:8px;word-break:break-all;text-align:center">' + esc(texto.slice(0, 80)) + '</div>'; }
+    new QRCode(container, { text: String(texto), width: 120, height: 120, colorDark: '#1a3a5c', colorLight: '#ffffff', correctLevel: QRCode.CorrectLevel.M });
+  } catch (error) {
+    console.warn('Não foi possível gerar um QR válido:', error);
+    container.textContent = 'Não foi possível gerar o QR';
+  }
 }
 
 function imprimirFatura() {
@@ -1881,16 +1848,17 @@ async function renderConfig() {
     '<div class="form-group"><label>Estoque Mínimo Padrão</label><input type="number" id="cfgEstMin" value="' + (regras.estoqueMin || 10) + '"></div>' +
     '<div class="form-group"><label>Desconto Máximo (%)</label><input type="number" id="cfgDescMax" value="' + (regras.descontoMax || 50) + '"></div></div>' +
     '<button class="btn btn-success btn-lg" style="margin-top:16px" onclick="salvarRegras()"><i class="fas fa-save"></i> Salvar Regras</button></div>' +
-    '<div class="card"><div class="card-header"><h3 class="card-title"><i class="fas fa-server"></i> Servidor (Opcional)</h3></div>' +
-    '<p style="color:var(--text-muted);font-size:.85rem;margin-bottom:12px">Os dados são guardados no PostgreSQL central e sincronizados com o cache local para permitir trabalho temporário sem internet.</p>' +
+    renderInvoiceSettingsCard() +
+    '<div class="card"><div class="card-header"><h3 class="card-title"><i class="fas fa-server"></i> Ligação e armazenamento</h3></div>' +
+    '<p style="color:var(--text-muted);font-size:.85rem;margin-bottom:12px">Os dados são guardados no serviço central da plataforma e sincronizados com o armazenamento local para permitir trabalho temporário sem internet.</p>' +
     '<div class="form-grid">' +
-    '<div class="form-group full"><label>Base de dados central</label><input value="Supabase PostgreSQL — Kanawa Cloud" disabled></div>' +
+    '<div class="form-group full"><label>Serviço de dados</label><input value="Ligação gerida pela plataforma Kanawa Soft" disabled></div>' +
     '<div class="form-group"><label>Status</label><div style="padding:10px"><span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:' + (API_ONLINE ? '#4ade80' : '#f87171') + ';margin-right:6px"></span>' + (API_ONLINE ? 'Conectado' : 'Desconectado') + '</div></div></div>' +
     '<div style="display:flex;gap:10px;margin-top:16px;flex-wrap:wrap">' +
     '<span style="font-size:.8rem;color:var(--text-muted);padding:10px">Ligação configurada pela D.PEDRO SOLUÇÕES</span>' +
     '<button class="btn btn-primary" onclick="testarAPI()"><i class="fas fa-check"></i> Testar</button>' +
     '<button class="btn btn-info" onclick="syncNow(true)"><i class="fas fa-sync"></i> Sincronizar Agora</button></div></div>' +
-    '<div class="card"><div class="card-header"><h3 class="card-title"><i class="fas fa-database"></i> Cache local (IndexedDB) + PostgreSQL central</h3></div>' + table(['Coleção', 'Registros', 'Ações'], countRows) + '</div>' +
+    '<div class="card"><div class="card-header"><h3 class="card-title"><i class="fas fa-database"></i> Armazenamento local e central</h3></div>' + table(['Coleção', 'Registros', 'Ações'], countRows) + '</div>' +
     '<div class="card"><div class="card-header"><h3 class="card-title"><i class="fas fa-tools"></i> Ferramentas</h3></div>' +
     '<div style="display:flex;gap:10px;flex-wrap:wrap">' +
     '<button class="btn btn-warning" onclick="recarregarDemo()"><i class="fas fa-seedling"></i> Dados Demo</button>' +
@@ -1927,6 +1895,48 @@ async function confirmarTelefoneSMS() {
     toast(error.message || 'Não foi possível confirmar o telefone.', 'danger');
   }
 }
+function renderInvoiceSettingsCard() {
+  const c = window.KanawaInvoiceTemplates ? KanawaInvoiceTemplates.getSettings() : {};
+  return '<div class="card"><div class="card-header"><h3 class="card-title"><i class="fas fa-file-invoice"></i> Modelos de faturação e aparência</h3></div>' +
+    '<p style="color:var(--text-muted);font-size:.84rem;margin-bottom:14px">Escolha o modelo, as cores e os elementos comerciais. Os valores da fatura são sempre carregados da venda e do cadastro da empresa.</p>' +
+    '<div class="form-grid">' +
+    '<div class="form-group"><label>Modelo de fatura</label><select id="cfgInvoiceTemplate"><option value="classic" '+(c.template==='classic'?'selected':'')+'>Clássico profissional</option><option value="modern" '+(c.template==='modern'?'selected':'')+'>Moderno empresarial</option><option value="minimal" '+(c.template==='minimal'?'selected':'')+'>Minimalista</option></select></div>' +
+    '<div class="form-group"><label>Cor principal da interface/documento</label><input id="cfgUiPrimary" type="color" value="'+(c.primary||'#1a3a5c')+'"></div>' +
+    '<div class="form-group"><label>Cor secundária</label><input id="cfgUiAccent" type="color" value="'+(c.accent||'#217346')+'"></div>' +
+    '<div class="form-group"><label><input id="cfgInvoiceQr" type="checkbox" '+(c.showQr===true?'checked':'')+'> Incluir QR de referência do documento (não é QR de validação AGT)</label></div>' +
+    '<div class="form-group"><label><input id="cfgInvoiceBank" type="checkbox" '+(c.showBank!==false?'checked':'')+'> Mostrar banco e IBAN na fatura</label></div>' +
+    '<div class="form-group full"><label>Termos e condições comerciais da empresa</label><textarea id="cfgInvoiceTerms" rows="4" placeholder="Ex.: Condições de pagamento, garantia, devoluções e contactos">'+String(c.customTerms||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')+'</textarea></div>' +
+    '</div><div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:12px"><button class="btn btn-success" onclick="salvarConfigFatura()"><i class="fas fa-save"></i> Guardar modelo e cores</button><button class="btn btn-secondary" onclick="previewConfigFatura()"><i class="fas fa-eye"></i> Pré-visualizar</button></div>' +
+    '<p style="font-size:.75rem;color:var(--text-muted);margin-top:10px">A secção de validação fiscal só será apresentada quando existir integração fiscal confirmada pelo servidor. Nenhuma menção de certificação ou QR AGT será impressa antes disso.</p></div>';
+}
+function aplicarTemaPersonalizado() {
+  try {
+    const c=JSON.parse(localStorage.getItem('kanawa_fatura_config')||'{}');
+    if(/^#[0-9a-f]{6}$/i.test(c.primary||'')) {
+      document.documentElement.style.setProperty('--primary',c.primary);
+      document.documentElement.style.setProperty('--primary-dark',c.primary);
+      document.documentElement.style.setProperty('--primary-light',c.primary);
+    }
+    if(/^#[0-9a-f]{6}$/i.test(c.accent||'')) {
+      document.documentElement.style.setProperty('--secondary',c.accent);
+      document.documentElement.style.setProperty('--secondary-light',c.accent);
+    }
+  } catch (_) {}
+}
+function salvarConfigFatura() {
+  const c={template:$('cfgInvoiceTemplate').value,primary:$('cfgUiPrimary').value,accent:$('cfgUiAccent').value,showQr:$('cfgInvoiceQr').checked,showBank:$('cfgInvoiceBank').checked,customTerms:$('cfgInvoiceTerms').value};
+  localStorage.setItem('kanawa_fatura_config',JSON.stringify(c));
+  aplicarTemaPersonalizado();
+  toast('Modelo de faturação e cores guardados neste dispositivo.','success');
+}
+function previewConfigFatura() {
+  const c={template:$('cfgInvoiceTemplate').value,primary:$('cfgUiPrimary').value,accent:$('cfgUiAccent').value,showQr:$('cfgInvoiceQr').checked,showBank:$('cfgInvoiceBank').checked,customTerms:$('cfgInvoiceTerms').value};
+  const emp=JSON.parse(localStorage.getItem('kanawa_empresa')||'{}');
+  const demo={numeroFatura:'PRÉ-VISUALIZAÇÃO',data:new Date().toISOString(),clienteNome:'Cliente de demonstração',clienteNif:'',clienteTelefone:'',operador:'Administrador',pagamento:'Transferência',status:'Exemplo',itens:[{nome:'Produto de exemplo',qty:2,preco:5000,subtotal:10000}],subtotal:10000,descontoValor:0,iva:1400,total:11400,valorRecebido:11400,troco:0};
+  const markup=window.KanawaInvoiceTemplates.render(demo,emp,emp.logo||'logo.png',c);
+  openModal('Pré-visualização do modelo de fatura','<div style="max-height:70vh;overflow:auto">'+markup+'</div><div style="margin-top:12px;text-align:right"><button class="btn btn-secondary" onclick="closeModal()">Fechar</button></div>',true);
+  if(c.showQr) setTimeout(()=>gerarQRCodeFatura(JSON.stringify({document:'PRÉ-VISUALIZAÇÃO',currency:'AOA'})),150);
+}
 function salvarConfigEmpresa() {
   const empAtual = JSON.parse(localStorage.getItem('kanawa_empresa') || '{}');
   const logoAtual = empAtual.logo || 'logo.png';
@@ -1935,6 +1945,7 @@ function salvarConfigEmpresa() {
   localStorage.setItem('kanawa_empresa', JSON.stringify(e));
   localStorage.removeItem('kanawa_logo_temp');
   aplicarLogo();
+  aplicarTemaPersonalizado();
   if ($('topbarEmpresa')) $('topbarEmpresa').textContent = e.firma || e.nome || 'Kanawa Soft';
   toast('✅ Empresa atualizada', 'success');
 }
@@ -3093,6 +3104,7 @@ async function init() {
       if (changeEmailButton) changeEmailButton.addEventListener('click', resetOtpStep);
     }
 
+    aplicarTemaPersonalizado();
     startAutoSync();
   } catch (e) {
     console.error('Init error:', e);
@@ -3144,7 +3156,7 @@ const EXPORTS = [
   'abrirModalPromocao','salvarPromocao','togglePublicado',
   'converterOrcamento',
   'criarNotificacao','marcarNotificacaoLida','marcarTodasLidas','updateNotifBadge',
-  'salvarConfigEmpresa','salvarRegras','salvarConfigAPI','testarAPI',
+  'salvarConfigEmpresa','salvarRegras','salvarConfigAPI','testarAPI','salvarConfigFatura','previewConfigFatura',
   'limparColecao','recarregarDemo','resetTotal',
   'escolherLogoEmpresa','removerLogoEmpresa',
   'escolherAvatarPerfil','removerAvatarPerfil','salvarPerfil','alterarSenhaPerfil',
