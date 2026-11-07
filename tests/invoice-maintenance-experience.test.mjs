@@ -100,3 +100,19 @@ test('company invoice identity and banking settings sync by tenant', () => {
   assert.match(app,/cfgEnd/);
   assert.match(app,/cfgIban/);
 });
+
+test('accounting module uses tenant-scoped server RPC and balanced double-entry validation', () => {
+  const migration = readFileSync(new URL('../supabase/migrations/20261107128000_accounting_double_entry_engine.sql', import.meta.url), 'utf8');
+  const cloud = readFileSync(new URL('../app/cloud.js', import.meta.url), 'utf8');
+  assert.match(migration,/private\.ks_post_journal_entry/);
+  assert.match(migration,/round\(v_debit,2\)<>round\(v_credit,2\)/);
+  assert.match(migration,/pg_advisory_xact_lock/);
+  assert.match(migration,/private\.ks_has_company_role/);
+  assert.match(migration,/public\.ks_post_journal_entry/);
+  assert.match(cloud,/async postJournalEntry/);
+  assert.match(cloud,/ks_post_journal_entry/);
+  assert.match(app,/async function renderContabilidade/);
+  assert.match(app,/async function guardarLancamentoContabilistico/);
+  assert.match(app,/Débito e crédito têm de ser iguais/);
+  assert.match(app,/id: 'contabilidade'/);
+});
