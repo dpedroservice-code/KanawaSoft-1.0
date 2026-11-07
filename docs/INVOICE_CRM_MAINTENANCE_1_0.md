@@ -34,3 +34,9 @@
 - A branch continua isolada em `feat/erp-integrations-preview`.
 - Não fazer merge para `main` nem deploy de produção sem aprovação expressa.
 - O CI da PR deve passar os testes automatizados e a verificação de sintaxe.
+
+## Licenças e controlo do proprietário
+- Pacotes pagos Mini, Standard, Premium e Enterprise foram configurados sem limite de utilizadores, instalações ou facturas; o período de avaliação de 14 dias mantém limites próprios.
+- A emissão de chaves e a consulta de pedidos de pagamento dependem de uma única conta proprietária registada no schema privado.
+- A identidade do proprietário ainda não foi registada: a tabela privada começa vazia por segurança. Até o UUID da conta proprietária ser confirmado e registado por operação administrativa segura, ninguém pode emitir ou consultar chaves.
+- As chaves são devolvidas apenas uma vez na emissão; a base de dados conserva apenas o hash. Não se devem colocar chaves em HTML, logs ou mensagens visíveis a funcionários.
