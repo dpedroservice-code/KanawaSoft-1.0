@@ -397,7 +397,7 @@ function mostrarAplicacaoAutenticada(ctx) {
 }
 
 async function abrirCadastroEmpresa() {
-  localStorage.setItem('kanawa_plan_intro_seen','true');
+  localStorage.setItem('kanawa_plan_intro_seen_v1','true');
   if ($('planWelcome')) $('planWelcome').classList.remove('active');
   if ($('authScreen')) $('authScreen').classList.remove('active');
   if ($('setupWizard')) $('setupWizard').classList.add('active');
@@ -3188,7 +3188,7 @@ async function init() {
       localStorage.removeItem('kanawa_user');
       if ($('app')) $('app').classList.remove('active');
       if ($('setupWizard')) $('setupWizard').classList.remove('active');
-      if (!localStorage.getItem('kanawa_plan_intro_seen')) {
+      if (!localStorage.getItem('kanawa_plan_intro_seen_v1')) {
         if ($('planWelcome')) $('planWelcome').classList.add('active');
       } else {
         if ($('authScreen')) $('authScreen').classList.add('active');
@@ -3494,13 +3494,13 @@ function renderConformidade() {
 const KS_PLAN_LABELS = { trial:'Teste gratuito', mini:'Mini', standard:'Standard', premium:'Premium', enterprise:'Enterprise' };
 const KS_PLAN_PRICES = { trial:0, mini:15000, standard:35000, premium:75000, enterprise:0 };
 function ignorarApresentacaoPlanos() {
-  localStorage.setItem('kanawa_plan_intro_seen','true');
+  localStorage.setItem('kanawa_plan_intro_seen_v1','true');
   const splash=$('planWelcome'); if(splash)splash.classList.remove('active');
   if($('authScreen'))$('authScreen').classList.add('active');
 }
 function selecionarPlano(code) {
   localStorage.setItem('kanawa_selected_plan',code);
-  localStorage.setItem('kanawa_plan_intro_seen','true');
+  localStorage.setItem('kanawa_plan_intro_seen_v1','true');
   if(code==='trial') {
     const splash=$('planWelcome');if(splash)splash.classList.remove('active');
     if($('authScreen'))$('authScreen').classList.remove('active');
