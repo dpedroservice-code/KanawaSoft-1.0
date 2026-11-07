@@ -606,6 +606,53 @@
       return result.data;
     },
 
+    async upsertEmployee(details) {
+      if (!this.ready) throw new Error('Sessão cloud não disponível.');
+      const employeeNumber = String(details.employeeNumber || ('EMP-' + Date.now()));
+      const payload = {
+        company_id: context.company.id, employee_number: employeeNumber,
+        full_name: details.fullName, email: details.email || null, phone: details.phone || null,
+        tax_id: details.taxId || null, department: details.department || null,
+        job_title: details.jobTitle || null, hire_date: details.hireDate || null,
+        employment_status: details.status || 'active', salary_amount: Number(details.salary || 0)
+      };
+      const result = await client.from('ks_employees').upsert(payload,{onConflict:'company_id,employee_number'}).select('id,employee_number').single();
+      if (result.error) throw result.error;
+      return result.data;
+    },
+
+    async saveEmployeeCompensation(details) {
+      if (!this.ready) throw new Error('Sessão cloud não disponível.');
+      const result = await client.from('ks_employee_compensation_history').insert({
+        company_id: context.company.id, employee_id: details.employeeId,
+        effective_from: details.effectiveFrom || new Date().toISOString().slice(0,10),
+        base_salary: Number(details.baseSalary || 0), transport_allowance: Number(details.transportAllowance || 0),
+        meal_allowance: Number(details.mealAllowance || 0), recurring_bonus: Number(details.bonus || 0),
+        reason: details.reason || 'Registo inicial'
+      });
+      if (result.error) throw result.error;
+      return result.data;
+    },
+
+    async getEmployeeDocuments() {
+      if (!this.ready) return [];
+      const result = await client.from('ks_employee_documents').select('*').eq('company_id',context.company.id).order('expires_at',{ascending:true});
+      if (result.error) throw result.error;
+      return result.data || [];
+    },
+
+    async saveEmployeeDocument(details) {
+      if (!this.ready) throw new Error('Sessão cloud não disponível.');
+      const result = await client.from('ks_employee_documents').insert({
+        company_id:context.company.id, employee_id:details.employeeId,
+        document_type:details.documentType, title:details.title, document_number:details.documentNumber||null,
+        issued_at:details.issuedAt||null, expires_at:details.expiresAt||null,
+        file_path:details.filePath, status:'valid', reminder_days:[60,30,15,7]
+      }).select('*').single();
+      if (result.error) throw result.error;
+      return result.data;
+    },
+
     async getPaymentRequests() {
       if (!this.ready) return [];
       const result = await client.from('ks_payment_requests').select('id,plan_code,duration_months,amount,payment_method,status,created_at,review_note').eq('company_id', context.company.id).order('created_at', { ascending: false });
