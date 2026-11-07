@@ -8,6 +8,7 @@
 - Termos comerciais próprios podem ser definidos em Configurações.
 - Cor principal, cor secundária e modelo podem ser personalizados.
 - Preferências de faturação são guardadas no registo da empresa através da coleção sincronizada `configuracoesFatura`, com cache local.
+- Identidade comercial e bancária da empresa (morada, NIF, telefone, email, website, banco e IBAN) sincroniza por empresa através de `empresaConfig`. O logótipo em base64 continua local neste momento e precisa de upload privado para ficar disponível em todos os dispositivos.
 - QR é opcional e contém apenas dados de referência do documento. Não é QR de validação fiscal.
 - Não são impressos termos, hash, assinatura ou declarações de certificação AGT enquanto não existir integração fiscal activa e confirmada no servidor.
 - Não foram incorporados templates ou imagens de terceiros; os layouts do ERP são originais e editáveis no repositório.
