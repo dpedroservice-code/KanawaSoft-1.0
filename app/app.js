@@ -404,6 +404,8 @@ async function abrirCadastroEmpresa() {
 }
 
 /* ====== PERMISSÕES ====== */
+// Convites permanecem bloqueados até o Supabase consumir invitation_code e suportar o perfil contabilista.
+const TEAM_INVITATIONS_ENABLED = false;
 const PERMISSOES = {
   admin: { modulos: '*', acoes: ['criar','editar','excluir','ver','configurar','aprovar','cancelar','exportar','importar'], verFinanceiro: true, excluir: true, configurar: true, descontoMax: 100 },
   gerente: { modulos: ['dashboard','pdv','vendas','produtos','categorias','ecommerce','estoque','compras','clientes','fornecedores','crm','financeiro','contabilidade','fiscal','rh','projetos','tarefas','ativos','frota','os','documentos','relatorios','notificacoes','orcamentos','transportadoras','contratos','tickets','perfil','dispositivos','producao','ordens-producao','mrp','bom','custos-producao','controle-qualidade','planos-producao','logistica-roteirizacao','logistica-etiquetas','logistica-picking','logistica-armazens','logistica-crossdocking','logistica-rastreio','ecommerce-vitrine','ecommerce-carrinho','ecommerce-pedidos','ecommerce-produtos','ecommerce-pagamento','ecommerce-rastreio','rh-recrutamento','rh-desempenho','rh-beneficios','rh-onboarding','rh-ponto','rh-rescisao','rh-plano-carreira','projetos-tarefas','projetos-kanban','projetos-gantt','projetos-recursos','projetos-timesheet','projetos-custos','projetos-riscos','ativos-depreciacao','ativos-manutencao','ativos-garantia','frota-manutencao','frota-rotas','frota-gps','frota-combustivel','frota-documentos','frota-multas','frota-desempenho','os-manutencao','os-checklist','os-calendario','os-tecnicos','produtos-avaliacoes','tabelas-precos','vendas-consignadas','vendas-promocoes','clientes-fidelidade','clientes-cupons','portal-cliente','clientes-segmentacao','crm-pipeline','crm-automacao','crm-score','crm-remarketing','marketing-campanhas','marketing-analise','empresa-legal','despesas-gerais','ferias-dispensas','agenda','reunioes','comunicacao','aprovacoes-empresa','departamentos-empresa','orcamento-empresa','rh-documentos','folha-salarial','elearning-cursos','elearning-certificacoes','elearning-quizzes','elearning-progresso','elearning-relatorios','servicos'], acoes: ['criar','editar','ver','aprovar','cancelar','exportar'], verFinanceiro: true, excluir: false, configurar: false, descontoMax: 30 },
@@ -1886,12 +1888,12 @@ async function renderUsuarios() {
     const labels = { owner: 'Proprietário', admin: 'Administrador', manager: 'Gerente', operator: 'Operador', cashier: 'Caixa', accountant: 'Contabilista' };
     const rows = members.map(member => {
       const id = esc(member.user_id);
-      const memberId = JSON.stringify(String(member.user_id));
+      const memberId = '&quot;' + esc(member.user_id) + '&quot;';
       const role = member.role || 'operator';
       const profile = member.permissions && member.permissions.profile && typeof member.permissions.profile === 'object' ? member.permissions.profile : {};
       const protectedMember = role === 'owner' || role === 'admin' || member.user_id === currentUserId;
       const active = member.status === 'active';
-      const options = ['manager','operator','cashier','accountant'].map(value =>
+      const options = ['manager','operator','cashier'].map(value =>
         '<option value="' + value + '" ' + (role === value ? 'selected' : '') + '>' + esc(labels[value]) + '</option>'
       ).join('');
       const actions = protectedMember ? '<span class="text-muted">Protegido</span>' :
@@ -1910,16 +1912,27 @@ async function renderUsuarios() {
     });
     const pending = invitations.filter(inv => !inv.accepted_at && new Date(inv.expires_at).getTime() > Date.now());
     const inviteRows = pending.map(inv => [esc(inv.full_name), esc(inv.email), badge(labels[inv.role] || inv.role, 'primary'), fmtDT(inv.expires_at)]);
-    return header('Utilizadores e permissões', members.length + ' membros · ' + pending.length + ' convites pendentes', 'var(--danger)', '<button class="btn btn-success" onclick="abrirModalUsuario()"><i class="fas fa-plus"></i> Convidar</button>', 'fa-user-shield') +
+    const inviteAction = TEAM_INVITATIONS_ENABLED ? '<button class="btn btn-success" onclick="abrirModalUsuario()"><i class="fas fa-plus"></i> Convidar</button>' : '<button class="btn btn-warning" disabled title="A aguardar correcção do fluxo de convite no servidor">Convites aguardam integração</button>';
+    return header('Utilizadores e permissões', members.length + ' membros · ' + pending.length + ' convites pendentes', 'var(--danger)', inviteAction, 'fa-user-shield') +
       '<div class="card"><h3>Membros da empresa</h3>' + table(['Nome', 'Email', 'Perfil de acesso', 'Cargo', 'Departamento', 'Estado', 'Ações'], rows) +
       '<p class="text-muted" style="margin-top:10px">Gerente, operador, caixa e contabilista têm perfis limitados. O perfil de funcionário/trabalhador utiliza a base de permissões de operador, com cargo e departamento próprios.</p></div>' +
-      '<div class="card"><h3>Convites pendentes</h3>' + table(['Nome', 'Email', 'Perfil', 'Expira em'], inviteRows) + '<p class="text-muted">O colaborador deve usar o código no formulário “Tenho um convite” e confirmar o mesmo email.</p></div>';
+      '<div class="card"><h3>Convites pendentes</h3>' + table(['Nome', 'Email', 'Perfil', 'Expira em'], inviteRows) + '<p class="text-muted">A aceitação está temporariamente bloqueada para evitar que um novo registo crie uma empresa separada em vez de entrar nesta equipa.</p></div>' +
+      '<div class="card"><h3>Matriz de permissões por perfil</h3>' + table(['Perfil', 'Acesso previsto', 'Limites'], [
+        ['Administrador / proprietário', 'Todos os módulos e gestão da empresa', 'Perfil protegido; não pode ser atribuído por convite comum'],
+        ['Gerente', 'Gestão operacional, vendas, compras, stock, RH e acompanhamento financeiro', 'Sem gestão de utilizadores, auditoria administrativa ou configuração global'],
+        ['Operador', 'Operações, vendas, produtos, stock, produção, serviços e tarefas', 'Sem módulos administrativos, gestão de utilizadores ou configuração global'],
+        ['Funcionário / trabalhador', 'Base de acesso operacional de operador, com cargo e departamento', 'Não é um papel autónomo no servidor nesta versão'],
+        ['Caixa', 'PDV, vendas, clientes e pedidos autorizados', 'Sem administração, contabilidade ou configuração'],
+        ['Contabilista', 'Plano previsto: contabilidade, financeiro, fiscalidade e relatórios', 'Pendente: o servidor ainda não aceita este perfil']
+      ]) + '<p class="text-muted" style="margin-top:10px">A matriz acima descreve a navegação da aplicação. A separação definitiva por módulo também exige políticas RLS específicas no servidor.</p></div>' +
+      '<div class="card"><h3>Bloqueio técnico de convites</h3><p>O servidor actual só aceita os perfis gerente, operador e caixa. Além disso, o onboarding Supabase ainda não consome o código de convite para associar o utilizador à empresa existente. A emissão e aceitação foram suspensas nesta interface até a correcção do backend.</p></div>';
   } catch (error) {
     return '<div class="card"><h3>Não foi possível carregar a equipa</h3><p>' + esc(error.message || 'Erro de ligação') + '</p></div>';
   }
 }
 function abrirModalUsuario() {
   if (!podeAcessar('usuarios')) { toast('Somente o administrador pode convidar utilizadores.', 'error'); return; }
+  if (!TEAM_INVITATIONS_ENABLED) { toast('Convites temporariamente bloqueados: falta activar a aceitação segura no servidor Supabase.', 'warning'); return; }
   if (!window.KanawaCloud || !KanawaCloud.ready) { toast('É necessária uma sessão cloud activa para criar convites.', 'warning'); return; }
   const departments = ['Administração','Contabilidade','Comercial e Vendas','Compras','Financeiro','Fiscalidade','Gestão de Stock','Logística','Marketing','Operações','Recursos Humanos','Suporte Técnico','Tecnologia e Informática','Outro'];
   openModal('Convidar colaborador',
@@ -1929,7 +1942,7 @@ function abrirModalUsuario() {
     '<div class="form-group"><label>Perfil de acesso *</label><select id="uPerfil">' +
     '<option value="manager">Gerente</option><option value="operator" selected>Operador</option>' +
     '<option value="employee">Funcionário / trabalhador (acesso operacional)</option>' +
-    '<option value="cashier">Caixa</option><option value="accountant">Contabilista</option></select></div>' +
+    '<option value="cashier">Caixa</option><option value="accountant" disabled>Contabilista — pendente de activação no servidor</option></select></div>' +
     '<div class="form-group"><label>Cargo / função</label><input id="uCargo" maxlength="100" placeholder="Ex.: Assistente de armazém"></div>' +
     '<div class="form-group full"><label>Departamento</label><select id="uDepartamento"><option value="">Sem departamento definido</option>' +
     departments.map(name => '<option value="' + esc(name) + '">' + esc(name) + '</option>').join('') +
@@ -1950,6 +1963,7 @@ function defaultTeamPermissions(role, profile) {
 }
 async function salvarUsuario() {
   if (!podeAcessar('usuarios')) { toast('Somente o administrador pode criar utilizadores.', 'error'); return; }
+  if (!TEAM_INVITATIONS_ENABLED) { toast('Não é seguro gerar convites até o servidor validar e consumir o código de convite.', 'warning'); return; }
   if (!window.KanawaCloud || !KanawaCloud.ready) { toast('A ligação cloud é necessária para criar o convite.', 'warning'); return; }
   const name = $('uNome').value.trim();
   const email = $('uEmail').value.trim().toLowerCase();
@@ -3388,6 +3402,12 @@ async function init() {
       const inviteForm = $('inviteSignupForm');
       if (inviteForm) inviteForm.addEventListener('submit', async function (event) {
         event.preventDefault();
+        if (!TEAM_INVITATIONS_ENABLED) {
+          const inviteError = $('inviteSignupError') || $('loginError');
+          if (inviteError) { inviteError.textContent = 'A aceitação de convites está temporariamente suspensa. Contacte o administrador até a ligação segura ao servidor ser activada.'; inviteError.classList.add('show'); }
+          toast('O servidor ainda não associa o código de convite à empresa existente.', 'warning');
+          return;
+        }
         const submit = $('inviteSignupSubmit');
         if (submit) submit.disabled = true;
         try {
