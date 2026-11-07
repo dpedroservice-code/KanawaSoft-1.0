@@ -47,3 +47,12 @@ test('login feedback is neutral and database vendor is not named in user-facing 
   assert.doesNotMatch(app,/guardada no PostgreSQL|A sincronizar com PostgreSQL/);
   assert.match(html,/ERP Empresarial 1\.0/);
 });
+
+test('commercial proposals retain the client company and link accepted business to the sale', () => {
+  assert.match(app,/empresaCliente/);
+  assert.match(app,/atualizarEstadoOrcamento/);
+  assert.match(app,/status='convertida'/);
+  assert.match(app,/orcamentoOrigem/);
+  assert.match(app,/vendaId=venda\.id/);
+  assert.match(app,/Propostas e Negócios/);
+});
