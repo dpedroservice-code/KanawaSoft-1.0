@@ -592,6 +592,23 @@
       return true;
     },
 
+    async getExpiringDocuments(daysAhead) {
+      if (!this.ready) return [];
+      const end = new Date(Date.now() + Number(daysAhead || 90) * 86400000).toISOString().slice(0,10);
+      const today = new Date().toISOString().slice(0,10);
+      const [companyDocs,employeeDocs] = await Promise.all([
+        client.from('ks_company_documents').select('id,title,document_type,expires_at,status').eq('company_id',context.company.id).not('expires_at','is',null).lte('expires_at',end),
+        client.from('ks_employee_documents').select('id,title,document_type,expires_at,status,employee_id').eq('company_id',context.company.id).not('expires_at','is',null).lte('expires_at',end)
+      ]);
+      if(companyDocs.error) throw companyDocs.error;
+      if(employeeDocs.error) throw employeeDocs.error;
+      return [
+        ...(companyDocs.data||[]).map(x=>Object.assign({scope:'Empresa'},x)),
+        ...(employeeDocs.data||[]).map(x=>Object.assign({scope:'Funcionário'},x))
+      ].map(x=>Object.assign(x,{days_remaining:Math.ceil((new Date(x.expires_at+'T23:59:59').getTime()-Date.now())/86400000)}))
+       .sort((a,b)=>a.days_remaining-b.days_remaining);
+    },
+
     async getCompanyDocuments() {
       if (!this.ready) return [];
       const result = await client.from('ks_company_documents').select('*').eq('company_id', context.company.id).order('expires_at', { ascending: true });
