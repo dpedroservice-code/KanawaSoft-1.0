@@ -13,6 +13,9 @@ const tenantRelations = readFileSync(new URL('../supabase/migrations/20261107116
 const privateFunctions = readFileSync(new URL('../supabase/migrations/20261107117000_private_security_definer_functions.sql', import.meta.url), 'utf8');
 const vaultMigration = readFileSync(new URL('../supabase/migrations/20261107120000_vault_integration_encryption_key.sql', import.meta.url), 'utf8');
 const integrationEdge = readFileSync(new URL('../supabase/functions/company-integrations/index.ts', import.meta.url), 'utf8');
+const fkIndexSweep = readFileSync(new URL('../supabase/migrations/20261107121000_index_remaining_foreign_keys.sql', import.meta.url), 'utf8');
+const policyCleanup = readFileSync(new URL('../supabase/migrations/20261107122000_policy_overlap_cleanup.sql', import.meta.url), 'utf8');
+const profilePolicies = readFileSync(new URL('../supabase/migrations/20261107123000_profiles_policy_consolidation.sql', import.meta.url), 'utf8');
 
 test('first-run marketing screen, package selection and one-time presentation are wired', () => {
   assert.match(html, /id="planWelcome"/);
@@ -117,4 +120,14 @@ test('integration encryption key is generated in Supabase Vault and available on
   assert.match(vaultMigration,/revoke all on function public\.ks_get_integration_encryption_key\(\) from public,anon,authenticated/i);
   assert.match(integrationEdge,/ks_get_integration_encryption_key/);
   assert.match(integrationEdge,/encryptSecret\(credentials, encryptionKey\)/);
+});
+
+
+test('database hardening indexes remaining foreign keys and removes permissive policy overlaps', () => {
+  assert.match(fkIndexSweep,/create index if not exists/i);
+  assert.match(fkIndexSweep,/pg_constraint/);
+  assert.match(policyCleanup,/drop policy if exists ks_companies_select_member/i);
+  assert.match(policyCleanup,/drop policy if exists ks_memberships_read_self/i);
+  assert.match(profilePolicies,/ks_profiles_select_self_or_company_admin/);
+  assert.match(profilePolicies,/drop policy if exists ks_profiles_self/);
 });
