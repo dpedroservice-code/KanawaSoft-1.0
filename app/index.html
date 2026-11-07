@@ -219,6 +219,9 @@ tr:hover td{background:var(--bg-hover)}
 @media print{body{overflow:visible;height:auto}.sidebar,.topbar,.pdv-breadcrumb,.btn,.no-print{display:none!important}}
 
 /* ====== MENU LATERAL FUNCIONAL: desktop e mobile ====== */
+:root{--sidebar-w:250px}
+@media(min-width:601px){:root{--sidebar-w:250px}}
+
 .sidebar{align-items:stretch!important;width:var(--sidebar-w);min-width:var(--sidebar-w);padding:10px!important;gap:5px!important;overflow-x:hidden!important;overflow-y:auto!important;}
 .sidebar-group{display:block;width:100%;min-width:0;}
 .sidebar-group-trigger{display:flex!important;width:100%!important;min-height:46px;justify-content:flex-start!important;white-space:normal;line-height:1.25;}
