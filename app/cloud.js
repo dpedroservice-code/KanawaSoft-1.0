@@ -444,7 +444,7 @@
       if (!this.ready) return null;
       return failIfError(await client
         .from('ks_company_licenses')
-        .select('id, plan_code, license_key, status, starts_at, expires_at, grace_until, max_users_override, max_installations_override')
+        .select('id, plan_code, status, starts_at, expires_at, grace_until, max_users_override, max_installations_override, max_invoices_override, term_months_override')
         .eq('company_id', context.company.id)
         .order('created_at', { ascending: false })
         .limit(1)
@@ -541,7 +541,7 @@
 
     async redeemLicenseKey(key) {
       if (!this.ready) throw new Error('Entre na empresa antes de activar a chave.');
-      const result = await client.rpc('ks_redeem_license_key', { p_license_key: String(key || '').trim() });
+      const result = await client.rpc('ks_redeem_license_key', { p_license_key: String(key || '').trim(), p_company_id: context.company.id });
       if (result.error) throw result.error;
       return result.data;
     },
