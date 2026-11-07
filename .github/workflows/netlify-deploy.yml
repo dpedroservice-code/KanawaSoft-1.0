@@ -2,7 +2,7 @@ name: Netlify deploy
 
 on:
   pull_request:
-    branches: [main]
+    branches: [main, feat/isolated-supabase-foundation]
   push:
     branches: [main]
   workflow_dispatch:
