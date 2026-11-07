@@ -22,6 +22,7 @@ function event(body) {
 function response(status, payload) {
   return { ok: status >= 200 && status < 300, status, json: async () => payload };
 }
+function rateLimitResponse() { return response(200, true); }
 
 test('normaliza email e telefone internacional', () => {
   assert.equal(auth.normalizeIdentifier(' USER@EXAMPLE.COM ', 'email'), 'user@example.com');
@@ -32,26 +33,42 @@ test('rejeita identificadores e origens inválidos', () => {
   assert.throws(() => auth.normalizeIdentifier('923000000', 'sms'));
   assert.equal(auth.allowedOrigin('https://example.org'), false);
 });
-test('aplica limite de tentativas por IP e operação', () => {
-  auth.resetRateLimitsForTests();
-  for (let i = 0; i < 5; i++) assert.equal(auth.allowAttempt('ip:start', 5, 60000, 1000), true);
-  assert.equal(auth.allowAttempt('ip:start', 5, 60000, 1000), false);
-  assert.equal(auth.allowAttempt('ip:verify', 5, 60000, 1000), true);
+test('gera chaves de rate limit não reversíveis e sem PII', () => {
+  const hash = auth.hashRateKey('ip:203.0.113.10:email:user@example.com:start');
+  assert.match(hash, /^[a-f0-9]{64}$/);
+  assert.equal(hash.includes('user@example.com'), false);
+});
+test('bloqueia excesso de pedidos usando o limitador persistente', async () => {
+  setEnv();
+  let profileLookups = 0;
+  global.fetch = async (url) => {
+    if (String(url).includes('/rpc/ks_consume_auth_otp_rate_limit')) return response(200, false);
+    if (String(url).includes('/rest/v1/ks_profiles')) profileLookups++;
+    return response(200, []);
+  };
+  const r = await auth.handler(event({ action: 'start', channel: 'email', identifier: 'user@example.com' }));
+  assert.equal(r.statusCode, 429);
+  assert.equal(profileLookups, 0);
 });
 test('não revela se uma conta existe ao solicitar código', async () => {
-  setEnv(); auth.resetRateLimitsForTests();
-  let calls = 0;
-  global.fetch = async () => { calls++; return response(200, []); };
+  setEnv();
+  let profileLookups = 0;
+  global.fetch = async (url) => {
+    if (String(url).includes('/rpc/ks_consume_auth_otp_rate_limit')) return rateLimitResponse();
+    if (String(url).includes('/rest/v1/ks_profiles')) { profileLookups++; return response(200, []); }
+    throw new Error('Unexpected URL ' + url);
+  };
   const r = await auth.handler(event({ action: 'start', channel: 'email', identifier: 'unknown@example.com' }));
   assert.equal(r.statusCode, 202);
   assert.equal(JSON.parse(r.body).ok, true);
-  assert.equal(calls, 1);
+  assert.equal(profileLookups, 1);
 });
 test('envia email e SMS via Verify e só emite sessão após aprovação', async () => {
-  setEnv(); auth.resetRateLimitsForTests();
+  setEnv();
   const calls = [];
   global.fetch = async (url, options = {}) => {
     calls.push({ url: String(url), options });
+    if (String(url).includes('/rpc/ks_consume_auth_otp_rate_limit')) return rateLimitResponse();
     if (String(url).includes('/rest/v1/ks_profiles')) return response(200, [{ user_id: '11111111-1111-4111-8111-111111111111', email: 'user@example.com', phone_e164: '+244923000000' }]);
     if (String(url).includes('/rest/v1/ks_company_memberships')) return response(200, [{ user_id: '11111111-1111-4111-8111-111111111111' }]);
     if (String(url).includes('/Verifications')) return response(201, { status: 'pending' });
@@ -61,7 +78,7 @@ test('envia email e SMS via Verify e só emite sessão após aprovação', async
   };
   const sms = await auth.handler(event({ action: 'start', channel: 'sms', identifier: '+244923000000' }));
   assert.equal(sms.statusCode, 200);
-  assert.match(calls.find(x => x.url.includes('/Verifications')).options.body, /Channel=sms/);
+  assert.ok(calls.some(x => x.url.includes('/Verifications') && x.options.body.includes('Channel=sms')));
   const verified = await auth.handler(event({ action: 'verify', channel: 'sms', identifier: '+244923000000', code: '123456' }));
   assert.equal(verified.statusCode, 200);
   assert.equal(JSON.parse(verified.body).token_hash, 'one-time-token-hash');
@@ -70,9 +87,10 @@ test('envia email e SMS via Verify e só emite sessão após aprovação', async
   assert.ok(calls.some(x => x.url.includes('/Verifications') && x.options.body.includes('Channel=email')));
 });
 test('não cria sessão para código não aprovado', async () => {
-  setEnv(); auth.resetRateLimitsForTests();
+  setEnv();
   let generated = false;
   global.fetch = async (url) => {
+    if (String(url).includes('/rpc/ks_consume_auth_otp_rate_limit')) return rateLimitResponse();
     if (String(url).includes('/rest/v1/ks_profiles')) return response(200, [{ user_id: '11111111-1111-4111-8111-111111111111', email: 'user@example.com' }]);
     if (String(url).includes('/rest/v1/ks_company_memberships')) return response(200, [{ user_id: '11111111-1111-4111-8111-111111111111' }]);
     if (String(url).includes('/VerificationCheck')) return response(200, { status: 'pending' });
