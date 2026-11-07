@@ -24,7 +24,7 @@
 
 ## Limitações ainda abertas
 - A configuração de faturação sincroniza por empresa, mas a validação funcional em duas empresas e em dois dispositivos ainda é necessária.
-- O número da fatura ainda usa o gerador legado baseado no relógio; deve ser substituído por uma sequência transaccional por empresa/ano no servidor antes de emissão comercial em escala.
+- A numeração oficial é reservada atomicamente no servidor por empresa e ano fiscal. Se a empresa estiver offline, o ERP não emite uma fatura final numerada; continua possível guardar a proposta/rascunho e finalizar depois de restabelecer a ligação.
 - A interface de impressão A4 foi modernizada; a versão térmica ainda precisa de alinhamento com os novos modelos.
 - O estado de integração AGT tem de ser obtido por confirmação server-side antes de apresentar elementos fiscais.
 - A interface de manutenção ainda precisa de validação de fluxo com técnicos internos e prestadores externos.
