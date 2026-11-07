@@ -82,7 +82,7 @@ function gerarAssinatura(v) { const d = (v.numeroFatura || '') + '|' + (v.total 
 /* ====== INDEXEDDB ====== */
 const DB_STORES = [
   'produtos','clientes','fornecedores','vendas','compras','estoque','contasReceber','contasPagar','funcionarios','categorias','projetos','tarefas','ativos','frotas','ordensServico','notificacoes','documentos','mensagens','cursos','leads','campanhas','eventos','devolucoes','faturas','pagamentos','empresas','usuarios','movimentacoesEstoque','promocoes','ecommerce','auditoria','orcamentos','transportadoras','contratos','aprovacoes','sincronizacao','tickets','dispositivos','_sync_queue',
-  'producao','ordensProducao','mrp','boms','custosProducao','controleQualidade','planosProducao','planoContas','budgets','forecasts','conciliacoes','transacoesBancarias','previsoesVendas','tendencias','folhasPagamento','turnos','ferias','vagas','candidatos','desempenhoRH','beneficios','planosCarreira','onboarding','pontoDigital','rescisoes','automacoes','scoreLeads','campanhasMarketing','segmentacoes','cupons','fidelidade','ganttProjetos','timesheets','manutencoes','ordensManutencao','garantias','pecasEstoque','checklistsInspecao','calendarioManutencoes','gpsTracking','abastecimentos','configuracoesFatura','multas','tecnicos','roteirizacao','etiquetas','transferencias','inventarios','lotes','rastreios','recebimentos','ecommerceProdutos','ecommerceCarrinhos','ecommercePedidos','avaliacoes','pagamentosEcommerce','vendasConsignadas','tabelasPrecos','assinaturasDigitais','documentosFiscais','certificacoes','quizzes','mensagensChat','mensagensWhatsApp','eventosCalendar','unidades','servicos','clientesPortal','acessos','politicasSenha','tentativasLogin','sessoes','sms2FA','integracoesAGT','ivas','irts','backups','backupsAgendados','backupsNuvem','audiobooks','ddgHistorico','bingHistorico','dashboardsCustom','modulosPersonalizados','departamentos','frequencias','feriasFuncionarios','pagamentosFuncionarios','motoristas','manutencoesAtivos','depreciacoes','historicoOS','contatosWhatsApp','templatesWhatsApp','carrinhosSalvos','feedbacks','logsSeguranca','seguranca','migracoes','tarefasProjetos','membrosProjetos','atividadesProjetos','gruposUsuarios','config','armazens'
+  'producao','ordensProducao','mrp','boms','custosProducao','controleQualidade','planosProducao','planoContas','budgets','forecasts','conciliacoes','transacoesBancarias','previsoesVendas','tendencias','folhasPagamento','turnos','ferias','vagas','candidatos','desempenhoRH','beneficios','planosCarreira','onboarding','pontoDigital','rescisoes','automacoes','scoreLeads','campanhasMarketing','segmentacoes','cupons','fidelidade','ganttProjetos','timesheets','manutencoes','ordensManutencao','garantias','pecasEstoque','checklistsInspecao','calendarioManutencoes','gpsTracking','abastecimentos','configuracoesFatura','empresaConfig','multas','tecnicos','roteirizacao','etiquetas','transferencias','inventarios','lotes','rastreios','recebimentos','ecommerceProdutos','ecommerceCarrinhos','ecommercePedidos','avaliacoes','pagamentosEcommerce','vendasConsignadas','tabelasPrecos','assinaturasDigitais','documentosFiscais','certificacoes','quizzes','mensagensChat','mensagensWhatsApp','eventosCalendar','unidades','servicos','clientesPortal','acessos','politicasSenha','tentativasLogin','sessoes','sms2FA','integracoesAGT','ivas','irts','backups','backupsAgendados','backupsNuvem','audiobooks','ddgHistorico','bingHistorico','dashboardsCustom','modulosPersonalizados','departamentos','frequencias','feriasFuncionarios','pagamentosFuncionarios','motoristas','manutencoesAtivos','depreciacoes','historicoOS','contatosWhatsApp','templatesWhatsApp','carrinhosSalvos','feedbacks','logsSeguranca','seguranca','migracoes','tarefasProjetos','membrosProjetos','atividadesProjetos','gruposUsuarios','config','armazens'
 ];
 let lastGeneratedRecordId = 0;
 function nextGeneratedRecordId() {
@@ -807,6 +807,7 @@ function abrirGavetaAutomatico() {
 }
 /* ====== FATURA COM QR CODE + AGT ====== */
 async function abrirFatura(venda) {
+  await carregarConfigEmpresa();
   await carregarConfigFatura();
   const emp = Object.assign({}, venda.empresa || {}, JSON.parse(localStorage.getItem('kanawa_empresa') || '{}'));
   const logo = (emp.logo && emp.logo.indexOf('data:') === 0) ? emp.logo : (emp.logo || 'logo.png');
@@ -1846,6 +1847,7 @@ async function renderModulos() {
 /* ====== CONFIGURAÇÕES ====== */
 async function renderConfig() {
   if (!podeAcessar('config')) return '<div class="card"><h3>Sem permissão</h3></div>';
+  await carregarConfigEmpresa();
   await carregarConfigFatura();
   const emp = JSON.parse(localStorage.getItem('kanawa_empresa') || '{}');
   const regras = JSON.parse(localStorage.getItem('kanawa_regras') || '{}');
@@ -2006,17 +2008,37 @@ function previewConfigFatura() {
   openModal('Pré-visualização do modelo de fatura','<div style="max-height:70vh;overflow:auto">'+markup+'</div><div style="margin-top:12px;text-align:right"><button class="btn btn-secondary" onclick="closeModal()">Fechar</button></div>',true);
   if(c.showQr) setTimeout(()=>gerarQRCodeFatura(JSON.stringify({document:'PRÉ-VISUALIZAÇÃO',currency:'AOA'})),150);
 }
-function salvarConfigEmpresa() {
+async function carregarConfigEmpresa() {
+  try {
+    const rows=await getData('empresaConfig');
+    const saved=(rows||[]).find(x=>x.id==='company-config');
+    if(saved) {
+      const local=JSON.parse(localStorage.getItem('kanawa_empresa')||'{}');
+      const merged=Object.assign({},local,saved);
+      if(local.logo && String(local.logo).indexOf('data:')===0) merged.logo=local.logo;
+      localStorage.setItem('kanawa_empresa',JSON.stringify(merged));
+    }
+  } catch(error) { console.warn('Cadastro da empresa ainda não sincronizado:',error); }
+}
+async function salvarConfigEmpresa() {
   const empAtual = JSON.parse(localStorage.getItem('kanawa_empresa') || '{}');
   const logoAtual = empAtual.logo || 'logo.png';
   const logoNovo = localStorage.getItem('kanawa_logo_temp') || logoAtual;
   const e = { firma: $('cfgFirma').value, nome: $('cfgNome').value, nif: $('cfgNif').value, alvara: $('cfgAlvara').value, regime: $('cfgRegime').value, telefone: $('cfgTel').value, email: $('cfgEmail').value, endereco: $('cfgEnd').value, website: $('cfgSite').value, sector: $('cfgSector').value, banco: $('cfgBanco').value, iban: $('cfgIban').value, logo: logoNovo };
   localStorage.setItem('kanawa_empresa', JSON.stringify(e));
   localStorage.removeItem('kanawa_logo_temp');
+  const centralReady=!!(window.KanawaCloud&&KanawaCloud.ready);
+  try {
+    const companyRecord=Object.assign({},e,{id:'company-config'});
+    if(companyRecord.logo&&String(companyRecord.logo).indexOf('data:')===0) delete companyRecord.logo;
+    await saveData('empresaConfig',companyRecord);
+  } catch(error) {
+    console.warn('Dados comerciais guardados localmente; sincronização pendente:',error);
+  }
   aplicarLogo();
   aplicarTemaPersonalizado();
   if ($('topbarEmpresa')) $('topbarEmpresa').textContent = e.firma || e.nome || 'Kanawa Soft';
-  toast('✅ Empresa atualizada', 'success');
+  toast(centralReady?'Empresa actualizada e sincronizada.':'Empresa guardada; sincronização pendente.','success');
 }
 function escolherLogoEmpresa(input) {
   const file = input.files[0]; if (!file) return;
