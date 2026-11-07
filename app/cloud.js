@@ -693,6 +693,83 @@
       return result.data.signedUrl;
     },
 
+    async createGeneralExpense(details) {
+      if (!this.ready) throw new Error('Sessão cloud não disponível.');
+      const result=await client.from('ks_general_expenses').insert({
+        company_id:context.company.id,category:details.category,description:details.description,
+        supplier_name:details.supplierName||null,amount:Number(details.amount||0),
+        incurred_on:details.incurredOn||new Date().toISOString().slice(0,10),
+        due_on:details.dueOn||null,status:'pending',submitted_by:context.user.id
+      }).select('id').single();
+      if(result.error)throw result.error;
+      return result.data;
+    },
+
+    async createLeaveRequest(details) {
+      if (!this.ready) throw new Error('Sessão cloud não disponível.');
+      const result=await client.from('ks_leave_requests').insert({
+        company_id:context.company.id,employee_id:details.employeeId,leave_type_id:details.leaveTypeId||null,
+        starts_on:details.startsOn,ends_on:details.endsOn,requested_days:Number(details.days||0),
+        reason:details.reason||null,requested_by:context.user.id,status:'pending'
+      }).select('id').single();
+      if(result.error)throw result.error;
+      return result.data;
+    },
+
+    async listLeaveRequests() {
+      if(!this.ready)return [];
+      const result=await client.from('ks_leave_requests').select('*').eq('company_id',context.company.id).order('created_at',{ascending:false});
+      if(result.error)throw result.error;
+      return result.data||[];
+    },
+
+    async decideLeaveRequest(id,status,note) {
+      if(!this.ready)throw new Error('Sessão cloud não disponível.');
+      const result=await client.from('ks_leave_requests').update({
+        status,decided_by:context.user.id,decided_at:new Date().toISOString(),decision_note:note||null
+      }).eq('id',id).eq('company_id',context.company.id).select('id').single();
+      if(result.error)throw result.error;
+      return result.data;
+    },
+
+    async createCalendarEvent(details) {
+      if(!this.ready)throw new Error('Sessão cloud não disponível.');
+      const result=await client.from('ks_calendar_events').insert({
+        company_id:context.company.id,title:details.title,description:details.description||null,
+        event_type:details.eventType||'event',starts_at:details.startsAt,ends_at:details.endsAt||null,
+        location:details.location||null,organizer_user_id:context.user.id,status:'scheduled'
+      }).select('*').single();
+      if(result.error)throw result.error;
+      return result.data;
+    },
+
+    async listCalendarEvents() {
+      if(!this.ready)return [];
+      const result=await client.from('ks_calendar_events').select('*').eq('company_id',context.company.id).order('starts_at',{ascending:true});
+      if(result.error)throw result.error;
+      return result.data||[];
+    },
+
+    async createDepartment(details) {
+      if(!this.ready)throw new Error('Sessão cloud não disponível.');
+      const result=await client.from('ks_departments').insert({
+        company_id:context.company.id,name:details.name,code:details.code||null,
+        manager_user_id:details.managerUserId||null,status:'active'
+      }).select('id').single();
+      if(result.error)throw result.error;
+      return result.data;
+    },
+
+    async createBudget(details) {
+      if(!this.ready)throw new Error('Sessão cloud não disponível.');
+      const result=await client.from('ks_budgets').insert({
+        company_id:context.company.id,name:details.name,fiscal_year:Number(details.fiscalYear),
+        period_type:'annual',approved_amount:Number(details.amount||0),status:'draft'
+      }).select('id').single();
+      if(result.error)throw result.error;
+      return result.data;
+    },
+
     async savePayrollRun(details) {
       if (!this.ready) throw new Error('Sessão cloud não disponível.');
       const runResult = await client.from('ks_payroll_runs').insert({
