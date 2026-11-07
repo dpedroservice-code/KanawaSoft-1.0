@@ -1861,6 +1861,18 @@ async function renderConfig() {
     '<div class="form-group"><label>NIF *</label><input id="cfgNif" value="' + esc(emp.nif || '') + '"></div>' +
     '<div class="form-group"><label>Nº Alvará</label><input id="cfgAlvara" value="' + esc(emp.alvara || '') + '"></div>' +
     '<div class="form-group"><label>Regime Fiscal</label><select id="cfgRegime"><option value="geral" ' + (emp.regime === 'geral' ? 'selected' : '') + '>Geral (IVA 14%)</option><option value="simplificado" ' + (emp.regime === 'simplificado' ? 'selected' : '') + '>Simplificado (7%)</option><option value="isento" ' + (emp.regime === 'isento' ? 'selected' : '') + '>Isento</option></select></div>' +
+    '<div class="form-group"><label>Sector principal da empresa</label><select id="cfgSector">' +
+    '<option value="comercio" '+(emp.sector==='comercio'?'selected':'')+'>Comércio geral / retalho</option>' +
+    '<option value="farmacia" '+(emp.sector==='farmacia'?'selected':'')+'>Farmácia / saúde</option>' +
+    '<option value="restauracao" '+(emp.sector==='restauracao'?'selected':'')+'>Cantina / restauração</option>' +
+    '<option value="servicos_tecnicos" '+(emp.sector==='servicos_tecnicos'?'selected':'')+'>Serviços técnicos / manutenção</option>' +
+    '<option value="industria" '+(emp.sector==='industria'?'selected':'')+'>Indústria / produção</option>' +
+    '<option value="construcao" '+(emp.sector==='construcao'?'selected':'')+'>Construção / obras</option>' +
+    '<option value="logistica" '+(emp.sector==='logistica'?'selected':'')+'>Logística / transporte</option>' +
+    '<option value="educacao" '+(emp.sector==='educacao'?'selected':'')+'>Educação / formação</option>' +
+    '<option value="hotelaria" '+(emp.sector==='hotelaria'?'selected':'')+'>Hotelaria / alojamento</option>' +
+    '<option value="agricultura" '+(emp.sector==='agricultura'?'selected':'')+'>Agricultura / agropecuária</option>' +
+    '<option value="outro" '+(emp.sector==='outro'?'selected':'')+'>Outra actividade</option></select></div>' +
     '<div class="form-group"><label>Telefone</label><input id="cfgTel" value="' + esc(emp.telefone || '') + '"></div>' +
     '<div class="form-group"><label>Email</label><input id="cfgEmail" value="' + esc(emp.email || '') + '"></div>' +
     '<div class="form-group full"><label>Endereço Completo</label><input id="cfgEnd" value="' + esc(emp.endereco || '') + '"></div>' +
@@ -1998,7 +2010,7 @@ function salvarConfigEmpresa() {
   const empAtual = JSON.parse(localStorage.getItem('kanawa_empresa') || '{}');
   const logoAtual = empAtual.logo || 'logo.png';
   const logoNovo = localStorage.getItem('kanawa_logo_temp') || logoAtual;
-  const e = { firma: $('cfgFirma').value, nome: $('cfgNome').value, nif: $('cfgNif').value, alvara: $('cfgAlvara').value, regime: $('cfgRegime').value, telefone: $('cfgTel').value, email: $('cfgEmail').value, endereco: $('cfgEnd').value, website: $('cfgSite').value, banco: $('cfgBanco').value, iban: $('cfgIban').value, logo: logoNovo };
+  const e = { firma: $('cfgFirma').value, nome: $('cfgNome').value, nif: $('cfgNif').value, alvara: $('cfgAlvara').value, regime: $('cfgRegime').value, telefone: $('cfgTel').value, email: $('cfgEmail').value, endereco: $('cfgEnd').value, website: $('cfgSite').value, sector: $('cfgSector').value, banco: $('cfgBanco').value, iban: $('cfgIban').value, logo: logoNovo };
   localStorage.setItem('kanawa_empresa', JSON.stringify(e));
   localStorage.removeItem('kanawa_logo_temp');
   aplicarLogo();
