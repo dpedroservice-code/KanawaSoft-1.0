@@ -245,7 +245,7 @@ begin
  'ks_meeting_attendees','ks_communication_channels','ks_internal_messages','ks_shared_files',
  'ks_approval_workflows','ks_approval_requests','ks_approval_steps','ks_work_centers',
  'ks_manufacturing_routings','ks_maintenance_plans','ks_budgets','ks_budget_lines',
- 'ks_payment_requests','ks_license_activation_audit'
+ 'ks_license_activation_audit'
  ] loop
   execute format('alter table public.%I enable row level security',t);
   execute format('create policy %I on public.%I for select to authenticated using (private.ks_has_company_role(company_id,array[''owner'',''admin'',''manager'',''gerente'',''cashier'',''caixa'',''operator'',''operador'']::text[]))',t||'_member_read',t);
