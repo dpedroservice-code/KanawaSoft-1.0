@@ -91,9 +91,9 @@ test('private documents and payment proofs are not public and browser code has n
 
 
 test('enterprise schema adds 28 tables and tenant-safe composite relationships', () => {
-  const count=(enterprise.match(/create table if not exists public\\./gi)||[]).length;
+  const count=enterprise.split('create table if not exists public.').length-1;
   assert.equal(count,28);
-  assert.match(tenantRelations,/foreign key\\(company_id,employee_id\\) references public\\.ks_employees\\(company_id,id\\)/);
-  assert.match(tenantRelations,/foreign key\\(company_id,payroll_run_id\\) references public\\.ks_payroll_runs\\(company_id,id\\)/);
-  assert.match(tenantRelations,/foreign key\\(company_id,meeting_id\\) references public\\.ks_meetings\\(company_id,id\\)/);
+  assert.ok(tenantRelations.includes('foreign key(company_id,employee_id) references public.ks_employees(company_id,id)'));
+  assert.ok(tenantRelations.includes('foreign key(company_id,payroll_run_id) references public.ks_payroll_runs(company_id,id)'));
+  assert.ok(tenantRelations.includes('foreign key(company_id,meeting_id) references public.ks_meetings(company_id,id)'));
 });
