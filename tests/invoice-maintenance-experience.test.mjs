@@ -91,3 +91,12 @@ test('only the single server-registered platform owner can manage license keys',
   assert.doesNotMatch(cloud,/from\('ks_platform_admins'\)/);
 });
 
+
+test('company invoice identity and banking settings sync by tenant', () => {
+  assert.match(app,/async function carregarConfigEmpresa/);
+  assert.match(app,/saveData\('empresaConfig'/);
+  assert.match(app,/await carregarConfigEmpresa\(\)/);
+  assert.match(app,/empresaConfig/);
+  assert.match(app,/cfgEnd/);
+  assert.match(app,/cfgIban/);
+});
