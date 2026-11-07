@@ -3477,7 +3477,7 @@ const EXPORTS = [
   'renderElearningQuizzes','novoQuiz','responderQuiz','renderElearningProgresso','gerarRelatorioProgresso',
   'renderElearningRelatorios','exportarRelatorioElearning','gerarGraficoElearning',
   'renderEcommerceProdutos','abrirFormProdutoEcommerce','editarProdutoEcommerce','excluirProdutoEcommerce','toggleProdutoEcommerce',
-  'renderServicos','novoServico','editarServico'
+  'renderServicos','novoServico','editarServico','salvarDepartamentoEmpresa'
 ];
 EXPORTS.forEach(name => { try { window[name] = eval(name); } catch (e) { } });
 
@@ -3819,15 +3819,33 @@ async function abrirFicheiroPartilhado(path){
 async function renderAprovacoesEmpresa(){const rows=await getData('aprovacoes');return header('Centro de Aprovações',rows.length+' pedidos','var(--warning)','', 'fa-clipboard-check')+'<div class="card">'+table(['Pedido','Solicitante','Valor','Data','Estado','Acção'],rows.map(x=>[esc(x.titulo||x.tipo||'-'),esc(x.solicitante||'-'),fmt(x.valor||0),fmtD(x.data),badge(x.status||'pendente','warning'),x.status==='pendente'?'<button class="btn btn-sm btn-success" onclick="decidirAprovacao('+x.id+',\'aprovado\')">Aprovar</button> <button class="btn btn-sm btn-danger" onclick="decidirAprovacao('+x.id+',\'rejeitado\')">Rejeitar</button>':'-']))+'</div>';}
 async function decidirAprovacao(id,status){const x=await DB.get('aprovacoes',id);if(!x)return;x.status=status;x.decididoEm=now();await saveData('aprovacoes',x);toast('Pedido '+status,'success');openModule('aprovacoes-empresa');}
 async function renderDepartamentosEmpresa(){
-  let rows=[];try{rows=await KanawaCloud.listDepartments();}catch(e){console.warn(e);}
-  return header('Departamentos e Estrutura',rows.length+' departamentos','var(--primary)','<button class="btn btn-success" onclick="novoDepartamentoEmpresa()">Novo departamento</button>','fa-sitemap')+'<div class="card">'+table(['Código','Departamento','Responsável','Estado'],rows.map(x=>[esc(x.code||'-'),'<strong>'+esc(x.name)+'</strong>',esc(x.manager_user_id||'-'),badge(x.status||'active','success')]))+'</div>';
+  let rows=[];
+  try{if(window.KanawaCloud&&KanawaCloud.ready&&typeof KanawaCloud.listDepartments==='function')rows=await KanawaCloud.listDepartments()||[];}catch(e){console.warn('Departamentos cloud:',e);}
+  const local=await DB.getAll('departamentos').catch(()=>[]);
+  const known=new Set(rows.map(x=>String(x.code||x.name||'').toLowerCase()));
+  rows=rows.concat(local.filter(x=>!known.has(String(x.code||x.name||'').toLowerCase())));
+  return header('Departamentos e Estrutura',rows.length+' departamentos','var(--primary)','<button class="btn btn-success" onclick="novoDepartamentoEmpresa()"><i class="fas fa-plus"></i> Novo departamento</button>','fa-sitemap')+
+    '<div class="card"><p class="text-muted">Organize as equipas por área. Quando a ligação central estiver disponível, os novos departamentos serão registados na empresa; sem ligação, ficam identificados como rascunhos locais.</p>'+
+    table(['Código','Departamento','Responsável','Estado'],rows.map(x=>[esc(x.code||'-'),'<strong>'+esc(x.name)+'</strong>',esc(x.manager_user_id||x.responsavel||'-'),badge(x.status==='local_draft'?'Rascunho local':(x.status||'active'),x.status==='local_draft'?'warning':'success')]))+'</div>';
 }
-async function novoDepartamentoEmpresa(){
-  const n=prompt('Nome do departamento:');if(!n)return;
-  const code=prompt('Código (opcional):')||'';
-  try{await KanawaCloud.createDepartment({name:n,code});toast('Departamento criado.','success');openModule('departamentos-empresa');}
-  catch(e){toast(e.message||'Não foi possível criar departamento.','danger');}
+function novoDepartamentoEmpresa(){
+  const opts=['Administração','Contabilidade','Comercial e Vendas','Compras','Financeiro','Fiscalidade','Gestão de Stock','Logística','Marketing','Operações','Recursos Humanos','Suporte Técnico','Tecnologia e Informática','Outro'];
+  openModal('Novo departamento','<div class="form-group"><label>Departamento *</label><select id="depNome">'+opts.map(x=>'<option value="'+esc(x)+'">'+esc(x)+'</option>').join('')+'</select></div><div class="form-group"><label>Nome personalizado (se escolher Outro)</label><input id="depOutro" placeholder="Nome do departamento"></div><div class="form-group"><label>Código (opcional)</label><input id="depCodigo" maxlength="20" placeholder="Ex.: FIN"></div><button class="btn btn-primary btn-block" onclick="salvarDepartamentoEmpresa()">Guardar departamento</button>');
 }
+async function salvarDepartamentoEmpresa(){
+  const selected=$('depNome').value, custom=$('depOutro').value.trim();
+  const name=selected==='Outro'?custom:selected, code=$('depCodigo').value.trim();
+  if(!name){toast('Informe o nome do departamento.','warning');return;}
+  try{
+    if(window.KanawaCloud&&KanawaCloud.ready&&typeof KanawaCloud.createDepartment==='function'){
+      await KanawaCloud.createDepartment({name,code});toast('Departamento criado na empresa.','success');
+    }else{
+      await DB.add('departamentos',{name,code,status:'local_draft',created_at:now()});toast('Departamento guardado como rascunho local.','warning');
+    }
+    closeModal();openModule('departamentos-empresa');
+  }catch(e){toast(e.message||'Não foi possível criar departamento.','danger');}
+}
+
 async function renderOrcamentoEmpresa(){
   let rows=[];try{rows=await KanawaCloud.listBudgets();}catch(e){console.warn(e);}
   const total=rows.reduce((s,x)=>s+Number(x.approved_amount||0),0);
