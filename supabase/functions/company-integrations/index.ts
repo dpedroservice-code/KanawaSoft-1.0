@@ -11,9 +11,8 @@ const enc = new TextEncoder();
 const toB64 = (bytes: Uint8Array) => btoa(String.fromCharCode(...bytes));
 const fromB64 = (value: string) => Uint8Array.from(atob(value), c => c.charCodeAt(0));
 
-async function encryptSecret(value: unknown) {
-  const raw = Deno.env.get("INTEGRATION_ENCRYPTION_KEY");
-  if (!raw) throw new Error("INTEGRATION_ENCRYPTION_KEY não configurada.");
+async function encryptSecret(value: unknown, raw: string) {
+  if (!raw) throw new Error("Chave de cifragem do Vault indisponível.");
   const keyBytes = fromB64(raw);
   if (keyBytes.byteLength !== 32) throw new Error("A chave de encriptação deve conter 32 bytes em base64.");
   const key = await crypto.subtle.importKey("raw", keyBytes, "AES-GCM", false, ["encrypt"]);
@@ -66,7 +65,11 @@ Deno.serve(async (req) => {
       }
       const secretFields = Object.keys(credentials);
       if (!secretFields.length || secretFields.some(k => !/^[a-zA-Z0-9_]{1,60}$/.test(k))) return json({ error: "Campos de credenciais inválidos." }, 400);
-      const ciphertext = await encryptSecret(credentials);
+      const { data: encryptionKey, error: keyError } = await admin.rpc("ks_get_integration_encryption_key");
+      if (keyError || typeof encryptionKey !== "string" || !encryptionKey) {
+        return json({ error: "Cofre de cifragem não configurado no servidor." }, 503);
+      }
+      const ciphertext = await encryptSecret(credentials, encryptionKey);
       const tokenValue = String(credentials.accessToken || credentials.access_token || credentials.appSecret || credentials.app_secret || "");
       const lastFour = tokenValue ? tokenValue.slice(-4) : null;
       const { error } = await admin.from("ks_company_integration_secrets").upsert({
