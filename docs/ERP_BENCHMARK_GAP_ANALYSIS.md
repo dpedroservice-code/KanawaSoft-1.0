@@ -14,7 +14,7 @@ A comparação é funcional, não uma certificação nem uma afirmação de equi
 | Inventário e armazéns | Parcial | Produtos, stock, movimentos, armazéns, picking, etiquetas, transferências/logística | Lotes, números de série, validade, inventário físico com contagem, valorização consistente, stock reservado/disponível e rastreabilidade |
 | CRM e vendas B2B | Parcial | Leads, CRM, pipeline, campanhas, propostas/orçamentos | Contas empresariais/contactos múltiplos, actividades, previsão de vendas, conversão completa proposta -> contrato -> ordem -> factura |
 | Contas a pagar/receber | Parcial | Ecrã financeiro básico com contas a pagar/receber | Vencimentos por parcela, liquidação parcial, adiantamentos, notas de crédito, antiguidade de saldos, cobrança e previsão de caixa |
-| Contabilidade geral | Parcial/crítica | Tabelas de plano de contas e diário contabilístico existem no schema | Interface, lançamentos equilibrados, períodos, diário, razão, balancete, demonstrações financeiras e ligação automática aos documentos |
+| Contabilidade geral | Parcial — primeira fundação adicionada | Plano de contas, diário e linhas; nova interface, consulta do diário e lançamento manual de dupla entrada com validação server-side | Períodos, razão, balancete, demonstrações financeiras e ligação automática aos documentos ainda pendentes |
 | Tesouraria e bancos | Parcial/crítica | Tabelas de contas bancárias, reconciliações, pagamentos e câmbios existem | Extratos/importação, movimentos, reconciliação linha-a-linha, caixa por conta, transferências, previsão de tesouraria e validação |
 | Orçamentos e controlo | Parcial | Centros de custo, orçamentos, linhas e aprovações | Orçamento por conta/departamento/período, realizado vs previsto, desvios, revisão e bloqueios configuráveis |
 | Recursos humanos | Parcial/forte | Funcionários, documentos, folha salarial, férias, ponto, recrutamento, desempenho | Escalas/turnos, processamento auditável por período, recibos, mapas, formação e workflows completos |
@@ -69,3 +69,11 @@ A comparação é funcional, não uma certificação nem uma afirmação de equi
 
 ## Estado
 Esta matriz é a primeira auditoria documental do branch. Ainda não representa conclusão dos módulos P0/P1/P2 nem validação visual. O branch permanece isolado; não fazer merge nem publicar em produção sem aprovação expressa.
+
+## Actualização de implementação — fundação contabilística
+- Adicionada migração `20261107128000_accounting_double_entry_engine.sql` no branch e aplicada ao projecto isolado.
+- Adicionadas RPCs tenant-scoped para consultar o plano de contas/diário, criar ou actualizar contas e lançar movimentos contabilísticos.
+- O lançamento valida no servidor: permissões da empresa, contas activas da mesma empresa, pelo menos duas linhas, apenas débito ou crédito por linha e total de débito igual ao crédito.
+- A numeração do diário é sequencial por empresa/ano e protegida por advisory lock transaccional.
+- Adicionada interface inicial em Contabilidade e wrappers no cliente cloud.
+- Isto é uma fundação funcional; ainda não existe integração automática com vendas, compras, salários, activos e tesouraria, nem relatórios contabilísticos completos.
