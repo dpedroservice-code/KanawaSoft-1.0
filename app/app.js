@@ -573,9 +573,7 @@ function toggleMenuGroup(groupId){
 function renderSidebar(){
  const sb=$('sidebar'); if(!sb)return;
  const groups=MENU_GROUPS.map(group=>({...group,items:group.items.filter(item=>podeAcessar(item.id))})).filter(group=>group.items.length);
- const activeGroup=groups.find(group=>group.items.some(item=>item.id===currentModule));
- const openGroup=activeGroup?activeGroup.id:expandedMenuGroup;
- if(activeGroup)expandedMenuGroup=activeGroup.id;
+ const openGroup=expandedMenuGroup;
  sb.innerHTML=groups.map(group=>{
   const isOpen=group.id===openGroup;
   const children=group.items.map(item=>'<button type="button" class="sidebar-item sidebar-subitem'+(item.id===currentModule?' active':'')+'" data-id="'+item.id+'" onclick="openModule('+JSON.stringify(item.id)+')" style="display:flex;align-items:center;gap:10px;width:100%;padding:9px 12px 9px 30px;border:0;background:'+(item.id===currentModule?'var(--bg)':'transparent')+';color:var(--text);text-align:left;border-radius:8px;cursor:pointer;font:inherit"><i class="fas '+item.icon+'" aria-hidden="true" style="width:18px;text-align:center"></i><span>'+esc(item.label)+'</span></button>').join('');
