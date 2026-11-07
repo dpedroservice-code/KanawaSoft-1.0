@@ -56,3 +56,15 @@ test('commercial proposals retain the client company and link accepted business 
   assert.match(app,/vendaId=venda\.id/);
   assert.match(app,/Propostas e Negócios/);
 });
+
+test('official invoice numbering is atomic, per company and reserved server-side', () => {
+  const migration = readFileSync(new URL('../supabase/migrations/20261107124000_invoice_sequence_per_company_year.sql', import.meta.url), 'utf8');
+  const cloud = readFileSync(new URL('../app/cloud.js', import.meta.url), 'utf8');
+  assert.match(migration,/primary key \(company_id, fiscal_year\)/);
+  assert.match(migration,/last_number = private\.ks_invoice_sequences\.last_number \+ 1/);
+  assert.match(migration,/security definer/);
+  assert.match(migration,/ks_has_company_role/);
+  assert.match(cloud,/nextInvoiceNumber/);
+  assert.match(app,/await KanawaCloud\.nextInvoiceNumber\(\)/);
+  assert.match(app,/RASCUNHO-/);
+});
