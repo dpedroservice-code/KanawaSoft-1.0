@@ -449,6 +449,32 @@
       return result.data;
     },
 
+    async getAccountingSnapshot() {
+      if (!this.ready || !context.company || !context.company.id) throw new Error('Ligue a empresa para consultar a contabilidade.');
+      return failIfError(await client.rpc('ks_accounting_snapshot', { p_company_id: context.company.id }));
+    },
+
+    async saveChartAccount(account) {
+      if (!this.ready || !context.company || !context.company.id) throw new Error('Ligue a empresa para configurar o plano de contas.');
+      return failIfError(await client.rpc('ks_save_chart_account', {
+        p_company_id: context.company.id,
+        p_account_code: account.code,
+        p_name: account.name,
+        p_account_type: account.type,
+        p_parent_id: account.parentId || null
+      }));
+    },
+
+    async postJournalEntry(entry) {
+      if (!this.ready || !context.company || !context.company.id) throw new Error('Ligue a empresa para lançar movimentos contabilísticos.');
+      return failIfError(await client.rpc('ks_post_journal_entry', {
+        p_company_id: context.company.id,
+        p_entry_date: entry.date,
+        p_description: entry.description,
+        p_lines: entry.lines
+      }));
+    },
+
     async getLicense() {
       if (!this.ready) return null;
       return failIfError(await client
