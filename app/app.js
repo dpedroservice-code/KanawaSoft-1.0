@@ -1,7 +1,7 @@
 'use strict';
-/* KANAWA SOFT ERP v15.3 CLOUD — app.js unificado (perfil, AGT, firma, gaveta, impressora, líquido, produção, logística, ecommerce, RH, projetos, ativos, frota, OS, tickets, contratos, docs, auditoria, e-learning, CRM, marketing, integrações, dispositivos). */
+/* KANAWA SOFT ERP 1.0 — aplicação principal unificada (perfil, AGT, firma, gaveta, impressora, líquido, produção, logística, ecommerce, RH, projetos, ativos, frota, OS, tickets, contratos, docs, auditoria, e-learning, CRM, marketing, integrações, dispositivos). */
 
-const APP_VERSION = '1.0-enterprise';
+const APP_VERSION = '1.0.0';
 const IS_DESKTOP = !!(window.kanawaNative && window.kanawaNative.isDesktop);
 let API_ONLINE = false;
 let setupStep = 1;
