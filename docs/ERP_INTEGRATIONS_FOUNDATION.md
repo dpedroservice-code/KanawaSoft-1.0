@@ -3,7 +3,7 @@
 This change is additive and targets ONLY the isolated Supabase project `mhaynctedpyqjxdhdisv` on the existing feature branch. It does not change `kanawasoft.shop`, Netlify, the production deployment, or the existing core schema.
 
 ## Database expansion
-Migration `20261107100000_erp_integrations_foundation.sql` adds 45 company-scoped operational tables, plus 3 legal/compliance tables for purchasing, warehouse/stock movements, customers, quotations, finance, HR/payroll, projects, service orders, assets, fleet/delivery, e-commerce, marketing, automation, support, knowledge articles and connectors. Existing core tables remain intact. Tenant RLS is enabled on the new operational tables. Credential vault and e-commerce API-key tables have RLS enabled with no client policies and are service-role-only.
+Migration `20261107100000_erp_integrations_foundation.sql` adds 45 operational tables, 3 legal/compliance tables and 28 enterprise-management/licensing tables for purchasing, warehouse/stock movements, customers, quotations, finance, HR/payroll, projects, service orders, assets, fleet/delivery, e-commerce, marketing, automation, support, knowledge articles and connectors. Existing core tables remain intact. Tenant RLS is enabled on the new operational tables. Credential vault and e-commerce API-key tables have RLS enabled with no client policies and are service-role-only.
 
 ## Meta / WhatsApp credentials
 The app must not place Meta App Secret, WhatsApp token, access token, refresh token or webhook secret in HTML, browser storage, public JS, Git, or chat. The integration screen collects them only for a single HTTPS request to the Edge Function. The function verifies the Supabase JWT and active company membership, encrypts credentials with AES-256-GCM using the server-only `INTEGRATION_ENCRYPTION_KEY`, and writes ciphertext using the service role. The key is never returned. Configure `SUPABASE_URL`, `SUPABASE_ANON_KEY`, `SUPABASE_SERVICE_ROLE_KEY`, and a 32-byte base64 `INTEGRATION_ENCRYPTION_KEY` as Edge Function secrets before enabling saves.
@@ -27,3 +27,6 @@ After deploying the `ecommerce-gateway` Edge Function, external storefronts can:
 - `POST /functions/v1/ecommerce-gateway?action=create_order` with `x-api-key` and `orders:write` to submit an order using `orderNumber`, `customer`, `items: [{ productId, quantity }]`, and optional `shippingTotal`.
 
 Prices are taken from the ERP catalogue, not trusted from the storefront. The gateway checks product availability and stores orders as `pending`; it does not decrement stock or finalize a fiscal invoice until a user confirms the order in the ERP. Duplicate order numbers return HTTP 409. Use HTTPS and keep API keys only in the external store's server-side configuration, never in browser JavaScript.
+
+
+See [Enterprise Management 1.0](ENTERPRISE_MANAGEMENT_1_0.md) for the expanded company-management, HR, payroll, calendar, expenses, licensing, package quotas and Angola legal registry scope. The total planned public table count after all migrations is 93.
