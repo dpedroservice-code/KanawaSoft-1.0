@@ -572,12 +572,32 @@ function toggleMenuGroup(groupId){
 }
 function renderSidebar(){
  const sb=$('sidebar'); if(!sb)return;
+ // Delegação única de eventos: mantém os cliques activos mesmo quando o menu
+ // é reconstruído por innerHTML após abrir/fechar grupos ou mudar de módulo.
+ if(!sb.dataset.menuDelegationBound){
+  sb.addEventListener('click',function(event){
+   const target=event.target && event.target.closest ? event.target : event.target && event.target.parentElement;
+   if(!target)return;
+   const groupButton=target.closest('button[data-menu-group]');
+   if(groupButton && sb.contains(groupButton)){
+    event.preventDefault();
+    toggleMenuGroup(groupButton.getAttribute('data-menu-group'));
+    return;
+   }
+   const moduleButton=target.closest('button[data-menu-module]');
+   if(moduleButton && sb.contains(moduleButton)){
+    event.preventDefault();
+    openModule(moduleButton.getAttribute('data-menu-module'));
+   }
+  });
+  sb.dataset.menuDelegationBound='true';
+ }
  const groups=MENU_GROUPS.map(group=>({...group,items:group.items.filter(item=>podeAcessar(item.id))})).filter(group=>group.items.length);
  const openGroup=expandedMenuGroup;
  sb.innerHTML=groups.map(group=>{
   const isOpen=group.id===openGroup;
-  const children=group.items.map(item=>'<button type="button" class="sidebar-item sidebar-subitem'+(item.id===currentModule?' active':'')+'" data-id="'+item.id+'" onclick="openModule('+JSON.stringify(item.id)+')" style="display:flex;align-items:center;gap:10px;width:100%;padding:9px 12px 9px 30px;border:0;background:'+(item.id===currentModule?'var(--bg)':'transparent')+';color:var(--text);text-align:left;border-radius:8px;cursor:pointer;font:inherit"><i class="fas '+item.icon+'" aria-hidden="true" style="width:18px;text-align:center"></i><span>'+esc(item.label)+'</span></button>').join('');
-  return '<div class="sidebar-group" data-group="'+group.id+'" style="margin:3px 0"><button type="button" class="sidebar-group-trigger'+(isOpen?' active':'')+'" aria-expanded="'+(isOpen?'true':'false')+'" onclick="toggleMenuGroup('+JSON.stringify(group.id)+')" style="display:flex;align-items:center;gap:12px;width:100%;padding:11px 12px;border:0;border-radius:9px;background:'+(isOpen?'var(--bg)':'transparent')+';color:var(--text);text-align:left;cursor:pointer;font:inherit;font-weight:600"><i class="fas '+group.icon+'" aria-hidden="true" style="width:20px;text-align:center"></i><span style="flex:1">'+esc(group.label)+'</span>'+(group.items.length>1?'<i class="fas fa-chevron-'+(isOpen?'down':'right')+'" style="font-size:.7rem;opacity:.65"></i>':'')+'</button>'+(isOpen&&group.items.length>1?'<div class="sidebar-submenu" style="padding:3px 0 5px 7px;margin-left:12px;border-left:1px solid var(--border)">'+children+'</div>':'')+'</div>';
+  const children=group.items.map(item=>'<button type="button" class="sidebar-item sidebar-subitem'+(item.id===currentModule?' active':'')+'" data-id="'+item.id+'" data-menu-module="'+esc(item.id)+'" style="display:flex;align-items:center;gap:10px;width:100%;padding:9px 12px 9px 30px;border:0;background:'+(item.id===currentModule?'var(--bg)':'transparent')+';color:var(--text);text-align:left;border-radius:8px;cursor:pointer;font:inherit"><i class="fas '+item.icon+'" aria-hidden="true" style="width:18px;text-align:center"></i><span>'+esc(item.label)+'</span></button>').join('');
+  return '<div class="sidebar-group" data-group="'+group.id+'" style="margin:3px 0"><button type="button" class="sidebar-group-trigger'+(isOpen?' active':'')+'" aria-expanded="'+(isOpen?'true':'false')+'" data-menu-group="'+esc(group.id)+'" style="display:flex;align-items:center;gap:12px;width:100%;padding:11px 12px;border:0;border-radius:9px;background:'+(isOpen?'var(--bg)':'transparent')+';color:var(--text);text-align:left;cursor:pointer;font:inherit;font-weight:600"><i class="fas '+group.icon+'" aria-hidden="true" style="width:20px;text-align:center"></i><span style="flex:1">'+esc(group.label)+'</span>'+(group.items.length>1?'<i class="fas fa-chevron-'+(isOpen?'down':'right')+'" style="font-size:.7rem;opacity:.65"></i>':'')+'</button>'+(isOpen&&group.items.length>1?'<div class="sidebar-submenu" style="padding:3px 0 5px 7px;margin-left:12px;border-left:1px solid var(--border)">'+children+'</div>':'')+'</div>';
  }).join('');
 }
 
