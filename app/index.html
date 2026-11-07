@@ -355,7 +355,10 @@ tr:hover td{background:var(--bg-hover)}
         <div class="form-group"><label>Natureza jurídica</label><select id="setupLegalForm"><option value="">Seleccionar</option><option value="comerciante_individual">Comerciante em Nome Individual</option><option value="sociedade_unipessoal_quotas">Sociedade por Quotas Unipessoal</option><option value="sociedade_pluripessoal_quotas">Sociedade por Quotas Pluripessoal</option><option value="sociedade_anonima">Sociedade Anónima</option><option value="cooperativa">Cooperativa</option><option value="sucursal">Sucursal</option><option value="agrupamento">Agrupamento de Empresas</option></select></div>
         <div class="form-group"><label>Data de constituição</label><input id="setupIncorporationDate" type="date"></div>
         <div class="form-group"><label>N.º matrícula / registo comercial</label><input id="setupRegistryNumber" placeholder="Número da Conservatória"></div>
+        <div class="form-group"><label>N.º verbete / ficha da empresa</label><input id="setupEntryNumber"></div>
+        <div class="form-group"><label>Conservatória / entidade de registo</label><input id="setupRegistryOffice"></div>
         <div class="form-group"><label>Data da certidão comercial</label><input id="setupRegistryDate" type="date"></div>
+        <div class="form-group"><label>Validade da certidão (se indicada)</label><input id="setupRegistryExpiry" type="date"></div>
         <div class="form-group"><label>N.º da publicação online GUE</label><input id="setupPublicationNumber" placeholder="Referência da publicação"></div>
         <div class="form-group"><label>Data da publicação GUE</label><input id="setupPublicationDate" type="date"></div>
         <div class="form-group full"><label>Link da publicação online GUE</label><input id="setupPublicationUrl" type="url" placeholder="https://gue.gov.ao/portal/public/publicacoes"></div>
@@ -392,6 +395,9 @@ tr:hover td{background:var(--bg-hover)}
             <option value="caixa">Operador de Caixa</option>
           </select>
         </div>
+        <div class="form-group full"><label>Documento de identificação do proprietário / representante</label><input id="setupOwnerBI" placeholder="Número do BI ou passaporte"></div>
+        <div class="form-group"><label>NIF do proprietário (se aplicável)</label><input id="setupOwnerNIF"></div>
+        <div class="form-group"><label>Nacionalidade</label><input id="setupOwnerNationality" value="Angolana"></div>
       </div>
       <div style="display:flex;justify-content:space-between;margin-top:16px">
         <button class="btn btn-secondary" onclick="setupNextStep(1)"><i class="fas fa-arrow-left"></i> Voltar</button>
