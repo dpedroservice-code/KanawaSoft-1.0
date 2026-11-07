@@ -1,46 +1,34 @@
-# Kanawa Soft ERP
+# Kanawa Soft ERP 1.0
 
-Aplicação web Kanawa Soft. A interface publicada é servida a partir da pasta `app/`.
+Aplicação principal e unificada do Kanawa Soft ERP. A página inicial oficial é `app/index.html`; a pasta `app/` contém a interface web, os módulos, os recursos locais e as páginas auxiliares integradas. O ficheiro `index.html` na raiz encaminha para a mesma aplicação, evitando manter uma segunda interface antiga.
+
+## Estrutura central
+
+- `app/index.html`: entrada única, apresentação inicial, selecção de pacote, autenticação, configuração da empresa e área de trabalho.
+- `app/app.js`: lógica principal, navegação e módulos empresariais.
+- `app/cloud.js`: autenticação e ligação à base de dados central Supabase.
+- `app/fatura-modelos.js`: modelos de documentos e facturação.
+- `app/integracoes.html` e `app/conformidade.html`: páginas auxiliares ligadas a partir dos respectivos módulos.
+- `supabase/migrations/` e `supabase/functions/`: estrutura de dados, segurança e serviços backend.
+- `server/` e `desktop/`: execução local/desktop e servidor incorporado.
+- `tests/`: testes automatizados.
+
+## Versão do produto
+
+A versão apresentada ao utilizador e a versão do pacote são **1.0**. Identificadores internos antigos da base de dados local foram preservados para evitar perder ou deixar inacessíveis dados locais já existentes; não representam a versão comercial do produto.
 
 ## Base de dados central
 
-A versão Cloud utiliza Supabase Auth e PostgreSQL:
+A versão cloud utiliza Supabase Auth e PostgreSQL. O browser utiliza apenas a chave pública (publishable/anon). Nunca colocar service-role keys, secret keys, JWT secrets ou credenciais privadas no código público.
 
-- Autenticação de utilizadores através de Supabase Auth.
-- Registos dos módulos guardados em `public.ks_records`, isolados por empresa através de Row Level Security (RLS).
-- Produtos e vendas finalizadas também são refletidos nas tabelas normalizadas, para aplicar regras de stock e quotas.
-- Empresas, membros, licenças, instalações e pedidos de demonstração são mantidos nas tabelas `ks_*`.
-- Cache IndexedDB e fila local para permitir trabalho temporário sem ligação.
-- A primeira autenticação migra os registos locais para a empresa cloud quando ainda não existem registos remotos.
+O projecto Supabase isolado associado a esta entrega é `mhaynctedpyqjxdhdisv`. As migrações e funções devem ser mantidas sincronizadas com esse projecto. Antes de uso real, validar contas, isolamento entre empresas, licenças, limites, documentos, stock e fluxos de RH.
 
-O browser utiliza apenas a publishable key. Nunca colocar `service_role`, secret keys, JWT secrets ou credenciais de servidor no código público.
+## Publicação
 
-## Primeiro acesso
+O Netlify publica a pasta `app/`, conforme `netlify.toml`. A publicação automática depende de configurar futuramente o segredo `NETLIFY_AUTH_TOKEN` em GitHub → Settings → Secrets and variables → Actions. Não é necessário fornecer esse token para consolidar o código no repositório.
 
-1. Abrir o domínio Kanawa Soft.
-2. Selecionar **Criar conta e configurar empresa**.
-3. Preencher os dados da empresa e do administrador.
-4. Confirmar o endereço de email, se o projeto exigir confirmação.
-5. Entrar com o email e a senha criados.
-6. Verificar o indicador de ligação e criar um produto de teste.
-7. Abrir o mesmo domínio noutro dispositivo, entrar com a mesma conta e confirmar que o produto aparece.
+O domínio de produção `kanawasoft.shop` e o projecto Netlify existente não devem ser alterados durante esta consolidação. Não efectuar deploy de produção nem alterar DNS como parte desta tarefa.
 
-O trigger de onboarding existente cria a empresa, a associação de proprietário e uma licença de avaliação de 14 dias. Os limites e o estado da licença são mantidos no PostgreSQL.
+## Validação e limites
 
-## Publicação Netlify
-
-A configuração em `netlify.toml` publica a pasta `app/`.
-
-A publicação atual do projeto Netlify foi criada por API/manual; a ligação de Git contínuo não está confirmada. Foi incluído `.github/workflows/netlify-deploy.yml` para permitir previews e produção:
-
-1. No Netlify, abrir User settings → Applications → Personal access tokens e criar um token.
-2. No GitHub, abrir Settings → Secrets and variables → Actions do repositório `dpedroservice-code/KanawaSoft-1.0`.
-3. Criar o secret `NETLIFY_AUTH_TOKEN` e guardar o token diretamente no GitHub. Não o enviar por chat nem o colocar no código.
-4. Reexecutar o workflow **Netlify deploy** na branch `feat/cloud-postgres-auth-sync` para criar um preview; o URL aparece nos logs da execução.
-5. Testar o preview antes de integrar a branch na `main`. Só um push na `main` faz o workflow publicar em produção.
-
-Em alternativa, pode-se ligar o repositório diretamente ao projeto Netlify e ativar Deploy Previews. O domínio `kanawasoft.shop` deve permanecer associado ao projeto Netlify existente. Não criar um segundo site nem alterar os registos DNS.
-
-## Limites desta entrega
-
-A ligação cloud e o fluxo de autenticação são a primeira etapa da migração. A gestão completa de utilizadores/equipas, painel institucional D.PEDRO SOLUÇÕES, alertas por email, integração fiscal e motor de rotas de entregas devem ser validados e concluídos nas etapas seguintes. O sistema não deve ser apresentado como certificado pela AGT.
+Executar `npm test` e verificações de sintaxe JavaScript antes de integrar. Fazer testes funcionais em browser/Android e com pelo menos duas empresas de teste antes de declarar o ERP pronto para produção. A integração/certificação oficial da AGT não deve ser afirmada sem aprovação formal.

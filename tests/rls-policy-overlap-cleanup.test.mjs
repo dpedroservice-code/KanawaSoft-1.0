@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 
 const sql = readFileSync(
-  new URL('../supabase/migrations/20261106143000_kanawa_rls_policy_overlap_cleanup.sql', import.meta.url),
+  new URL('../supabase/migrations/20261106150517_kanawa_rls_policy_overlap_cleanup.sql', import.meta.url),
   'utf8'
 );
 
