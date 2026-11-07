@@ -116,3 +116,12 @@ test('accounting module uses tenant-scoped server RPC and balanced double-entry 
   assert.match(app,/Débito e crédito têm de ser iguais/);
   assert.match(app,/id: 'contabilidade'/);
 });
+
+test('accounting trial balance aggregates only posted journal lines', () => {
+  const snapshot = readFileSync(new URL('../supabase/migrations/20261107129000_accounting_trial_balance_snapshot.sql', import.meta.url), 'utf8');
+  assert.match(snapshot,/sum\(l\.debit\) filter \(where e\.id is not null\)/);
+  assert.match(snapshot,/sum\(l\.credit\) filter \(where e\.id is not null\)/);
+  assert.match(app,/fmt\(a\.debit_total\)/);
+  assert.match(app,/fmt\(a\.credit_total\)/);
+  assert.match(app,/fmt\(a\.balance\)/);
+});
