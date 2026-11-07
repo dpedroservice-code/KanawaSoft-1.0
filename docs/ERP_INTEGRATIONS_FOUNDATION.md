@@ -30,3 +30,13 @@ Prices are taken from the ERP catalogue, not trusted from the storefront. The ga
 
 
 See [Enterprise Management 1.0](ENTERPRISE_MANAGEMENT_1_0.md) for the expanded company-management, HR, payroll, calendar, expenses, licensing, package quotas and Angola legal registry scope. The total planned public table count after all migrations is 93.
+
+
+## Cofre de cifragem e Edge Functions
+A chave raiz AES-256-GCM é gerada no PostgreSQL e guardada no Supabase Vault. A função pública de leitura é SECURITY INVOKER e executável apenas por `service_role`; o código da Edge Function obtém a chave pelo RPC de servidor. O App Secret e os tokens Meta não ficam no HTML, LocalStorage, repositório ou nas respostas da interface.
+
+Edge Functions publicadas no projecto isolado:
+- `company-integrations` — exige JWT e valida utilizador/membership activa; guarda credenciais cifradas.
+- `ecommerce-gateway` — autentica por API key hash e scopes; por isso está configurada sem validação JWT da plataforma e valida a chave própria em cada pedido.
+
+As funções foram publicadas, mas ainda falta um teste funcional com uma conta/empresa sintética e credenciais de sandbox.
