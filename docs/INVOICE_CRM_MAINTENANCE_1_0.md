@@ -40,3 +40,7 @@
 - A emissão de chaves e a consulta de pedidos de pagamento dependem de uma única conta proprietária registada no schema privado.
 - A identidade do proprietário ainda não foi registada: a tabela privada começa vazia por segurança. Até o UUID da conta proprietária ser confirmado e registado por operação administrativa segura, ninguém pode emitir ou consultar chaves.
 - As chaves são devolvidas apenas uma vez na emissão; a base de dados conserva apenas o hash. Não se devem colocar chaves em HTML, logs ou mensagens visíveis a funcionários.
+
+## Adaptação por sector
+- As configurações da empresa incluem perfis para comércio, farmácia/saúde, cantina/restauração, serviços técnicos/manutenção, indústria, construção, logística, educação, hotelaria, agricultura e outras actividades.
+- O perfil serve como classificação operacional inicial. Os fluxos específicos de cada sector (por exemplo, lotes/validade e rastreabilidade na farmácia ou mesas/receitas na restauração) ainda exigem módulos e testes próprios antes de serem anunciados como concluídos.
