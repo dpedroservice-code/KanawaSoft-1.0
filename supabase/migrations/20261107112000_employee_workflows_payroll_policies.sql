@@ -1,3 +1,4 @@
+alter table public.ks_leave_requests alter column leave_type_id drop not null;
 -- Payroll employer contribution and employee-facing workflows.
 alter table public.ks_payroll_items
  add column if not exists employer_social_security numeric(18,2) not null default 0,
