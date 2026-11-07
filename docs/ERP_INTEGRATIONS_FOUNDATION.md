@@ -19,3 +19,11 @@ The database includes a knowledge-article store for Portuguese module instructio
 
 ## Legal / compliance
 Add configuration and workflow support, not legal certification. Angola fiscal settings and invoices must be checked against current AGT specifications and applicable legislation by qualified personnel. Never represent this ERP as AGT-certified or homologated until the official process is completed.
+
+
+## E-commerce gateway
+After deploying the `ecommerce-gateway` Edge Function, external storefronts can:
+- `GET /functions/v1/ecommerce-gateway?action=catalog` with `x-api-key: ks_live_...` and `catalog:read` to read the active product catalogue.
+- `POST /functions/v1/ecommerce-gateway?action=create_order` with `x-api-key` and `orders:write` to submit an order using `orderNumber`, `customer`, `items: [{ productId, quantity }]`, and optional `shippingTotal`.
+
+Prices are taken from the ERP catalogue, not trusted from the storefront. The gateway checks product availability and stores orders as `pending`; it does not decrement stock or finalize a fiscal invoice until a user confirms the order in the ERP. Duplicate order numbers return HTTP 409. Use HTTPS and keep API keys only in the external store's server-side configuration, never in browser JavaScript.
