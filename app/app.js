@@ -3404,31 +3404,39 @@ async function ativarChaveLicenca(){
 
 /* ====== GENERAL EXPENSES ====== */
 async function renderDespesasGerais(){
-  const all=await getData('contasPagar'),items=all.filter(x=>x.tipo==='despesa_geral'||x.categoriaDespesa);
-  const total=items.reduce((s,x)=>s+Number(x.valor||0),0);
+  let items=[];try{items=await KanawaCloud.listGeneralExpenses();}catch(e){console.warn(e);}
+  const total=items.reduce((s,x)=>s+Number(x.amount||0),0);
   return header('Despesas Gerais','Custos operacionais, comprovativos e centros de custo','var(--danger)','<button class="btn btn-success" onclick="novaDespesaGeral()"><i class="fas fa-plus"></i> Registar despesa</button>','fa-file-invoice-dollar')+
-    '<div class="metric-grid"><div class="metric-card"><div class="label">Total registado</div><div class="value">'+fmt(total)+'</div></div><div class="metric-card"><div class="label">Despesas</div><div class="value">'+items.length+'</div></div><div class="metric-card"><div class="label">Por pagar</div><div class="value">'+fmt(items.filter(x=>x.status!=='pago').reduce((s,x)=>s+Number(x.valor||0),0))+'</div></div></div>'+
-    '<div class="card">'+table(['Categoria','Descrição','Fornecedor','Valor','Vencimento','Estado','Acções'],items.map(x=>[esc(x.categoriaDespesa||'-'),esc(x.descricao||'-'),esc(x.fornecedor||'-'),fmt(x.valor),fmtD(x.vencimento),badge(x.status,x.status==='pago'?'success':'warning'),x.status!=='pago'?'<button class="btn btn-sm btn-success" onclick="marcarPago('+x.id+',\'pagar\')">Pagar</button>':'-']))+'</div>';
+    '<div class="metric-grid"><div class="metric-card"><div class="label">Total registado</div><div class="value">'+fmt(total)+'</div></div><div class="metric-card"><div class="label">Despesas</div><div class="value">'+items.length+'</div></div><div class="metric-card"><div class="label">Por pagar</div><div class="value">'+fmt(items.filter(x=>x.status!=='paid').reduce((s,x)=>s+Number(x.amount||0),0))+'</div></div></div>'+
+    '<div class="card">'+table(['Categoria','Descrição','Fornecedor','Valor','Vencimento','Estado','Acções'],items.map(x=>[esc(x.category||'-'),esc(x.description||'-'),esc(x.supplier_name||'-'),fmt(x.amount),fmtD(x.due_on),badge(x.status,x.status==='paid'?'success':'warning'),x.status!=='paid'?'<button class="btn btn-sm btn-success" onclick="marcarDespesaGeralPaga(\''+x.id+'\')">Pagar</button>':'-']))+'</div>';
 }
 function novaDespesaGeral(){
   openModal('Nova Despesa Geral','<div class="form-grid"><div class="form-group"><label>Categoria</label><select id="dgCategoria"><option>Renda</option><option>Água e electricidade</option><option>Internet e comunicações</option><option>Combustível e transporte</option><option>Manutenção</option><option>Material de escritório</option><option>Alimentação</option><option>Seguros</option><option>Impostos e taxas</option><option>Marketing</option><option>Outros</option></select></div><div class="form-group"><label>Fornecedor</label><input id="dgFornecedor"></div><div class="form-group full"><label>Descrição</label><input id="dgDescricao"></div><div class="form-group"><label>Valor (Kz)</label><input id="dgValor" type="number" min="0" value="0"></div><div class="form-group"><label>Vencimento</label><input id="dgVenc" type="date"></div><div class="form-group"><label>Centro de custo</label><input id="dgCentro"></div><div class="form-group"><label>Projecto</label><input id="dgProjecto"></div></div><button class="btn btn-primary btn-block" onclick="guardarDespesaGeral()">Guardar despesa</button>');
 }
 async function guardarDespesaGeral(){
   const desc=$('dgDescricao').value.trim();if(!desc){toast('Informe a descrição.','warning');return;}
-  await saveData('contasPagar',{tipo:'despesa_geral',categoriaDespesa:$('dgCategoria').value,fornecedor:$('dgFornecedor').value.trim(),descricao:desc,valor:num($('dgValor').value,0),vencimento:$('dgVenc').value,status:'pendente',centroCusto:$('dgCentro').value,projecto:$('dgProjecto').value,data:now()});
-  toast('Despesa registada.','success');closeModal();openModule('despesas-gerais');
+  try{
+    await KanawaCloud.createGeneralExpense({category:$('dgCategoria').value,description:desc,supplierName:$('dgFornecedor').value.trim(),amount:num($('dgValor').value,0),dueOn:$('dgVenc').value||null});
+    toast('Despesa registada na base de dados central.','success');closeModal();openModule('despesas-gerais');
+  }catch(e){toast(e.message||'Não foi possível registar a despesa.','danger');}
+}
+async function marcarDespesaGeralPaga(id){
+  if(!confirm('Confirmar que esta despesa foi paga?'))return;
+  try{await KanawaCloud.updateGeneralExpenseStatus(id,'paid');toast('Despesa marcada como paga.','success');openModule('despesas-gerais');}
+  catch(e){toast(e.message||'Não foi possível actualizar a despesa.','danger');}
 }
 
 /* ====== LEAVE, HOLIDAYS AND ABSENCES ====== */
 async function renderFeriasDispensas(){
-  const rows=await getData('ferias'),staff=await getData('funcionarios');
+  const [remoteRows,staff]=await Promise.all([KanawaCloud.listLeaveRequests(),getData('funcionarios')]);
+  const rows=remoteRows.map(x=>{const emp=staff.find(e=>String(e.cloud_id)===String(x.employee_id));return{id:x.id,cloud_id:x.id,funcionarioNome:emp?emp.nome:'Funcionário',tipo:x.reason||'Pedido de ausência',inicio:x.starts_on,fim:x.ends_on,dias:x.requested_days,motivo:x.reason,status:x.status==='approved'?'aprovado':x.status==='rejected'?'rejeitado':'pendente'};});
   const pending=rows.filter(x=>x.status==='pendente').length;
   const vacationBalances=staff.map(x=>({name:x.nome,days:calcularDireitoFerias(x)}));
   return header('Férias, Licenças e Dispensas',rows.length+' pedidos · '+pending+' pendentes','var(--info)','<button class="btn btn-success" onclick="novoPedidoAusencia()"><i class="fas fa-plus"></i> Novo pedido</button>','fa-calendar-minus')+
     '<div class="metric-grid"><div class="metric-card"><div class="label">Pedidos</div><div class="value">'+rows.length+'</div></div><div class="metric-card"><div class="label">Pendentes</div><div class="value">'+pending+'</div></div><div class="metric-card"><div class="label">Aprovados</div><div class="value">'+rows.filter(x=>x.status==='aprovado').length+'</div></div></div>'+
     '<div class="card"><h3>Referência de férias anuais</h3><p style="font-size:.8rem;color:var(--text-muted)">Estimativa inicial com base na Lei 12/23, artigo 204.º: 22 dias úteis por ano; no ano de admissão, 2 dias úteis por mês completo, sujeito às regras legais e à validação do RH.</p>'+table(['Funcionário','Dias estimados no ano'],vacationBalances.map(x=>[esc(x.name),x.days]))+'</div>'+
-    '<div class="card"><p style="font-size:.82rem;color:var(--text-muted)">O cálculo de férias deve respeitar a Lei Geral do Trabalho (Lei 12/23), o contrato e as regras aplicáveis. O sistema mantém os pedidos e a decisão do empregador; não substitui validação jurídica ou processamento salarial.</p>'+
-    table(['Funcionário','Tipo','Início','Fim','Dias','Motivo','Estado','Acção'],rows.map(x=>[esc(x.funcionarioNome||'-'),esc(x.tipo||'-'),fmtD(x.inicio),fmtD(x.fim),x.dias||'-',esc(x.motivo||'-'),badge(x.status,x.status==='aprovado'?'success':x.status==='rejeitado'?'danger':'warning'),x.status==='pendente'&&podeFazer('aprovar')?'<button class="btn btn-sm btn-success" onclick="decidirAusencia('+x.id+',\'aprovado\')">Aprovar</button> <button class="btn btn-sm btn-danger" onclick="decidirAusencia('+x.id+',\'rejeitado\')">Rejeitar</button>':'A aguardar']))+'</div>';
+    '<div class="card"><p style="font-size:.82rem;color:var(--text-muted)">Os pedidos são guardados na base de dados da empresa. A aprovação final deve respeitar o contrato, o calendário de férias e a legislação aplicável.</p>'+
+    table(['Funcionário','Tipo / motivo','Início','Fim','Dias','Estado','Acção'],rows.map(x=>[esc(x.funcionarioNome),esc(x.tipo||'-'),fmtD(x.inicio),fmtD(x.fim),x.dias||'-',badge(x.status,x.status==='aprovado'?'success':x.status==='rejeitado'?'danger':'warning'),x.status==='pendente'&&podeFazer('aprovar')?'<button class="btn btn-sm btn-success" onclick="decidirAusencia(\''+x.id+'\',\'aprovado\')">Aprovar</button> <button class="btn btn-sm btn-danger" onclick="decidirAusencia(\''+x.id+'\',\'rejeitado\')">Rejeitar</button>':'A aguardar']))+'</div>';
 }
 function novoPedidoAusencia(){
   const staff=DB.getAll('funcionarios');
@@ -3438,27 +3446,51 @@ async function guardarPedidoAusencia(){
   const staff=await DB.getAll('funcionarios'),id=$('ausFuncionario').value,emp=staff.find(x=>String(x.id)===String(id));
   const start=$('ausInicio').value,end=$('ausFim').value;if(!emp||!start||!end||end<start){toast('Verifique funcionário e datas.','warning');return;}
   const days=Math.floor((new Date(end+'T12:00:00')-new Date(start+'T12:00:00'))/86400000)+1;
-  await saveData('ferias',{funcionarioId:emp.id,funcionarioNome:emp.nome,tipo:$('ausTipo').value,inicio:start,fim:end,dias:days,motivo:$('ausMotivo').value,status:'pendente',dataPedido:now()});
-  toast('Pedido enviado para aprovação.','success');closeModal();openModule('ferias-dispensas');
+  try{
+    let employeeId=emp.cloud_id;
+    if(!employeeId){
+      const remote=await KanawaCloud.upsertEmployee({employeeNumber:'EMP-'+emp.id,fullName:emp.nome,email:emp.email,phone:emp.telefone,taxId:emp.nif,department:emp.departamento,jobTitle:emp.cargo,hireDate:emp.dataContratacao,salary:emp.salario,status:'active'});
+      employeeId=remote.id;emp.cloud_id=employeeId;await DB.put('funcionarios',emp);
+    }
+    await KanawaCloud.createLeaveRequest({employeeId,startsOn:start,endsOn:end,days,reason:$('ausTipo').value+': '+$('ausMotivo').value});
+    toast('Pedido enviado para aprovação.','success');closeModal();openModule('ferias-dispensas');
+  }catch(e){toast(e.message||'Não foi possível enviar o pedido.','danger');}
 }
-async function decidirAusencia(id,status){const item=await DB.get('ferias',id);if(!item)return;item.status=status;item.decididoEm=now();item.decididoPor=(JSON.parse(localStorage.getItem('kanawa_user')||'{}').nome||'Administrador');await saveData('ferias',item);toast('Pedido '+status+'.','success');openModule('ferias-dispensas');}
+async function decidirAusencia(id,status){
+  try{await KanawaCloud.decideLeaveRequest(id,status==='aprovado'?'approved':'rejected');toast('Pedido '+status+'.','success');openModule('ferias-dispensas');}
+  catch(e){toast(e.message||'Não foi possível decidir o pedido.','danger');}
+}
 
 /* ====== CALENDAR AND MEETINGS ====== */
 async function renderAgenda(){
-  const events=await getData('eventosCalendar');
+  let events=[];
   try{
-    const meetings=await KanawaCloud.listMeetings();
-    meetings.forEach(m=>events.push({titulo:m.title,tipo:'Reunião',inicio:m.starts_at,local:m.meeting_url||m.location,status:m.status}));
-  }catch(e){console.warn('Reuniões na agenda:',e);}
-  const sorted=events.slice().sort((a,b)=>String(a.inicio||a.starts_at||'').localeCompare(String(b.inicio||b.starts_at||'')));
+    const [calendar,meetings]=await Promise.all([KanawaCloud.listCalendarEvents(),KanawaCloud.listMeetings()]);
+    events=calendar.map(x=>({titulo:x.title,tipo:x.event_type,inicio:x.starts_at,local:x.location,status:x.status,hora:new Date(x.starts_at).toLocaleTimeString('pt-AO',{hour:'2-digit',minute:'2-digit'})}));
+    meetings.forEach(m=>events.push({titulo:m.title,tipo:'Reunião',inicio:m.starts_at,local:m.meeting_url||m.location,status:m.status,hora:new Date(m.starts_at).toLocaleTimeString('pt-AO',{hour:'2-digit',minute:'2-digit'})}));
+  }catch(e){events=await getData('eventosCalendar');console.warn('Agenda central indisponível:',e);}
+  const sorted=events.slice().sort((a,b)=>String(a.inicio||'').localeCompare(String(b.inicio||'')));
+  window.KS_AGENDA_CACHE=sorted;
   return header('Agenda e Marcações',sorted.length+' eventos e compromissos','var(--primary)','<button class="btn btn-success" onclick="novoEventoAgenda()"><i class="fas fa-plus"></i> Nova marcação</button>','fa-calendar-alt')+
-    '<div class="card"><div class="form-grid"><div class="form-group"><label>Pesquisar agenda</label><input id="agendaSearch" oninput="filtrarAgenda()" placeholder="Título, local ou responsável"></div><div class="form-group"><label>Tipo</label><select id="agendaType" onchange="filtrarAgenda()"><option value="">Todos</option><option>Reunião</option><option>Marcação</option><option>Entrega</option><option>Manutenção</option><option>Prazo</option><option>Outro</option></select></div></div><div id="agendaRows">'+table(['Data','Hora','Compromisso','Tipo','Local','Estado'],sorted.map(x=>[fmtD(x.inicio||x.starts_at),esc(x.hora||''),'<strong>'+esc(x.titulo||x.title)+'</strong>',esc(x.tipo||x.event_type||'-'),esc(x.local||x.location||'-'),badge(x.status||'agendado','info')]))+'</div></div>';
+    '<div class="card"><div class="form-grid"><div class="form-group"><label>Pesquisar agenda</label><input id="agendaSearch" oninput="filtrarAgenda()" placeholder="Título, local ou responsável"></div><div class="form-group"><label>Tipo</label><select id="agendaType" onchange="filtrarAgenda()"><option value="">Todos</option><option>Reunião</option><option>Marcação</option><option>Entrega</option><option>Manutenção</option><option>Prazo</option><option>Outro</option></select></div></div><div id="agendaRows">'+table(['Data','Hora','Compromisso','Tipo','Local','Estado'],sorted.map(x=>[fmtD(x.inicio),esc(x.hora||''),'<strong>'+esc(x.titulo)+'</strong>',esc(x.tipo||'-'),esc(x.local||'-'),badge(x.status||'agendado','info')]))+'</div></div>';
 }
-function filtrarAgenda(){const q=($('agendaSearch').value||'').toLowerCase(),t=$('agendaType').value;DB.getAll('eventosCalendar').then(rows=>{const f=rows.filter(x=>(!t||x.tipo===t)&&JSON.stringify(x).toLowerCase().includes(q));$('agendaRows').innerHTML=table(['Data','Hora','Compromisso','Tipo','Local','Estado'],f.map(x=>[fmtD(x.inicio||x.starts_at),esc(x.hora||''),'<strong>'+esc(x.titulo||x.title)+'</strong>',esc(x.tipo||'-'),esc(x.local||'-'),badge(x.status||'agendado','info')]));});}
+function filtrarAgenda(){
+  const q=($('agendaSearch').value||'').toLowerCase(),t=$('agendaType').value;
+  const rows=(window.KS_AGENDA_CACHE||[]).filter(x=>(!t||x.tipo===t)&&JSON.stringify(x).toLowerCase().includes(q));
+  $('agendaRows').innerHTML=table(['Data','Hora','Compromisso','Tipo','Local','Estado'],rows.map(x=>[fmtD(x.inicio),esc(x.hora||''),'<strong>'+esc(x.titulo)+'</strong>',esc(x.tipo||'-'),esc(x.local||'-'),badge(x.status||'agendado','info')]));
+}
 function novoEventoAgenda(){
   openModal('Novo compromisso','<div class="form-grid"><div class="form-group full"><label>Título</label><input id="agTitulo"></div><div class="form-group"><label>Tipo</label><select id="agTipo"><option>Marcação</option><option>Reunião</option><option>Entrega</option><option>Manutenção</option><option>Prazo</option><option>Outro</option></select></div><div class="form-group"><label>Data</label><input id="agData" type="date"></div><div class="form-group"><label>Hora</label><input id="agHora" type="time"></div><div class="form-group"><label>Local / Link</label><input id="agLocal"></div><div class="form-group"><label>Responsável</label><input id="agResp"></div><div class="form-group full"><label>Descrição</label><textarea id="agDesc"></textarea></div></div><button class="btn btn-primary btn-block" onclick="guardarEventoAgenda()">Guardar na agenda</button>');
 }
-async function guardarEventoAgenda(){const title=$('agTitulo').value.trim(),date=$('agData').value;if(!title||!date){toast('Título e data são obrigatórios.','warning');return;}await saveData('eventosCalendar',{titulo:title,tipo:$('agTipo').value,inicio:date,hora:$('agHora').value,local:$('agLocal').value,responsavel:$('agResp').value,descricao:$('agDesc').value,status:'agendado',data:now()});toast('Compromisso agendado.','success');closeModal();openModule('agenda');}
+async function guardarEventoAgenda(){
+  const title=$('agTitulo').value.trim(),date=$('agData').value;
+  if(!title||!date){toast('Título e data são obrigatórios.','warning');return;}
+  const startsAt=new Date(date+'T'+($('agHora').value||'09:00')+':00').toISOString();
+  try{
+    await KanawaCloud.createCalendarEvent({title,description:$('agDesc').value,eventType:$('agTipo').value,startsAt,location:$('agLocal').value});
+    toast('Compromisso guardado na agenda central.','success');closeModal();openModule('agenda');
+  }catch(e){toast(e.message||'Não foi possível agendar.','danger');}
+}
 async function renderReunioes(){
   let rows=[];try{rows=await KanawaCloud.listMeetings();}catch(e){console.warn(e);}
   return header('Reuniões Empresariais',rows.length+' reuniões','var(--purple)','<button class="btn btn-success" onclick="novaReuniao()">Agendar reunião</button>','fa-users')+
@@ -3504,10 +3536,29 @@ async function abrirFicheiroPartilhado(path){
 /* ====== APPROVALS, DEPARTMENTS AND BUDGETS ====== */
 async function renderAprovacoesEmpresa(){const rows=await getData('aprovacoes');return header('Centro de Aprovações',rows.length+' pedidos','var(--warning)','', 'fa-clipboard-check')+'<div class="card">'+table(['Pedido','Solicitante','Valor','Data','Estado','Acção'],rows.map(x=>[esc(x.titulo||x.tipo||'-'),esc(x.solicitante||'-'),fmt(x.valor||0),fmtD(x.data),badge(x.status||'pendente','warning'),x.status==='pendente'?'<button class="btn btn-sm btn-success" onclick="decidirAprovacao('+x.id+',\'aprovado\')">Aprovar</button> <button class="btn btn-sm btn-danger" onclick="decidirAprovacao('+x.id+',\'rejeitado\')">Rejeitar</button>':'-']))+'</div>';}
 async function decidirAprovacao(id,status){const x=await DB.get('aprovacoes',id);if(!x)return;x.status=status;x.decididoEm=now();await saveData('aprovacoes',x);toast('Pedido '+status,'success');openModule('aprovacoes-empresa');}
-async function renderDepartamentosEmpresa(){const rows=await getData('departamentos');return header('Departamentos e Estrutura',rows.length+' departamentos','var(--primary)','<button class="btn btn-success" onclick="novoDepartamentoEmpresa()">Novo departamento</button>','fa-sitemap')+'<div class="card">'+table(['Código','Departamento','Responsável','Estado'],rows.map(x=>[esc(x.codigo||'-'),'<strong>'+esc(x.nome)+'</strong>',esc(x.responsavel||'-'),badge(x.status||'activo','success')]))+'</div>';}
-async function novoDepartamentoEmpresa(){const n=prompt('Nome do departamento:');if(!n)return;const code=prompt('Código (opcional):')||'';await saveData('departamentos',{nome:n,codigo:code,status:'activo',data:now()});openModule('departamentos-empresa');}
-async function renderOrcamentoEmpresa(){const rows=await getData('budgets');const total=rows.reduce((s,x)=>s+Number(x.valor||x.orcamento||0),0);return header('Orçamento Empresarial','Planeamento anual e controlo de custos','var(--success)','<button class="btn btn-success" onclick="novoOrcamentoEmpresa()">Novo orçamento</button>','fa-chart-pie')+'<div class="metric-grid"><div class="metric-card"><div class="label">Orçamentos</div><div class="value">'+rows.length+'</div></div><div class="metric-card"><div class="label">Valor planeado</div><div class="value">'+fmt(total)+'</div></div></div><div class="card">'+table(['Nome','Ano','Centro / Área','Valor','Estado'],rows.map(x=>[esc(x.nome),x.ano||'-',esc(x.departamento||'-'),fmt(x.valor||x.orcamento||0),badge(x.status||'rascunho','info')]))+'</div>';}
-async function novoOrcamentoEmpresa(){const nome=prompt('Nome do orçamento:');if(!nome)return;const valor=Number(prompt('Valor total em Kz:','0'))||0;await saveData('budgets',{nome,ano:new Date().getFullYear(),valor,status:'rascunho',data:now()});openModule('orcamento-empresa');}
+async function renderDepartamentosEmpresa(){
+  let rows=[];try{rows=await KanawaCloud.listDepartments();}catch(e){console.warn(e);}
+  return header('Departamentos e Estrutura',rows.length+' departamentos','var(--primary)','<button class="btn btn-success" onclick="novoDepartamentoEmpresa()">Novo departamento</button>','fa-sitemap')+'<div class="card">'+table(['Código','Departamento','Responsável','Estado'],rows.map(x=>[esc(x.code||'-'),'<strong>'+esc(x.name)+'</strong>',esc(x.manager_user_id||'-'),badge(x.status||'active','success')]))+'</div>';
+}
+async function novoDepartamentoEmpresa(){
+  const n=prompt('Nome do departamento:');if(!n)return;
+  const code=prompt('Código (opcional):')||'';
+  try{await KanawaCloud.createDepartment({name:n,code});toast('Departamento criado.','success');openModule('departamentos-empresa');}
+  catch(e){toast(e.message||'Não foi possível criar departamento.','danger');}
+}
+async function renderOrcamentoEmpresa(){
+  let rows=[];try{rows=await KanawaCloud.listBudgets();}catch(e){console.warn(e);}
+  const total=rows.reduce((s,x)=>s+Number(x.approved_amount||0),0);
+  return header('Orçamento Empresarial','Planeamento anual e controlo de custos','var(--success)','<button class="btn btn-success" onclick="novoOrcamentoEmpresa()">Novo orçamento</button>','fa-chart-pie')+
+    '<div class="metric-grid"><div class="metric-card"><div class="label">Orçamentos</div><div class="value">'+rows.length+'</div></div><div class="metric-card"><div class="label">Valor planeado</div><div class="value">'+fmt(total)+'</div></div></div>'+
+    '<div class="card">'+table(['Nome','Ano','Período','Valor','Estado'],rows.map(x=>[esc(x.name),x.fiscal_year,esc(x.period_type),fmt(x.approved_amount),badge(x.status,'info')]))+'</div>';
+}
+async function novoOrcamentoEmpresa(){
+  const nome=prompt('Nome do orçamento:');if(!nome)return;
+  const valor=Number(prompt('Valor total em Kz:','0'))||0;
+  try{await KanawaCloud.createBudget({name:nome,fiscalYear:new Date().getFullYear(),amount:valor});toast('Orçamento criado.','success');openModule('orcamento-empresa');}
+  catch(e){toast(e.message||'Não foi possível criar orçamento.','danger');}
+}
 
 async function abrirComprovativoPagamento(path){
   if(!path){toast('Sem comprovativo anexado.','warning');return;}
