@@ -439,6 +439,7 @@ const MENU = [
   { id: 'crm-remarketing', icon: 'fa-retweet', label: 'Remarketing' },
   { id: 'marketing-campanhas', icon: 'fa-bullhorn', label: 'Marketing' },
   { id: 'integracoes', icon: 'fa-plug', label: 'Integrações API' },
+  { id: 'conformidade', icon: 'fa-balance-scale', label: 'Conformidade' },
   { id: 'marketing-analise', icon: 'fa-chart-pie', label: 'Análise Marketing' },
   { id: 'financeiro', icon: 'fa-coins', label: 'Financeiro' },
   { id: 'fiscal', icon: 'fa-landmark', label: 'Fiscal AGT' },
@@ -514,6 +515,7 @@ async function openModule(id) {
   const R = {
     dashboard: renderDashboard, pdv: renderPDV, vendas: renderVendas, orcamentos: renderOrcamentos,
     integracoes: renderIntegracoes,
+    conformidade: renderConformidade,
     produtos: renderProdutos, categorias: renderCategorias, ecommerce: renderEcommerce,
     estoque: renderEstoque, compras: renderCompras, clientes: renderClientes,
     fornecedores: renderFornecedores, transportadoras: renderTransportadoras, crm: renderCRM,
@@ -3120,5 +3122,24 @@ function renderIntegracoes() {
     <div class="card">
       <h3 style="margin-bottom:8px">Assistente inteligente</h3>
       <p style="color:var(--text-muted)">Base de conhecimento e conector futuro para ChatGPT preparados na arquitetura. A ativação do modelo, permissões e políticas de dados será feita numa etapa separada; nenhuma informação financeira ou credencial será enviada automaticamente a um modelo externo.</p>
+    </div>`;
+}
+
+
+/* ====== CENTRO DE CONFORMIDADE E LEGISLAÇÃO ====== */
+function renderConformidade() {
+  return `
+    <div class="card" style="background:linear-gradient(120deg,var(--primary),var(--primary-light));color:#fff;border:0">
+      <h2><i class="fas fa-balance-scale"></i> Conformidade e legislação</h2>
+      <p style="opacity:.85">Biblioteca de referências legais, políticas e tarefas de conformidade da empresa.</p>
+    </div>
+    <div class="card">
+      <h3 style="margin-bottom:8px">Angola · diplomas de referência</h3>
+      <p style="color:var(--text-muted);margin-bottom:14px">Protecção de dados, comunicações electrónicas, cibersegurança, videovigilância, defesa do consumidor, trabalho e fiscalidade.</p>
+      <a class="btn btn-primary" href="conformidade.html" target="_blank" rel="noopener"><i class="fas fa-book-open"></i> Abrir biblioteca legal e termos</a>
+    </div>
+    <div class="card">
+      <h3 style="margin-bottom:8px">Aviso de conformidade</h3>
+      <p style="color:var(--text-muted)">Os diplomas e minutas são referências para revisão. A empresa deve confirmar a legislação vigente, preencher os dados legais do operador e obter validação jurídica. O Kanawa Soft não declara homologação ou certificação AGT.</p>
     </div>`;
 }
