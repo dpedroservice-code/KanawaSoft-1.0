@@ -90,3 +90,10 @@ test('only the single server-registered platform owner can manage license keys',
   assert.match(cloud,/client\.rpc\('ks_is_platform_admin'\)/);
   assert.doesNotMatch(cloud,/from\('ks_platform_admins'\)/);
 });
+
+test('company settings expose configurable profiles for common business sectors', () => {
+  for (const sector of ['comercio','farmacia','restauracao','servicos_tecnicos','industria','construcao','logistica','educacao','hotelaria','agricultura','outro']) {
+    assert.ok(app.includes("value=\\""+sector+"\\""), 'missing sector '+sector);
+  }
+  assert.match(app,/sector: \$\('cfgSector'\)\.value/);
+});
