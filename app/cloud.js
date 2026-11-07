@@ -653,9 +653,9 @@
       return result.data;
     },
 
-    async issueLicenseKey(planCode, durationMonths) {
+    async issueLicenseKey(planCode, durationMonths, paymentRequestId) {
       if (!this.ready || !context.isPlatformAdmin) throw new Error('Apenas o administrador da plataforma pode emitir chaves.');
-      const result = await client.rpc('ks_issue_license_key', { p_plan_code: planCode, p_duration_months: Number(durationMonths) });
+      const result = await client.rpc('ks_issue_license_key', { p_plan_code: planCode, p_duration_months: Number(durationMonths), p_payment_request_id: paymentRequestId || null });
       if (result.error) throw result.error;
       return result.data;
     },
