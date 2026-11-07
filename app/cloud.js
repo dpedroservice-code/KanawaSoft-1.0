@@ -196,7 +196,9 @@
             company_tax_id: details.taxId,
             country_code: 'AO',
             currency_code: 'AOA',
-            tax_regime: details.taxRegime || 'not_configured'
+            tax_regime: details.taxRegime || 'not_configured',
+            selected_plan: details.selectedPlan || localStorage.getItem('kanawa_selected_plan') || 'trial',
+            legal_profile: details.legalProfile || {}
           }
         }
       });
@@ -526,6 +528,89 @@
         session: result.data.session,
         needsEmailConfirmation: !result.data.session
       };
+    },
+
+    async getPlans() {
+      if (!client) throw new Error('Ligação cloud indisponível.');
+      const result = await client.from('ks_saas_plans')
+        .select('plan_code,name,price,currency_code,max_users,max_installations,max_invoices_period,billing_period,duration_months,features')
+        .eq('is_active', true).eq('is_public', true).order('display_order');
+      if (result.error) throw result.error;
+      return result.data || [];
+    },
+
+    async redeemLicenseKey(key) {
+      if (!this.ready) throw new Error('Entre na empresa antes de activar a chave.');
+      const result = await client.rpc('ks_redeem_license_key', { p_license_key: String(key || '').trim() });
+      if (result.error) throw result.error;
+      return result.data;
+    },
+
+    async requestPaymentActivation(details) {
+      if (!this.ready) throw new Error('Entre na sua conta para solicitar activação.');
+      const result = await client.from('ks_payment_requests').insert({
+        company_id: context.company.id,
+        plan_code: details.planCode,
+        duration_months: Number(details.durationMonths),
+        amount: Number(details.amount),
+        currency_code: 'AOA',
+        payment_method: details.paymentMethod,
+        transaction_reference: details.transactionReference || null,
+        proof_path: details.proofPath,
+        requested_by: context.user.id
+      }).select('id,status').single();
+      if (result.error) throw result.error;
+      return result.data;
+    },
+
+    async uploadPrivateFile(bucket, file, category) {
+      if (!this.ready) throw new Error('Sessão cloud não disponível.');
+      if (!file || file.size > 15 * 1024 * 1024) throw new Error('Seleccione um ficheiro até 15 MB.');
+      const allowed = ['application/pdf','image/jpeg','image/png','image/webp'];
+      if (!allowed.includes(file.type)) throw new Error('Formato não permitido. Utilize PDF, JPG, PNG ou WEBP.');
+      const safeName = String(file.name || 'documento').normalize('NFKD').replace(/[^a-zA-Z0-9._-]/g,'_').slice(-90);
+      const path = context.company.id + '/' + context.user.id + '/' + Date.now() + '-' + safeName;
+      const result = await client.storage.from(bucket).upload(path, file, { upsert: false, contentType: file.type });
+      if (result.error) throw result.error;
+      return result.data.path;
+    },
+
+    async getCompanyLegalProfile() {
+      if (!this.ready) return null;
+      const result = await client.from('ks_company_legal_profiles').select('*').eq('company_id', context.company.id).maybeSingle();
+      if (result.error) throw result.error;
+      return result.data;
+    },
+
+    async saveCompanyLegalProfile(data) {
+      if (!this.ready) throw new Error('Sessão cloud não disponível.');
+      const result = await client.from('ks_company_legal_profiles').upsert(
+        Object.assign({}, data, { company_id: context.company.id, updated_at: new Date().toISOString() }),
+        { onConflict: 'company_id' }
+      );
+      if (result.error) throw result.error;
+      return true;
+    },
+
+    async getCompanyDocuments() {
+      if (!this.ready) return [];
+      const result = await client.from('ks_company_documents').select('*').eq('company_id', context.company.id).order('expires_at', { ascending: true });
+      if (result.error) throw result.error;
+      return result.data || [];
+    },
+
+    async saveCompanyDocument(data) {
+      if (!this.ready) throw new Error('Sessão cloud não disponível.');
+      const result = await client.from('ks_company_documents').insert(Object.assign({}, data, { company_id: context.company.id }));
+      if (result.error) throw result.error;
+      return result.data;
+    },
+
+    async getPaymentRequests() {
+      if (!this.ready) return [];
+      const result = await client.from('ks_payment_requests').select('id,plan_code,duration_months,amount,payment_method,status,created_at,review_note').eq('company_id', context.company.id).order('created_at', { ascending: false });
+      if (result.error) throw result.error;
+      return result.data || [];
     },
 
     async submitDemoRequest(details) {
