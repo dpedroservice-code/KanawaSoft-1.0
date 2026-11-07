@@ -440,6 +440,19 @@
       return key;
     },
 
+    async nextInvoiceNumber() {
+      if (!this.ready || !context.company || !context.company.id) throw new Error('A ligação da empresa é necessária para emitir uma fatura numerada.');
+      const result = await client.rpc('ks_next_invoice_number', {
+        p_company_id: context.company.id,
+        p_sold_at: new Date().toISOString()
+      });
+      if (result.error) throw result.error;
+      if (typeof result.data !== 'string' || !/^FT-\\d{4}-\\d{6}$/.test(result.data)) {
+        throw new Error('O servidor não devolveu um número de fatura válido.');
+      }
+      return result.data;
+    },
+
     async getLicense() {
       if (!this.ready) return null;
       return failIfError(await client
