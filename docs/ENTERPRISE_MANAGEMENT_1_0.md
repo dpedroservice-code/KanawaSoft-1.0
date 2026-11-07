@@ -55,3 +55,15 @@ A biblioteca legal é um registo inicial de referências e não um parecer jurí
 
 ## Aplicação
 O Netlify publica a pasta `app/`. O preview desta branch deve ser um deploy de pré-visualização, nunca produção. A publicação de produção continua dependente de merge aprovado para `main`.
+
+
+## Auditoria de segurança e performance no Supabase isolado
+- 93/93 tabelas públicas com RLS activado.
+- Advisor de segurança: zero findings.
+- Advisor de performance: zero FKs sem índice e zero políticas permissivas duplicadas.
+- Permanecem 163 avisos INFO de índices ainda não utilizados, esperados porque o ambiente de validação ainda não tem carga de negócio real; rever após dados e tráfego.
+- A chave AES-256-GCM foi gerada no servidor e guardada no Supabase Vault. O RPC de leitura é executável apenas por `service_role`.
+- As funções privilegiadas foram movidas para o schema privado, com wrappers públicos SECURITY INVOKER.
+
+## Migrações
+A expansão foi aplicada em 17 migrações no projecto isolado. As últimas três fazem varrimento de índices de FKs e consolidam políticas RLS herdadas. Não aplicar estas migrações manualmente novamente num ambiente que já as tenha registado.
