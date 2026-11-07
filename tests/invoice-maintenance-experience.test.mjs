@@ -35,7 +35,7 @@ test('company bank details and custom commercial terms are configurable for invo
 
 test('maintenance orders record customer company, assigned technician, dates and completion report', () => {
   for (const token of ['empresaCliente','tecnicoNome','tecnicoId','dataAgendada','proximaManutencao','dataConclusao','relatorioTecnico','historico']) {
-    assert.ok(app.includes('value="' + sector + '"'), 'missing sector ' + sector);
+    assert.ok(app.includes(token), 'missing maintenance field ' + token);
   }
   assert.match(app,/function verDetalheManutencao/);
   assert.match(app,/function salvarManutencaoAtivo/);
