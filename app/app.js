@@ -472,6 +472,7 @@ const MENU = [
   { id: 'rh-documentos', icon: 'fa-id-card', label: 'Documentos Funcionários' },
   { id: 'folha-salarial', icon: 'fa-money-check-alt', label: 'Folha Salarial' },
   { id: 'marketing-analise', icon: 'fa-chart-pie', label: 'Análise Marketing' },
+  { id: 'contabilidade', icon: 'fa-book', label: 'Contabilidade' },
   { id: 'financeiro', icon: 'fa-coins', label: 'Financeiro' },
   { id: 'fiscal', icon: 'fa-landmark', label: 'Fiscal AGT' },
   { id: 'rh', icon: 'fa-user-tie', label: 'RH' },
@@ -562,7 +563,7 @@ async function openModule(id) {
     produtos: renderProdutos, categorias: renderCategorias, ecommerce: renderEcommerce,
     estoque: renderEstoque, compras: renderCompras, clientes: renderClientes,
     fornecedores: renderFornecedores, transportadoras: renderTransportadoras, crm: renderCRM,
-    financeiro: renderFinanceiro, fiscal: renderFiscal, rh: renderRH,
+    contabilidade: renderContabilidade, financeiro: renderFinanceiro, fiscal: renderFiscal, rh: renderRH,
     projetos: renderProjetos, tarefas: renderTarefas, ativos: renderAtivos,
     frota: renderFrota, os: renderOS, contratos: renderContratos,
     documentos: renderDocumentos, tickets: renderTickets, relatorios: renderRelatorios,
@@ -1401,6 +1402,76 @@ async function renderCRM() {
 }
 function abrirModalLead() { openModal('Novo Lead', '<div class="form-group"><label>Nome *</label><input id="lNome"></div><div class="form-group"><label>Telefone</label><input id="lTel"></div><div class="form-group"><label>Email</label><input id="lEmail" type="email"></div><div class="form-group"><label>Origem</label><select id="lOrigem"><option>Site</option><option>WhatsApp</option><option>Facebook</option><option>Indicação</option></select></div><button class="btn btn-primary btn-block" onclick="salvarLead()">Salvar</button>'); }
 async function salvarLead() { const n = $('lNome').value.trim(); if (!n) { toast('Informe nome', 'warning'); return; } await saveData('leads', { nome: n, telefone: $('lTel').value, email: $('lEmail').value, origem: $('lOrigem').value, status: 'novo', data: now() }); toast('Lead cadastrado', 'success'); closeModal(); openModule('crm'); }
+
+/* ====== CONTABILIDADE ====== */
+async function renderContabilidade() {
+  if (!window.KanawaCloud || !KanawaCloud.ready) {
+    return header('Contabilidade', 'Plano de contas e lançamentos de dupla entrada', 'var(--primary)', '', 'fa-book') +
+      '<div class="card"><p>A contabilidade central requer ligação segura à empresa. Os lançamentos oficiais não são emitidos em modo offline.</p></div>';
+  }
+  const snap = await KanawaCloud.getAccountingSnapshot();
+  const accounts = Array.isArray(snap.accounts) ? snap.accounts : [];
+  const entries = Array.isArray(snap.entries) ? snap.entries : [];
+  const debit = entries.reduce((sum, e) => sum + Number(e.debit_total || 0), 0);
+  const credit = entries.reduce((sum, e) => sum + Number(e.credit_total || 0), 0);
+  const rows = entries.map(e => [
+    '<strong>' + esc(e.entry_number) + '</strong>',
+    fmtD(e.entry_date),
+    esc(e.description),
+    fmt(e.debit_total),
+    fmt(e.credit_total),
+    badge(e.status || 'posted', 'success')
+  ]);
+  const accountRows = accounts.map(a => [esc(a.account_code), esc(a.name), esc(a.account_type)]);
+  return header('Contabilidade', 'Plano de contas e diário contabilístico', 'var(--primary)', '<button class="btn btn-light" onclick="abrirContaContabilistica()"><i class="fas fa-plus"></i> Nova conta</button> <button class="btn btn-success" onclick="abrirLancamentoContabilistico()"><i class="fas fa-plus-circle"></i> Novo lançamento</button>', 'fa-book') +
+    '<div class="metric-grid">' +
+    '<div class="metric-card"><div class="label">Contas activas</div><div class="value">' + accounts.length + '</div></div>' +
+    '<div class="metric-card"><div class="label">Lançamentos</div><div class="value">' + entries.length + '</div></div>' +
+    '<div class="metric-card"><div class="label">Débitos registados</div><div class="value">' + fmt(debit) + '</div></div>' +
+    '<div class="metric-card"><div class="label">Créditos registados</div><div class="value">' + fmt(credit) + '</div></div></div>' +
+    '<div class="card"><div class="card-header"><h3 class="card-title">Plano de contas</h3></div>' + table(['Código','Conta','Tipo'], accountRows) + '</div>' +
+    '<div class="card"><div class="card-header"><h3 class="card-title">Diário contabilístico</h3></div>' + table(['N.º','Data','Descrição','Débito','Crédito','Estado'], rows) + '</div>';
+}
+function abrirContaContabilistica() {
+  openModal('Nova conta contabilística',
+    '<div class="form-grid"><div class="form-group"><label>Código *</label><input id="caCodigo" maxlength="30"></div><div class="form-group"><label>Nome *</label><input id="caNome"></div>' +
+    '<div class="form-group full"><label>Tipo *</label><select id="caTipo"><option value="asset">Activo</option><option value="liability">Passivo</option><option value="equity">Capital próprio</option><option value="income">Rendimento</option><option value="expense">Gasto</option></select></div></div>' +
+    '<button class="btn btn-primary btn-block" onclick="guardarContaContabilistica()">Guardar conta</button>');
+}
+async function guardarContaContabilistica() {
+  const code=$('caCodigo').value.trim(), name=$('caNome').value.trim(), type=$('caTipo').value;
+  if(!code||!name){toast('Preencha código e nome da conta.','warning');return;}
+  try { await KanawaCloud.saveChartAccount({code,name,type}); toast('Conta contabilística guardada.','success'); closeModal(); openModule('contabilidade'); }
+  catch(error){toast(error.message||'Não foi possível guardar a conta.','error');}
+}
+function abrirLancamentoContabilistico() {
+  const options = '<option value="">Seleccione uma conta...</option>';
+  KanawaCloud.getAccountingSnapshot().then(snap=>{
+    const accounts=(snap.accounts||[]);
+    const opts=options+accounts.map(a=>'<option value="'+esc(a.id)+'">'+esc(a.account_code+' — '+a.name)+'</option>').join('');
+    openModal('Novo lançamento contabilístico',
+      '<div class="form-grid"><div class="form-group"><label>Data *</label><input id="jeData" type="date" value="'+new Date().toISOString().slice(0,10)+'"></div><div class="form-group"><label>Descrição *</label><input id="jeDesc" maxlength="180"></div>' +
+      '<div class="form-group"><label>Conta a debitar *</label><select id="jeDebito">'+opts+'</select></div><div class="form-group"><label>Valor do débito (Kz) *</label><input id="jeValorDebito" type="number" min="0.01" step="0.01"></div>' +
+      '<div class="form-group"><label>Conta a creditar *</label><select id="jeCredito">'+opts+'</select></div><div class="form-group"><label>Valor do crédito (Kz) *</label><input id="jeValorCredito" type="number" min="0.01" step="0.01"></div></div>' +
+      '<p class="text-muted">O servidor confirma que as contas pertencem à empresa e que o total de débito é igual ao total de crédito.</p>' +
+      '<button class="btn btn-primary btn-block" onclick="guardarLancamentoContabilistico()">Validar e lançar</button>');
+  }).catch(error=>toast(error.message||'Não foi possível carregar o plano de contas.','error'));
+}
+async function guardarLancamentoContabilistico() {
+  const date=$('jeData').value, description=$('jeDesc').value.trim();
+  const debitAccount=$('jeDebito').value, creditAccount=$('jeCredito').value;
+  const debit=Number($('jeValorDebito').value), credit=Number($('jeValorCredito').value);
+  if(!date||!description||!debitAccount||!creditAccount||debit<=0||credit<=0){toast('Preencha todos os campos com valores positivos.','warning');return;}
+  if(debitAccount===creditAccount){toast('Escolha contas diferentes para débito e crédito.','warning');return;}
+  if(Math.round(debit*100)!==Math.round(credit*100)){toast('Débito e crédito têm de ser iguais.','warning');return;}
+  try {
+    const result=await KanawaCloud.postJournalEntry({date,description,lines:[
+      {account_id:debitAccount,debit,credit:0},
+      {account_id:creditAccount,debit:0,credit}
+    ]});
+    toast('Lançamento '+result.entry_number+' registado.','success'); closeModal(); openModule('contabilidade');
+  } catch(error){toast(error.message||'Lançamento recusado pelo servidor.','error');}
+}
 
 /* ====== FINANCEIRO ====== */
 async function renderFinanceiro() {
