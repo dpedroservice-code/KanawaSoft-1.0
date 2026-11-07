@@ -261,6 +261,8 @@ create policy ks_payment_requests_member_read on public.ks_payment_requests for 
  using(private.ks_has_company_role(company_id,array['owner','admin']::text[]));
 create policy ks_payment_requests_owner_insert on public.ks_payment_requests for insert to authenticated
  with check(requested_by=(select auth.uid()) and private.ks_has_company_role(company_id,array['owner','admin']::text[]));
+create policy ks_payment_requests_platform_admin_read on public.ks_payment_requests for select to authenticated
+ using(private.ks_is_platform_admin());
 create policy ks_payment_requests_admin_update on public.ks_payment_requests for update to authenticated
  using(private.ks_is_platform_admin()) with check(private.ks_is_platform_admin());
 
