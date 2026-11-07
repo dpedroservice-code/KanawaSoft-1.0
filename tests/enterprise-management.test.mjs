@@ -11,6 +11,8 @@ const employeePolicies = readFileSync(new URL('../supabase/migrations/2026110711
 const keyBinding = readFileSync(new URL('../supabase/migrations/20261107113000_license_request_binding_and_meeting_participants.sql', import.meta.url), 'utf8');
 const tenantRelations = readFileSync(new URL('../supabase/migrations/20261107116000_tenant_safe_relationships.sql', import.meta.url), 'utf8');
 const privateFunctions = readFileSync(new URL('../supabase/migrations/20261107117000_private_security_definer_functions.sql', import.meta.url), 'utf8');
+const vaultMigration = readFileSync(new URL('../supabase/migrations/20261107120000_vault_integration_encryption_key.sql', import.meta.url), 'utf8');
+const integrationEdge = readFileSync(new URL('../supabase/functions/company-integrations/index.ts', import.meta.url), 'utf8');
 
 test('first-run marketing screen, package selection and one-time presentation are wired', () => {
   assert.match(html, /id="planWelcome"/);
@@ -105,4 +107,14 @@ test('privileged SECURITY DEFINER implementations are moved to the private schem
   assert.match(privateFunctions,/alter function public\.ks_redeem_license_key\(text,uuid\) set schema private/i);
   assert.match(privateFunctions,/security invoker/i);
   assert.match(privateFunctions,/revoke all on function public\.ks_finalize_sale/i);
+});
+
+
+test('integration encryption key is generated in Supabase Vault and available only to service role', () => {
+  assert.match(vaultMigration,/vault\.create_secret/);
+  assert.match(vaultMigration,/vault\.decrypted_secrets/);
+  assert.match(vaultMigration,/grant execute on function public\.ks_get_integration_encryption_key\(\) to service_role/i);
+  assert.match(vaultMigration,/revoke all on function public\.ks_get_integration_encryption_key\(\) from public,anon,authenticated/i);
+  assert.match(integrationEdge,/ks_get_integration_encryption_key/);
+  assert.match(integrationEdge,/encryptSecret\(credentials, encryptionKey\)/);
 });
