@@ -88,3 +88,11 @@ create index if not exists ix_ks_license_keys_redeemed_company on public.ks_lice
 create index if not exists ix_ks_license_keys_payment_request on public.ks_license_keys(payment_request_id);
 create index if not exists ix_ks_license_audit_license on public.ks_license_activation_audit(license_id);
 create index if not exists ix_ks_license_audit_actor on public.ks_license_activation_audit(actor_user_id);
+
+create index if not exists ix_ks_channels_company on public.ks_communication_channels(company_id);
+create index if not exists ix_ks_shared_files_company on public.ks_shared_files(company_id);
+create index if not exists ix_ks_budget_lines_budget on public.ks_budget_lines(company_id,budget_id);
+create index if not exists ix_ks_license_audit_company on public.ks_license_activation_audit(company_id);
+create index if not exists ix_ks_license_keys_expiry on public.ks_license_keys(status,expires_at);
+create index if not exists ix_ks_leave_requests_status on public.ks_leave_requests(company_id,status,starts_on);
+create index if not exists ix_ks_calendar_events_status on public.ks_calendar_events(company_id,status,starts_at);
