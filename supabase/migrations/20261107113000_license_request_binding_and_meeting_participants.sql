@@ -24,16 +24,21 @@ begin
 end $$;
 revoke all on function public.ks_issue_license_key(text,integer,uuid) from public,anon;
 grant execute on function public.ks_issue_license_key(text,integer,uuid) to authenticated;
-create or replace function public.ks_redeem_license_key(p_license_key text)
+drop function if exists public.ks_redeem_license_key(text);
+create or replace function public.ks_redeem_license_key(p_license_key text,p_company_id uuid)
 returns jsonb language plpgsql security definer set search_path = '' as $$
 declare v_company uuid; v_key public.ks_license_keys%rowtype; v_license_id uuid; v_expiry timestamptz;
 begin
- select company_id into v_company from public.ks_company_memberships
- where user_id=(select auth.uid()) and status='active' and role in ('owner','admin') order by created_at limit 1;
- if v_company is null then raise exception 'Apenas o proprietário ou administrador da empresa pode activar a licença'; end if;
+ v_company:=p_company_id;
+ if v_company is null or not private.ks_has_company_role(v_company,array['owner','admin']::text[]) then
+  raise exception 'Apenas o proprietário ou administrador da empresa pode activar a licença';
+ end if;
  select * into v_key from public.ks_license_keys
  where key_hash=encode(digest(trim(p_license_key),'sha256'),'hex') for update;
  if not found or v_key.status <> 'issued' or v_key.expires_at <= now() then raise exception 'Chave inválida, expirada ou já utilizada'; end if;
+ if v_key.payment_request_id is not null and not exists(
+  select 1 from public.ks_payment_requests r where r.id=v_key.payment_request_id and r.company_id=v_company and r.status='pending'
+ ) then raise exception 'Esta chave não corresponde ao pedido de pagamento desta empresa'; end if;
  v_expiry:=now()+make_interval(months=>v_key.duration_months);
  insert into public.ks_company_licenses(company_id,plan_code,status,starts_at,expires_at,max_users_override,max_invoices_override,term_months_override)
  values(v_company,v_key.plan_code,'active',now(),v_expiry,v_key.max_users,v_key.max_invoices_period,v_key.duration_months)
@@ -47,6 +52,5 @@ begin
  values(v_company,v_license_id,'license_redeemed',(select auth.uid()),jsonb_build_object('plan_code',v_key.plan_code,'duration_months',v_key.duration_months,'key_prefix',v_key.key_prefix));
  return jsonb_build_object('success',true,'plan_code',v_key.plan_code,'expires_at',v_expiry,'max_invoices_period',v_key.max_invoices_period);
 end $$;
-drop policy if exists ks_meeting_attendees_manager_insert on public.ks_meeting_attendees;
-create policy ks_meeting_attendees_member_insert on public.ks_meeting_attendees for insert to authenticated
- with check(private.ks_has_company_role(company_id,array['owner','admin','manager','gerente','cashier','caixa','operator','operador']::text[]));
+revoke all on function public.ks_redeem_license_key(text,uuid) from public,anon;
+grant execute on function public.ks_redeem_license_key(text,uuid) to authenticated;
