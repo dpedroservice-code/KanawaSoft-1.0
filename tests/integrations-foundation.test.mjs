@@ -6,6 +6,7 @@ const migration = readFileSync(new URL('../supabase/migrations/20261107100000_er
 const rls = readFileSync(new URL('../supabase/migrations/20261107101000_help_audit_rls_hardening.sql', import.meta.url), 'utf8');
 const edge = readFileSync(new URL('../supabase/functions/company-integrations/index.ts', import.meta.url), 'utf8');
 const screen = readFileSync(new URL('../app/integracoes.html', import.meta.url), 'utf8');
+const app = readFileSync(new URL('../app/app.js', import.meta.url), 'utf8');
 
 test('integration secrets and e-commerce API key hashes are server-only', () => {
   assert.match(migration, /ks_company_integration_secrets/);
@@ -32,4 +33,11 @@ test('integration screen does not embed provider secrets or service role credent
   assert.match(screen, /functions\.invoke\(fn/);
   assert.match(screen, /type="password"/);
   assert.doesNotMatch(screen, /SUPABASE_SERVICE_ROLE_KEY|INTEGRATION_ENCRYPTION_KEY|EA[A-Z0-9]{20,}/);
+});
+
+
+test('integrations center is reachable from the ERP sidebar', () => {
+  assert.match(app, /id: 'integracoes'.*label: 'Integrações API'/);
+  assert.match(app, /integracoes: renderIntegracoes/);
+  assert.match(app, /href="integracoes\.html"/);
 });
