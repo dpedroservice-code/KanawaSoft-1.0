@@ -4,7 +4,7 @@ on:
   pull_request:
     branches: [main, feat/isolated-supabase-foundation]
   push:
-    branches: [main, feat/erp-integrations-foundation]
+    branches: [main]
   workflow_dispatch:
 
 permissions:
@@ -47,12 +47,8 @@ jobs:
         if: ${{ github.event_name == 'pull_request' && env.NETLIFY_AUTH_TOKEN != '' }}
         run: npx --yes netlify-cli@23.11.0 deploy --dir=app --message "Kanawa Soft PR #${{ github.event.pull_request.number }}" --json
 
-      - name: Deploy isolated ERP feature preview
-        if: ${{ github.event_name == 'push' && github.ref == 'refs/heads/feat/erp-integrations-foundation' && env.NETLIFY_AUTH_TOKEN != '' }}
-        run: npx --yes netlify-cli@23.11.0 deploy --dir=app --alias=kanawa-soft-erp-1-0-preview --message "Kanawa Soft ERP 1.0 feature preview ${{ github.sha }}" --json
-
       - name: Deploy production after merge to main
-        if: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' && env.NETLIFY_AUTH_TOKEN != '' }}
+        if: ${{ github.event_name == 'push' && env.NETLIFY_AUTH_TOKEN != '' }}
         run: npx --yes netlify-cli@23.11.0 deploy --prod --dir=app --message "Kanawa Soft production ${{ github.sha }}" --json
 
       - name: Create manual preview
