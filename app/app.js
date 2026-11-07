@@ -82,7 +82,7 @@ function gerarAssinatura(v) { const d = (v.numeroFatura || '') + '|' + (v.total 
 /* ====== INDEXEDDB ====== */
 const DB_STORES = [
   'produtos','clientes','fornecedores','vendas','compras','estoque','contasReceber','contasPagar','funcionarios','categorias','projetos','tarefas','ativos','frotas','ordensServico','notificacoes','documentos','mensagens','cursos','leads','campanhas','eventos','devolucoes','faturas','pagamentos','empresas','usuarios','movimentacoesEstoque','promocoes','ecommerce','auditoria','orcamentos','transportadoras','contratos','aprovacoes','sincronizacao','tickets','dispositivos','_sync_queue',
-  'producao','ordensProducao','mrp','boms','custosProducao','controleQualidade','planosProducao','planoContas','budgets','forecasts','conciliacoes','transacoesBancarias','previsoesVendas','tendencias','folhasPagamento','turnos','ferias','vagas','candidatos','desempenhoRH','beneficios','planosCarreira','onboarding','pontoDigital','rescisoes','automacoes','scoreLeads','campanhasMarketing','segmentacoes','cupons','fidelidade','ganttProjetos','timesheets','manutencoes','ordensManutencao','garantias','pecasEstoque','checklistsInspecao','calendarioManutencoes','gpsTracking','abastecimentos','multas','tecnicos','roteirizacao','etiquetas','transferencias','inventarios','lotes','rastreios','recebimentos','ecommerceProdutos','ecommerceCarrinhos','ecommercePedidos','avaliacoes','pagamentosEcommerce','vendasConsignadas','tabelasPrecos','assinaturasDigitais','documentosFiscais','certificacoes','quizzes','mensagensChat','mensagensWhatsApp','eventosCalendar','unidades','servicos','clientesPortal','acessos','politicasSenha','tentativasLogin','sessoes','sms2FA','integracoesAGT','ivas','irts','backups','backupsAgendados','backupsNuvem','audiobooks','ddgHistorico','bingHistorico','dashboardsCustom','modulosPersonalizados','departamentos','frequencias','feriasFuncionarios','pagamentosFuncionarios','motoristas','manutencoesAtivos','depreciacoes','historicoOS','contatosWhatsApp','templatesWhatsApp','carrinhosSalvos','feedbacks','logsSeguranca','seguranca','migracoes','tarefasProjetos','membrosProjetos','atividadesProjetos','gruposUsuarios','config','armazens'
+  'producao','ordensProducao','mrp','boms','custosProducao','controleQualidade','planosProducao','planoContas','budgets','forecasts','conciliacoes','transacoesBancarias','previsoesVendas','tendencias','folhasPagamento','turnos','ferias','vagas','candidatos','desempenhoRH','beneficios','planosCarreira','onboarding','pontoDigital','rescisoes','automacoes','scoreLeads','campanhasMarketing','segmentacoes','cupons','fidelidade','ganttProjetos','timesheets','manutencoes','ordensManutencao','garantias','pecasEstoque','checklistsInspecao','calendarioManutencoes','gpsTracking','abastecimentos','configuracoesFatura','multas','tecnicos','roteirizacao','etiquetas','transferencias','inventarios','lotes','rastreios','recebimentos','ecommerceProdutos','ecommerceCarrinhos','ecommercePedidos','avaliacoes','pagamentosEcommerce','vendasConsignadas','tabelasPrecos','assinaturasDigitais','documentosFiscais','certificacoes','quizzes','mensagensChat','mensagensWhatsApp','eventosCalendar','unidades','servicos','clientesPortal','acessos','politicasSenha','tentativasLogin','sessoes','sms2FA','integracoesAGT','ivas','irts','backups','backupsAgendados','backupsNuvem','audiobooks','ddgHistorico','bingHistorico','dashboardsCustom','modulosPersonalizados','departamentos','frequencias','feriasFuncionarios','pagamentosFuncionarios','motoristas','manutencoesAtivos','depreciacoes','historicoOS','contatosWhatsApp','templatesWhatsApp','carrinhosSalvos','feedbacks','logsSeguranca','seguranca','migracoes','tarefasProjetos','membrosProjetos','atividadesProjetos','gruposUsuarios','config','armazens'
 ];
 let lastGeneratedRecordId = 0;
 function nextGeneratedRecordId() {
@@ -807,6 +807,7 @@ function abrirGavetaAutomatico() {
 }
 /* ====== FATURA COM QR CODE + AGT ====== */
 async function abrirFatura(venda) {
+  await carregarConfigFatura();
   const emp = Object.assign({}, venda.empresa || {}, JSON.parse(localStorage.getItem('kanawa_empresa') || '{}'));
   const logo = (emp.logo && emp.logo.indexOf('data:') === 0) ? emp.logo : (emp.logo || 'logo.png');
   const qrText = JSON.stringify({ document: venda.numeroFatura, date: venda.data, companyTaxId: emp.nif || null, total: Number(venda.total || 0), currency: 'AOA' });
@@ -1802,6 +1803,7 @@ async function renderModulos() {
 /* ====== CONFIGURAÇÕES ====== */
 async function renderConfig() {
   if (!podeAcessar('config')) return '<div class="card"><h3>Sem permissão</h3></div>';
+  await carregarConfigFatura();
   const emp = JSON.parse(localStorage.getItem('kanawa_empresa') || '{}');
   const regras = JSON.parse(localStorage.getItem('kanawa_regras') || '{}');
   const logoPreview = (emp.logo && emp.logo.indexOf('data:') === 0) ? emp.logo : 'logo.png';
@@ -1923,11 +1925,23 @@ function aplicarTemaPersonalizado() {
     }
   } catch (_) {}
 }
-function salvarConfigFatura() {
+async function carregarConfigFatura() {
+  try {
+    const rows=await getData('configuracoesFatura');
+    const saved=(rows||[]).find(x=>x.id==='invoice-config');
+    if(saved) {
+      const config={template:saved.template,primary:saved.primary,accent:saved.accent,showQr:saved.showQr===true,showBank:saved.showBank!==false,customTerms:saved.customTerms||''};
+      localStorage.setItem('kanawa_fatura_config',JSON.stringify(config));
+      aplicarTemaPersonalizado();
+    }
+  } catch(error) { console.warn('Configuração de fatura ainda não sincronizada:',error); }
+}
+async function salvarConfigFatura() {
   const c={template:$('cfgInvoiceTemplate').value,primary:$('cfgUiPrimary').value,accent:$('cfgUiAccent').value,showQr:$('cfgInvoiceQr').checked,showBank:$('cfgInvoiceBank').checked,customTerms:$('cfgInvoiceTerms').value};
   localStorage.setItem('kanawa_fatura_config',JSON.stringify(c));
   aplicarTemaPersonalizado();
-  toast('Modelo de faturação e cores guardados neste dispositivo.','success');
+  try { await saveData('configuracoesFatura',Object.assign({id:'invoice-config'},c)); toast('Modelo de faturação e cores guardados na empresa.','success'); }
+  catch(error) { toast('Guardado neste dispositivo; sincronização pendente.','warning'); }
 }
 function previewConfigFatura() {
   const c={template:$('cfgInvoiceTemplate').value,primary:$('cfgUiPrimary').value,accent:$('cfgUiAccent').value,showQr:$('cfgInvoiceQr').checked,showBank:$('cfgInvoiceBank').checked,customTerms:$('cfgInvoiceTerms').value};
