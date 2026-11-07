@@ -705,6 +705,20 @@
       return result.data;
     },
 
+    async listGeneralExpenses() {
+      if(!this.ready)return [];
+      const result=await client.from('ks_general_expenses').select('*').eq('company_id',context.company.id).order('incurred_on',{ascending:false});
+      if(result.error)throw result.error;
+      return result.data||[];
+    },
+
+    async updateGeneralExpenseStatus(id,status) {
+      if(!this.ready)throw new Error('Sessão cloud não disponível.');
+      const result=await client.from('ks_general_expenses').update({status,paid_at:status==='paid'?new Date().toISOString():null,approved_by:context.user.id}).eq('id',id).eq('company_id',context.company.id).select('id').single();
+      if(result.error)throw result.error;
+      return result.data;
+    },
+
     async createLeaveRequest(details) {
       if (!this.ready) throw new Error('Sessão cloud não disponível.');
       const result=await client.from('ks_leave_requests').insert({
@@ -730,6 +744,20 @@
       }).eq('id',id).eq('company_id',context.company.id).select('id').single();
       if(result.error)throw result.error;
       return result.data;
+    },
+
+    async listDepartments() {
+      if(!this.ready)return [];
+      const result=await client.from('ks_departments').select('*').eq('company_id',context.company.id).order('name');
+      if(result.error)throw result.error;
+      return result.data||[];
+    },
+
+    async listBudgets() {
+      if(!this.ready)return [];
+      const result=await client.from('ks_budgets').select('*').eq('company_id',context.company.id).order('fiscal_year',{ascending:false});
+      if(result.error)throw result.error;
+      return result.data||[];
     },
 
     async createCalendarEvent(details) {
