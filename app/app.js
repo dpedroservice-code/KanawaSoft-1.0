@@ -2608,7 +2608,7 @@ async function renderAtivosManutencao() {
     fmtD(x.proximaManutencao),
     badge(x.status==='concluida'?'Concluída':(x.status||'Pendente'),x.status==='concluida'?'success':(x.status==='em_curso'?'info':'warning')),
     fmt(x.custo||0),
-    '<button class="btn btn-sm btn-primary" onclick="verDetalheManutencao('+x.id+')"><i class="fas fa-eye"></i></button> <button class="btn btn-sm btn-success" onclick="concluirManutencaoAtivo('+x.id+')"><i class="fas fa-check"></i></button> <button class="btn btn-sm btn-danger" onclick="excluirItem(\\'manutencoes\\','+x.id+')"><i class="fas fa-trash"></i></button>'
+    '<button class="btn btn-sm btn-primary" onclick="verDetalheManutencao('+x.id+')"><i class="fas fa-eye"></i></button> <button class="btn btn-sm btn-success" onclick="concluirManutencaoAtivo('+x.id+')"><i class="fas fa-check"></i></button> <button class="btn btn-sm btn-danger" onclick="excluirItem(\'manutencoes\','+x.id+')"><i class="fas fa-trash"></i></button>'
   ]);
   return header('Manutenção e Intervenções',m.length+' registos de manutenção','var(--warning)',
     '<button class="btn btn-success" onclick="novaManutencaoAtivo()"><i class="fas fa-plus"></i> Agendar manutenção</button>','fa-tools')+
