@@ -855,7 +855,7 @@ function imprimirFatura() {
 function imprimirTermica() {
   const v = window._vendaAtual; if (!v) return;
   const emp = v.empresa || JSON.parse(localStorage.getItem('kanawa_empresa') || '{}');
-  const texto = ['=================================', '   ' + (emp.firma || emp.nome || 'KANAWA SOFT').toUpperCase(), '   NIF: ' + (emp.nif || '-'), '   ' + (emp.endereco || 'Luanda, Angola'), '   Tel: ' + (emp.telefone || '-'), '=================================', 'FATURA-RECIBO: ' + v.numeroFatura, 'Data: ' + fmtDT(v.data), 'Cliente: ' + v.clienteNome, (v.clienteNif ? 'NIF: ' + v.clienteNif : ''), '=================================', ...(v.itens || []).map(it => it.nome.substring(0, 20).padEnd(20) + '\n  ' + it.qty + ' x ' + fmt(it.preco).padEnd(12) + fmt(it.subtotal)), '=================================', 'Subtotal:    ' + fmt(v.subtotal), (v.desconto > 0 ? 'Desconto:    -' + fmt(v.descontoValor) : ''), 'Imposto:     ' + fmt(v.iva), 'TOTAL:       ' + fmt(v.total), v.valorRecebido > 0 ? 'Recebido:    ' + fmt(v.valorRecebido) : '', v.valorRecebido > 0 ? 'Troco:       ' + fmt(v.troco) : '', '=================================', 'Valor: ' + numeroPorExtenso(v.total), '---------------------------------', 'Hash: ' + v.hash, 'Assinatura: ' + (v.assinatura || ''), '---------------------------------', '    Obrigado pela preferência!', '   Processado por Kanawa Soft ERP', '       www.kanawasoft.com', '================================='].filter(Boolean).join('\n');
+  const texto = ['=================================', '   ' + (emp.firma || emp.nome || 'KANAWA SOFT').toUpperCase(), '   NIF: ' + (emp.nif || '-'), '   ' + (emp.endereco || 'Luanda, Angola'), '   Tel: ' + (emp.telefone || '-'), '=================================', 'FATURA-RECIBO: ' + v.numeroFatura, 'Data: ' + fmtDT(v.data), 'Cliente: ' + v.clienteNome, (v.clienteNif ? 'NIF: ' + v.clienteNif : ''), '=================================', ...(v.itens || []).map(it => it.nome.substring(0, 20).padEnd(20) + '\n  ' + it.qty + ' x ' + fmt(it.preco).padEnd(12) + fmt(it.subtotal)), '=================================', 'Subtotal:    ' + fmt(v.subtotal), (v.desconto > 0 ? 'Desconto:    -' + fmt(v.descontoValor) : ''), 'Imposto:     ' + fmt(v.iva), 'TOTAL:       ' + fmt(v.total), v.valorRecebido > 0 ? 'Recebido:    ' + fmt(v.valorRecebido) : '', v.valorRecebido > 0 ? 'Troco:       ' + fmt(v.troco) : '', '=================================', 'Valor: ' + numeroPorExtenso(v.total), '---------------------------------', (emp.banco ? 'Banco: ' + emp.banco : ''), (emp.iban ? 'IBAN: ' + emp.iban : ''), '---------------------------------', '    Obrigado pela preferência!', '   Processado por Kanawa Soft ERP', '       www.kanawasoft.com', '================================='].filter(Boolean).join('\n');
   const w = window.open('', '_blank', 'width=300,height=600');
   w.document.write('<html><head><title>Recibo</title><style>@media print{@page{margin:0;size:58mm auto}}body{font-family:"Courier New",monospace;font-size:11px;width:200px;margin:0 auto;padding:5px;white-space:pre;line-height:1.3}</style></head><body>' + texto + '</body></html>');
   w.document.close(); setTimeout(() => { w.print(); }, 500); abrirGavetaAutomatico();
@@ -1036,7 +1036,20 @@ async function pdvFinalizarVenda(modo) {
   const c = pdvAtualizarValores();
   const emp = JSON.parse(localStorage.getItem('kanawa_empresa') || '{}');
   const user = JSON.parse(localStorage.getItem('kanawa_user') || '{}');
-  const numeroFatura = 'FT-' + new Date().getFullYear() + '-' + String(Date.now()).slice(-6);
+  let numeroFatura;
+  if (modo === 'finalizada') {
+    try {
+      if (!window.KanawaCloud || !KanawaCloud.ready || typeof KanawaCloud.nextInvoiceNumber !== 'function') {
+        throw new Error('Ligue a empresa para obter a numeração sequencial oficial. Pode guardar a proposta enquanto estiver offline.');
+      }
+      numeroFatura = await KanawaCloud.nextInvoiceNumber();
+    } catch (numberError) {
+      toast(numberError.message || 'Não foi possível reservar o número sequencial da fatura.', 'error');
+      return;
+    }
+  } else {
+    numeroFatura = 'RASCUNHO-' + new Date().getFullYear() + '-' + String(Date.now()).slice(-6);
+  }
   const venda = { numeroFatura, clienteNome: pdvState.cliente.nome, clienteNif: pdvState.cliente.nif, clienteTelefone: pdvState.cliente.telefone, itens: pdvState.carrinho.map(i => ({ id: i.id, nome: i.nome, preco: i.preco, qty: i.qty, subtotal: i.subtotal })), subtotal: c.subtotal, desconto: pdvState.desconto, descontoValor: c.descontoValor, iva: c.iva, total: c.total, valorRecebido: pdvState.valorRecebido, troco: c.troco, pagamento: pdvState.pagamento, regime: pdvState.regime, aplicarIVA: pdvState.aplicarIVA, observacoes: pdvState.observacoes, status: modo, data: now(), hash: gerarHash({ total: c.total, data: Date.now() }), operador: user.nome || 'Admin', empresa: emp, orcamentoOrigem: pdvState.orcamentoOrigem || null };
   venda.assinatura = gerarAssinatura(venda);
   try { venda.id = await saveData('vendas', venda); }
