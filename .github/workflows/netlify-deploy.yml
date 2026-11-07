@@ -26,6 +26,7 @@ jobs:
         run: |
           node --check app/app.js
           node --check app/cloud.js
+          node --check app/fatura-modelos.js
           node --check server/server.js
           node --check server/database.js
 
