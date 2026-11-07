@@ -75,5 +75,6 @@ Esta matriz é a primeira auditoria documental do branch. Ainda não representa 
 - Adicionadas RPCs tenant-scoped para consultar o plano de contas/diário, criar ou actualizar contas e lançar movimentos contabilísticos.
 - O lançamento valida no servidor: permissões da empresa, contas activas da mesma empresa, pelo menos duas linhas, apenas débito ou crédito por linha e total de débito igual ao crédito.
 - A numeração do diário é sequencial por empresa/ano e protegida por advisory lock transaccional.
-- Adicionada interface inicial em Contabilidade e wrappers no cliente cloud.
+- Adicionada interface inicial em Contabilidade, plano de contas, diário e balancete por conta, além de wrappers no cliente cloud.
 - Isto é uma fundação funcional; ainda não existe integração automática com vendas, compras, salários, activos e tesouraria, nem relatórios contabilísticos completos.
+- O balancete soma apenas linhas de lançamentos com estado `posted`; rascunhos ou outros estados não entram nos saldos apresentados.\n
