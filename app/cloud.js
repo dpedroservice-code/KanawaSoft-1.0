@@ -59,11 +59,7 @@
       .eq('user_id', user.id)
       .maybeSingle());
 
-    const platformAdmin = failIfError(await client
-      .from('ks_platform_admins')
-      .select('role')
-      .eq('user_id', user.id)
-      .maybeSingle());
+    const platformAdmin = failIfError(await client.rpc('ks_is_platform_admin'));
 
     context = {
       user: user,
@@ -71,8 +67,8 @@
       membership: membership,
       profile: profile || {},
       role: appRole(membership.role),
-      isPlatformAdmin: !!platformAdmin,
-      platformRole: platformAdmin ? platformAdmin.role : null
+      isPlatformAdmin: platformAdmin === true,
+      platformRole: platformAdmin === true ? 'owner' : null
     };
     try { localStorage.setItem('kanawa_cloud_context', JSON.stringify(context)); } catch (e) { }
     return context;
@@ -684,14 +680,14 @@
     },
 
     async issueLicenseKey(planCode, durationMonths, paymentRequestId) {
-      if (!this.ready || !context.isPlatformAdmin) throw new Error('Apenas o administrador da plataforma pode emitir chaves.');
+      if (!this.ready || !context.isPlatformAdmin) throw new Error('Apenas o proprietário registado da plataforma pode emitir chaves.');
       const result = await client.rpc('ks_issue_license_key', { p_plan_code: planCode, p_duration_months: Number(durationMonths), p_payment_request_id: paymentRequestId || null });
       if (result.error) throw result.error;
       return result.data;
     },
 
     async listAllPaymentRequests() {
-      if (!this.ready || !context.isPlatformAdmin) throw new Error('Acesso reservado ao administrador da plataforma.');
+      if (!this.ready || !context.isPlatformAdmin) throw new Error('Acesso reservado ao proprietário da plataforma.');
       const result = await client.from('ks_payment_requests')
         .select('id,company_id,plan_code,duration_months,amount,payment_method,transaction_reference,proof_path,status,created_at,company:ks_companies(legal_name,trade_name,email,phone)')
         .eq('status','pending').order('created_at',{ascending:true});
