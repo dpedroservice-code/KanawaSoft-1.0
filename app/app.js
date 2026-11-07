@@ -1,7 +1,7 @@
 'use strict';
-/* KANAWA SOFT ERP v15.3 CLOUD — app.js unificado (perfil, AGT, firma, gaveta, impressora, líquido, produção, logística, ecommerce, RH, projetos, ativos, frota, OS, tickets, contratos, docs, auditoria, e-learning, CRM, marketing, integrações, dispositivos). */
+/* KANAWA SOFT ERP 1.0 — aplicação principal unificada (perfil, AGT, firma, gaveta, impressora, líquido, produção, logística, ecommerce, RH, projetos, ativos, frota, OS, tickets, contratos, docs, auditoria, e-learning, CRM, marketing, integrações, dispositivos). */
 
-const APP_VERSION = '15.3-cloud';
+const APP_VERSION = '1.0.0';
 const IS_DESKTOP = !!(window.kanawaNative && window.kanawaNative.isDesktop);
 let API_ONLINE = false;
 let setupStep = 1;
@@ -82,7 +82,7 @@ function gerarAssinatura(v) { const d = (v.numeroFatura || '') + '|' + (v.total 
 /* ====== INDEXEDDB ====== */
 const DB_STORES = [
   'produtos','clientes','fornecedores','vendas','compras','estoque','contasReceber','contasPagar','funcionarios','categorias','projetos','tarefas','ativos','frotas','ordensServico','notificacoes','documentos','mensagens','cursos','leads','campanhas','eventos','devolucoes','faturas','pagamentos','empresas','usuarios','movimentacoesEstoque','promocoes','ecommerce','auditoria','orcamentos','transportadoras','contratos','aprovacoes','sincronizacao','tickets','dispositivos','_sync_queue',
-  'producao','ordensProducao','mrp','boms','custosProducao','controleQualidade','planosProducao','planoContas','budgets','forecasts','conciliacoes','transacoesBancarias','previsoesVendas','tendencias','folhasPagamento','turnos','ferias','vagas','candidatos','desempenhoRH','beneficios','planosCarreira','onboarding','pontoDigital','rescisoes','automacoes','scoreLeads','campanhasMarketing','segmentacoes','cupons','fidelidade','ganttProjetos','timesheets','manutencoes','ordensManutencao','garantias','pecasEstoque','checklistsInspecao','calendarioManutencoes','gpsTracking','abastecimentos','multas','tecnicos','roteirizacao','etiquetas','transferencias','inventarios','lotes','rastreios','recebimentos','ecommerceProdutos','ecommerceCarrinhos','ecommercePedidos','avaliacoes','pagamentosEcommerce','vendasConsignadas','tabelasPrecos','assinaturasDigitais','documentosFiscais','certificacoes','quizzes','mensagensChat','mensagensWhatsApp','eventosCalendar','unidades','servicos','clientesPortal','acessos','politicasSenha','tentativasLogin','sessoes','sms2FA','integracoesAGT','ivas','irts','backups','backupsAgendados','backupsNuvem','audiobooks','ddgHistorico','bingHistorico','dashboardsCustom','modulosPersonalizados','departamentos','frequencias','feriasFuncionarios','pagamentosFuncionarios','motoristas','manutencoesAtivos','depreciacoes','historicoOS','contatosWhatsApp','templatesWhatsApp','carrinhosSalvos','feedbacks','logsSeguranca','seguranca','migracoes','tarefasProjetos','membrosProjetos','atividadesProjetos','gruposUsuarios','config','armazens'
+  'producao','ordensProducao','mrp','boms','custosProducao','controleQualidade','planosProducao','planoContas','budgets','forecasts','conciliacoes','transacoesBancarias','previsoesVendas','tendencias','folhasPagamento','turnos','ferias','vagas','candidatos','desempenhoRH','beneficios','planosCarreira','onboarding','pontoDigital','rescisoes','automacoes','scoreLeads','campanhasMarketing','segmentacoes','cupons','fidelidade','ganttProjetos','timesheets','manutencoes','ordensManutencao','garantias','pecasEstoque','checklistsInspecao','calendarioManutencoes','gpsTracking','abastecimentos','configuracoesFatura','empresaConfig','multas','tecnicos','roteirizacao','etiquetas','transferencias','inventarios','lotes','rastreios','recebimentos','ecommerceProdutos','ecommerceCarrinhos','ecommercePedidos','avaliacoes','pagamentosEcommerce','vendasConsignadas','tabelasPrecos','assinaturasDigitais','documentosFiscais','certificacoes','quizzes','mensagensChat','mensagensWhatsApp','eventosCalendar','unidades','servicos','clientesPortal','acessos','politicasSenha','tentativasLogin','sessoes','sms2FA','integracoesAGT','ivas','irts','backups','backupsAgendados','backupsNuvem','audiobooks','ddgHistorico','bingHistorico','dashboardsCustom','modulosPersonalizados','departamentos','frequencias','feriasFuncionarios','pagamentosFuncionarios','motoristas','manutencoesAtivos','depreciacoes','historicoOS','contatosWhatsApp','templatesWhatsApp','carrinhosSalvos','feedbacks','logsSeguranca','seguranca','migracoes','tarefasProjetos','membrosProjetos','atividadesProjetos','gruposUsuarios','config','armazens'
 ];
 let lastGeneratedRecordId = 0;
 function nextGeneratedRecordId() {
@@ -233,12 +233,12 @@ async function syncNow(showMessage) {
   }
   const indicator = $('syncIndicator'), label = $('syncText');
   if (indicator) indicator.className = 'sync-indicator show syncing';
-  if (label) label.textContent = 'A sincronizar com PostgreSQL...';
+  if (label) label.textContent = 'A preparar sincronização segura...';
   try {
     const sent = await processSyncQueue();
     const received = await pullFromServer();
     if (indicator) indicator.className = 'sync-indicator show online';
-    if (label) label.textContent = 'Base de dados sincronizada ✓';
+    if (label) label.textContent = 'Dados sincronizados ✓';
     if (showMessage) toast('Sincronização concluída: ' + sent + ' enviados, ' + received + ' recebidos.', 'success');
     setTimeout(() => { if (indicator) indicator.className = 'sync-indicator'; }, 2200);
     return true;
@@ -349,12 +349,29 @@ async function activateCloudSession(ctx, migrateLocal) {
     if (license) localStorage.setItem('kanawa_license', JSON.stringify(license));
     const entitlements = await KanawaCloud.getEntitlements();
     if (entitlements) localStorage.setItem('kanawa_entitlements', JSON.stringify(entitlements));
+    try {
+      const expiryAlerts = await KanawaCloud.getExpiringDocuments(90);
+      localStorage.setItem('kanawa_document_expiry_alerts', JSON.stringify(expiryAlerts));
+      const urgent = expiryAlerts.filter(function (item) { return item.days_remaining <= 30; });
+      if (urgent.length) toast(urgent.length + ' documento(s) expirado(s) ou a vencer nos próximos 30 dias. Consulte Empresa e Documentos Legais.', 'warning');
+    } catch (expiryError) { console.warn('Alertas de validade indisponíveis:', expiryError); }
     if (entitlements && entitlements.read_only) toast('A licença ou os limites do plano estão em modo de consulta. Verifique a subscrição.', 'warning');
     if (license && license.expires_at) {
       const expiry = new Date(license.expires_at);
       const days = Math.ceil((expiry.getTime() - Date.now()) / 86400000);
       if (license.status === 'expired' || days < 0) toast('A licença Kanawa Soft expirou. Contacte a D.PEDRO SOLUÇÕES.', 'warning');
       else if (days <= 5) toast('A licença expira em ' + Math.max(0, days) + ' dia(s).', 'warning');
+    }
+    const pendingKey = sessionStorage.getItem('kanawa_pending_license_key');
+    if (pendingKey) {
+      try {
+        const activation = await KanawaCloud.redeemLicenseKey(pendingKey);
+        sessionStorage.removeItem('kanawa_pending_license_key');
+        if ($('preLoginLicenseKey')) $('preLoginLicenseKey').value = '';
+        toast('Licença '+activation.plan_code+' activada.','success');
+      } catch (keyError) {
+        toast('A chave de licença não foi activada: '+(keyError.message||'verifique a chave'),'warning');
+      }
     }
   } catch (e) { console.warn('Não foi possível consultar a licença:', e); }
   await API.checkHealth();
@@ -380,6 +397,8 @@ function mostrarAplicacaoAutenticada(ctx) {
 }
 
 async function abrirCadastroEmpresa() {
+  localStorage.setItem('kanawa_plan_intro_seen_v1','true');
+  if ($('planWelcome')) $('planWelcome').classList.remove('active');
   if ($('authScreen')) $('authScreen').classList.remove('active');
   if ($('setupWizard')) $('setupWizard').classList.add('active');
 }
@@ -387,8 +406,8 @@ async function abrirCadastroEmpresa() {
 /* ====== PERMISSÕES ====== */
 const PERMISSOES = {
   admin: { modulos: '*', acoes: ['criar','editar','excluir','ver','configurar','aprovar','cancelar','exportar','importar'], verFinanceiro: true, excluir: true, configurar: true, descontoMax: 100 },
-  gerente: { modulos: ['dashboard','pdv','vendas','produtos','categorias','ecommerce','estoque','compras','clientes','fornecedores','crm','financeiro','fiscal','rh','projetos','tarefas','ativos','frota','os','documentos','relatorios','notificacoes','orcamentos','transportadoras','contratos','tickets','perfil','dispositivos','producao','ordens-producao','mrp','bom','custos-producao','controle-qualidade','planos-producao','logistica-roteirizacao','logistica-etiquetas','logistica-picking','logistica-armazens','logistica-crossdocking','logistica-rastreio','ecommerce-vitrine','ecommerce-carrinho','ecommerce-pedidos','ecommerce-produtos','ecommerce-pagamento','ecommerce-rastreio','rh-recrutamento','rh-desempenho','rh-beneficios','rh-onboarding','rh-ponto','rh-rescisao','rh-plano-carreira','projetos-tarefas','projetos-kanban','projetos-gantt','projetos-recursos','projetos-timesheet','projetos-custos','projetos-riscos','ativos-depreciacao','ativos-manutencao','ativos-garantia','frota-manutencao','frota-rotas','frota-gps','frota-combustivel','frota-documentos','frota-multas','frota-desempenho','os-manutencao','os-checklist','os-calendario','os-tecnicos','produtos-avaliacoes','tabelas-precos','vendas-consignadas','vendas-promocoes','clientes-fidelidade','clientes-cupons','portal-cliente','clientes-segmentacao','crm-pipeline','crm-automacao','crm-score','crm-remarketing','marketing-campanhas','marketing-analise','elearning-cursos','elearning-certificacoes','elearning-quizzes','elearning-progresso','elearning-relatorios','servicos'], acoes: ['criar','editar','ver','aprovar','cancelar','exportar'], verFinanceiro: true, excluir: false, configurar: false, descontoMax: 30 },
-  operador: { modulos: ['dashboard','pdv','vendas','produtos','clientes','estoque','notificacoes','perfil','producao','ordens-producao','controle-qualidade','os','os-manutencao','os-checklist','os-calendario','projetos-tarefas','projetos-kanban','tarefas'], acoes: ['criar','ver'], verFinanceiro: false, excluir: false, configurar: false, descontoMax: 10 },
+  gerente: { modulos: ['dashboard','pdv','vendas','produtos','categorias','ecommerce','estoque','compras','clientes','fornecedores','crm','financeiro','fiscal','rh','projetos','tarefas','ativos','frota','os','documentos','relatorios','notificacoes','orcamentos','transportadoras','contratos','tickets','perfil','dispositivos','producao','ordens-producao','mrp','bom','custos-producao','controle-qualidade','planos-producao','logistica-roteirizacao','logistica-etiquetas','logistica-picking','logistica-armazens','logistica-crossdocking','logistica-rastreio','ecommerce-vitrine','ecommerce-carrinho','ecommerce-pedidos','ecommerce-produtos','ecommerce-pagamento','ecommerce-rastreio','rh-recrutamento','rh-desempenho','rh-beneficios','rh-onboarding','rh-ponto','rh-rescisao','rh-plano-carreira','projetos-tarefas','projetos-kanban','projetos-gantt','projetos-recursos','projetos-timesheet','projetos-custos','projetos-riscos','ativos-depreciacao','ativos-manutencao','ativos-garantia','frota-manutencao','frota-rotas','frota-gps','frota-combustivel','frota-documentos','frota-multas','frota-desempenho','os-manutencao','os-checklist','os-calendario','os-tecnicos','produtos-avaliacoes','tabelas-precos','vendas-consignadas','vendas-promocoes','clientes-fidelidade','clientes-cupons','portal-cliente','clientes-segmentacao','crm-pipeline','crm-automacao','crm-score','crm-remarketing','marketing-campanhas','marketing-analise','empresa-legal','despesas-gerais','ferias-dispensas','agenda','reunioes','comunicacao','aprovacoes-empresa','departamentos-empresa','orcamento-empresa','rh-documentos','folha-salarial','elearning-cursos','elearning-certificacoes','elearning-quizzes','elearning-progresso','elearning-relatorios','servicos'], acoes: ['criar','editar','ver','aprovar','cancelar','exportar'], verFinanceiro: true, excluir: false, configurar: false, descontoMax: 30 },
+  operador: { modulos: ['dashboard','pdv','vendas','produtos','clientes','estoque','notificacoes','perfil','producao','ordens-producao','controle-qualidade','os','os-manutencao','os-checklist','os-calendario','agenda','reunioes','comunicacao','ferias-dispensas','projetos-tarefas','projetos-kanban','tarefas'], acoes: ['criar','ver'], verFinanceiro: false, excluir: false, configurar: false, descontoMax: 10 },
   caixa: { modulos: ['pdv','vendas','clientes','notificacoes','perfil','ecommerce-vitrine','ecommerce-carrinho','ecommerce-pedidos'], acoes: ['criar','ver'], verFinanceiro: false, excluir: false, configurar: false, descontoMax: 5 }
 };
 function getPerms() {
@@ -438,7 +457,22 @@ const MENU = [
   { id: 'crm-score', icon: 'fa-chart-line', label: 'Score Leads' },
   { id: 'crm-remarketing', icon: 'fa-retweet', label: 'Remarketing' },
   { id: 'marketing-campanhas', icon: 'fa-bullhorn', label: 'Marketing' },
+  { id: 'integracoes', icon: 'fa-plug', label: 'Integrações API' },
+  { id: 'conformidade', icon: 'fa-balance-scale', label: 'Conformidade' },
+  { id: 'empresa-legal', icon: 'fa-building', label: 'Empresa e Documentos Legais' },
+  { id: 'licenca', icon: 'fa-key', label: 'Licença e Pacotes' },
+  { id: 'despesas-gerais', icon: 'fa-file-invoice-dollar', label: 'Despesas Gerais' },
+  { id: 'ferias-dispensas', icon: 'fa-calendar-minus', label: 'Férias e Dispensas' },
+  { id: 'agenda', icon: 'fa-calendar-alt', label: 'Agenda e Marcações' },
+  { id: 'reunioes', icon: 'fa-users', label: 'Reuniões' },
+  { id: 'comunicacao', icon: 'fa-comments', label: 'Comunicação Interna' },
+  { id: 'aprovacoes-empresa', icon: 'fa-clipboard-check', label: 'Aprovações' },
+  { id: 'departamentos-empresa', icon: 'fa-sitemap', label: 'Departamentos' },
+  { id: 'orcamento-empresa', icon: 'fa-chart-pie', label: 'Orçamento Empresarial' },
+  { id: 'rh-documentos', icon: 'fa-id-card', label: 'Documentos Funcionários' },
+  { id: 'folha-salarial', icon: 'fa-money-check-alt', label: 'Folha Salarial' },
   { id: 'marketing-analise', icon: 'fa-chart-pie', label: 'Análise Marketing' },
+  { id: 'contabilidade', icon: 'fa-book', label: 'Contabilidade' },
   { id: 'financeiro', icon: 'fa-coins', label: 'Financeiro' },
   { id: 'fiscal', icon: 'fa-landmark', label: 'Fiscal AGT' },
   { id: 'rh', icon: 'fa-user-tie', label: 'RH' },
@@ -512,10 +546,24 @@ async function openModule(id) {
   c.innerHTML = '<div style="text-align:center;padding:60px"><i class="fas fa-spinner fa-spin" style="font-size:3rem;color:var(--primary)"></i></div>';
   const R = {
     dashboard: renderDashboard, pdv: renderPDV, vendas: renderVendas, orcamentos: renderOrcamentos,
+    integracoes: renderIntegracoes,
+    conformidade: renderConformidade,
+    'empresa-legal': renderEmpresaLegal,
+    licenca: renderLicenca,
+    'despesas-gerais': renderDespesasGerais,
+    'ferias-dispensas': renderFeriasDispensas,
+    agenda: renderAgenda,
+    reunioes: renderReunioes,
+    comunicacao: renderComunicacao,
+    'aprovacoes-empresa': renderAprovacoesEmpresa,
+    'departamentos-empresa': renderDepartamentosEmpresa,
+    'orcamento-empresa': renderOrcamentoEmpresa,
+    'rh-documentos': renderDocumentosFuncionarios,
+    'folha-salarial': renderFolhaSalarial,
     produtos: renderProdutos, categorias: renderCategorias, ecommerce: renderEcommerce,
     estoque: renderEstoque, compras: renderCompras, clientes: renderClientes,
     fornecedores: renderFornecedores, transportadoras: renderTransportadoras, crm: renderCRM,
-    financeiro: renderFinanceiro, fiscal: renderFiscal, rh: renderRH,
+    contabilidade: renderContabilidade, financeiro: renderFinanceiro, fiscal: renderFiscal, rh: renderRH,
     projetos: renderProjetos, tarefas: renderTarefas, ativos: renderAtivos,
     frota: renderFrota, os: renderOS, contratos: renderContratos,
     documentos: renderDocumentos, tickets: renderTickets, relatorios: renderRelatorios,
@@ -760,46 +808,18 @@ function abrirGavetaAutomatico() {
 }
 /* ====== FATURA COM QR CODE + AGT ====== */
 async function abrirFatura(venda) {
-  const emp = venda.empresa || JSON.parse(localStorage.getItem('kanawa_empresa') || '{}');
+  await carregarConfigEmpresa();
+  await carregarConfigFatura();
+  const emp = Object.assign({}, venda.empresa || {}, JSON.parse(localStorage.getItem('kanawa_empresa') || '{}'));
   const logo = (emp.logo && emp.logo.indexOf('data:') === 0) ? emp.logo : (emp.logo || 'logo.png');
-  const qrText = ['KANAWA-AGT-v1', 'NIF:' + (emp.nif || ''), 'FAT:' + venda.numeroFatura, 'DT:' + venda.data, 'TOT:' + Number(venda.total || 0).toFixed(2), 'IVA:' + Number(venda.iva || 0).toFixed(2), 'HASH:' + venda.hash, 'ASS:' + (venda.assinatura || gerarAssinatura(venda))].join('|');
+  const qrText = JSON.stringify({ document: venda.numeroFatura, date: venda.data, companyTaxId: emp.nif || null, total: Number(venda.total || 0), currency: 'AOA' });
   const subtotal = Number(venda.subtotal || 0), desconto = Number(venda.descontoValor || 0), base = subtotal - desconto, iva = Number(venda.iva || 0), total = Number(venda.total || 0);
   const totalExtenso = numeroPorExtenso(total);
   const itensHTML = (venda.itens || []).map((it, i) => '<tr style="border-bottom:1px solid #e2e8f0"><td style="padding:6px;font-size:.75rem">' + (i + 1) + '</td><td style="padding:6px;font-size:.75rem">' + esc(it.nome) + '</td><td style="padding:6px;text-align:center;font-size:.75rem">' + it.qty + '</td><td style="padding:6px;text-align:right;font-size:.75rem">' + fmt(it.preco) + '</td><td style="padding:6px;text-align:right;font-size:.75rem">' + fmt(it.subtotal || it.preco * it.qty) + '</td></tr>').join('');
-  const faturaHTML = '<div id="faturaPreview" style="background:#fff;color:#000;padding:24px;max-width:820px;margin:0 auto;font-family:Arial;font-size:.85rem">' +
-    '<div style="display:flex;justify-content:space-between;align-items:flex-start;border-bottom:3px solid #1a3a5c;padding-bottom:12px;margin-bottom:12px">' +
-    '<div style="display:flex;align-items:center;gap:12px"><img src="' + logo + '" alt="Logo" style="width:70px;height:70px;object-fit:contain" onerror="this.style.display=\'none\'">' +
-    '<div><h2 style="color:#1a3a5c;font-size:1.2rem;margin:0">' + esc(emp.firma || emp.nome || 'KANAWA SOFT') + '</h2>' +
-    (emp.nome && emp.firma && emp.nome !== emp.firma ? '<div style="font-size:.75rem;color:#666">' + esc(emp.nome) + '</div>' : '') +
-    '<div style="font-size:.7rem;color:#555;line-height:1.5;margin-top:4px"><div><strong>NIF:</strong> ' + esc(emp.nif || '-') + '</div>' +
-    (emp.regime ? '<div><strong>Regime:</strong> ' + esc(emp.regime) + '</div>' : '') +
-    '<div>' + esc(emp.endereco || 'Luanda, Angola') + '</div><div><strong>Tel:</strong> ' + esc(emp.telefone || '-') + (emp.email ? ' | ' + esc(emp.email) : '') + '</div>' +
-    (emp.alvara ? '<div><strong>Alvará:</strong> ' + esc(emp.alvara) + '</div>' : '') + '</div></div></div>' +
-    '<div style="text-align:right"><div style="font-size:.65rem;color:#999">FATURA / RECIBO</div>' +
-    '<div style="font-size:1rem;font-weight:800;color:#1a3a5c">' + esc(venda.numeroFatura) + '</div>' +
-    '<div style="font-size:.7rem;color:#555;margin-top:2px"><strong>Data:</strong> ' + fmtDT(venda.data) + '</div>' +
-    '<div style="font-size:.7rem;color:#555"><strong>Origem:</strong> ' + esc(venda.operador || 'Admin') + '</div></div></div>' +
-    '<div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;background:#f8fafc;padding:10px;border-radius:6px;margin-bottom:12px;font-size:.78rem">' +
-    '<div style="line-height:1.6"><strong style="color:#1a3a5c;display:block;margin-bottom:2px">CLIENTE</strong><div>Nome: ' + esc(venda.clienteNome || 'Consumidor Final') + '</div>' +
-    (venda.clienteNif ? '<div>NIF: ' + esc(venda.clienteNif) + '</div>' : '') + (venda.clienteTelefone ? '<div>Tel: ' + esc(venda.clienteTelefone) + '</div>' : '') + '</div>' +
-    '<div style="line-height:1.6"><strong style="color:#1a3a5c;display:block;margin-bottom:2px">OPERAÇÃO</strong><div>Pagamento: ' + esc(venda.pagamento || '-') + '</div><div>Regime: ' + esc(venda.regime || 'geral') + '</div><div>Tipo Doc: Fatura-Recibo</div></div></div>' +
-    '<table style="width:100%;border-collapse:collapse;margin-bottom:12px"><thead><tr style="background:#1a3a5c;color:#fff"><th style="padding:6px;text-align:left;font-size:.75rem">#</th><th style="padding:6px;text-align:left;font-size:.75rem">Descrição</th><th style="padding:6px;text-align:center;font-size:.75rem">Qtd</th><th style="padding:6px;text-align:right;font-size:.75rem">Preço Unit.</th><th style="padding:6px;text-align:right;font-size:.75rem">Total</th></tr></thead><tbody>' + itensHTML + '</tbody></table>' +
-    '<div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;align-items:start">' +
-    '<div style="text-align:center"><div id="qrcodeContainer" style="display:inline-block;padding:6px;background:#fff;border:2px solid #1a3a5c;border-radius:6px;min-width:130px;min-height:130px"></div>' +
-    '<div style="font-size:.6rem;color:#777;margin-top:4px"><strong>Código de Autenticação AGT</strong></div>' +
-    '<div style="font-size:.55rem;color:#999;font-family:monospace;margin-top:2px;word-break:break-all;max-width:200px;line-height:1.3">' + esc(venda.hash) + '</div>' +
-    '<div style="font-size:.55rem;color:#999;margin-top:2px">Verifique em: quiosqueagt.minfin.gov.ao</div></div>' +
-    '<div style="font-size:.82rem;line-height:1.8">' +
-    '<div style="display:flex;justify-content:space-between"><span>Subtotal:</span><strong>' + fmt(subtotal) + '</strong></div>' +
-    (desconto > 0 ? '<div style="display:flex;justify-content:space-between;color:#dc3545"><span>Desconto (' + venda.desconto + '%):</span><strong>-' + fmt(desconto) + '</strong></div>' : '') +
-    '<div style="display:flex;justify-content:space-between"><span><strong>Montante Ilíquido:</strong></span><strong>' + fmt(base) + '</strong></div>' +
-    '<div style="display:flex;justify-content:space-between"><span>Imposto (IVA ' + (venda.regime === 'simplificado' ? '7' : '14') + '%):</span><strong>' + fmt(iva) + '</strong></div>' +
-    '<div style="display:flex;justify-content:space-between;color:#999;font-size:.7rem"><span>Imposto Devido:</span><span>' + fmt(iva) + '</span></div>' +
-    '<div style="display:flex;justify-content:space-between;border-top:2px solid #1a3a5c;padding-top:6px;margin-top:6px;font-size:1rem;color:#1a3a5c"><strong>TOTAL LÍQUIDO:</strong><strong>' + fmt(total) + '</strong></div>' +
-    (venda.valorRecebido > 0 ? '<div style="display:flex;justify-content:space-between;margin-top:4px"><span>Valor Recebido:</span><strong>' + fmt(venda.valorRecebido) + '</strong></div><div style="display:flex;justify-content:space-between;color:#10b981"><span>Troco:</span><strong>' + fmt(venda.troco) + '</strong></div>' : '') + '</div></div>' +
-    '<div style="margin-top:12px;padding:8px;background:#f8fafc;border-radius:6px;font-size:.75rem;border-left:3px solid #1a3a5c"><strong>Valor por extenso:</strong> <em>' + esc(totalExtenso) + '</em></div>' +
-    '<div style="margin-top:14px;padding-top:10px;border-top:1px solid #e2e8f0;font-size:.6rem;color:#666;line-height:1.5"><strong style="color:#1a3a5c">TERMOS E CONDIÇÕES — AGT ANGOLA</strong><br>• Documento emitido nos termos do Decreto Executivo n.º 29/22 de 20 de Março (Facturação Electrónica).<br>• IVA à taxa de ' + (venda.regime === 'simplificado' ? '7%' : '14%') + ' conforme Código do IVA (Lei n.º 7/19 de 24 de Abril).<br>• Processado por computador — Programa certificado Kanawa Soft ERP v' + APP_VERSION + '.<br>• Autenticidade verificável em https://quiosqueagt.minfin.gov.ao<br>• Hash de assinatura: ' + esc(venda.hash) + '<br>• Assinatura digital: ' + esc(venda.assinatura || gerarAssinatura(venda)) + '</div>' +
-    '<div style="text-align:center;margin-top:12px;padding-top:10px;border-top:1px solid #e2e8f0;font-size:.7rem;color:#777"><strong>Obrigado pela preferência!</strong><br><span style="font-size:.65rem">' + esc(emp.firma || emp.nome || 'KANAWA SOFT') + ' — ' + new Date().getFullYear() + '</span></div></div>';
+  const invoiceSettings = window.KanawaInvoiceTemplates ? KanawaInvoiceTemplates.getSettings() : {};
+  const faturaHTML = window.KanawaInvoiceTemplates
+    ? KanawaInvoiceTemplates.render(venda, emp, logo, invoiceSettings)
+    : '<div id="faturaPreview"><h2>' + esc(emp.firma || emp.nome || 'Empresa') + '</h2><p>Modelo de fatura indisponível.</p></div>';
   window._vendaAtual = venda;
   openModal('🖨️ Fatura / Recibo — ' + venda.numeroFatura,
     '<div style="max-height:65vh;overflow-y:auto;background:#fff;padding:0;border-radius:var(--radius-sm)">' + faturaHTML + '</div>' +
@@ -810,25 +830,22 @@ async function abrirFatura(venda) {
     '<button class="btn btn-warning" onclick="compartilharWhatsApp(window._vendaAtual)"><i class="fab fa-whatsapp"></i> WhatsApp</button>' +
     '<button class="btn btn-purple" onclick="abrirGaveta()"><i class="fas fa-cash-register"></i> Abrir Gaveta</button>' +
     '<button class="btn btn-secondary" onclick="closeModal()">Fechar</button></div>', true);
-  setTimeout(() => gerarQRCodeFatura(qrText), 250);
+  if (invoiceSettings.showQr === true) setTimeout(() => gerarQRCodeFatura(qrText), 250);
 }
 
 function gerarQRCodeFatura(texto) {
   const container = $('qrcodeContainer'); if (!container) return;
   container.innerHTML = '';
-  if (typeof QRCode !== 'undefined') {
-    try { new QRCode(container, { text: texto, width: 130, height: 130, colorDark: '#1a3a5c', colorLight: '#ffffff', correctLevel: QRCode.CorrectLevel.M }); return; } catch (e) { console.warn(e); }
+  if (typeof QRCode === 'undefined') {
+    container.textContent = 'QR indisponível neste dispositivo';
+    return;
   }
   try {
-    const canvas = document.createElement('canvas'); canvas.width = 130; canvas.height = 130;
-    const ctx = canvas.getContext('2d'); ctx.fillStyle = '#fff'; ctx.fillRect(0, 0, 130, 130); ctx.fillStyle = '#1a3a5c';
-    let hash = 0; for (let i = 0; i < texto.length; i++) { hash = ((hash << 5) - hash) + texto.charCodeAt(i); hash = hash & hash; }
-    hash = Math.abs(hash); const grid = 25, cell = 130 / grid;
-    for (let i = 0; i < grid; i++) for (let j = 0; j < grid; j++) { const val = ((hash * (i + 1) * (j + 1)) % 11); if (val < 5) ctx.fillRect(i * cell, j * cell, cell, cell); }
-    ctx.fillStyle = '#1a3a5c';
-    [[0, 0], [grid - 7, 0], [0, grid - 7]].forEach(([x, y]) => { ctx.fillRect(x * cell, y * cell, 7 * cell, 7 * cell); ctx.fillStyle = '#fff'; ctx.fillRect((x + 1) * cell, (y + 1) * cell, 5 * cell, 5 * cell); ctx.fillStyle = '#1a3a5c'; ctx.fillRect((x + 2) * cell, (y + 2) * cell, 3 * cell, 3 * cell); });
-    container.appendChild(canvas);
-  } catch (e) { container.innerHTML = '<div style="width:130px;height:130px;display:flex;align-items:center;justify-content:center;font-size:.6rem;color:#666;padding:8px;word-break:break-all;text-align:center">' + esc(texto.slice(0, 80)) + '</div>'; }
+    new QRCode(container, { text: String(texto), width: 120, height: 120, colorDark: '#1a3a5c', colorLight: '#ffffff', correctLevel: QRCode.CorrectLevel.M });
+  } catch (error) {
+    console.warn('Não foi possível gerar um QR válido:', error);
+    container.textContent = 'Não foi possível gerar o QR';
+  }
 }
 
 function imprimirFatura() {
@@ -840,7 +857,7 @@ function imprimirFatura() {
 function imprimirTermica() {
   const v = window._vendaAtual; if (!v) return;
   const emp = v.empresa || JSON.parse(localStorage.getItem('kanawa_empresa') || '{}');
-  const texto = ['=================================', '   ' + (emp.firma || emp.nome || 'KANAWA SOFT').toUpperCase(), '   NIF: ' + (emp.nif || '-'), '   ' + (emp.endereco || 'Luanda, Angola'), '   Tel: ' + (emp.telefone || '-'), '=================================', 'FATURA-RECIBO: ' + v.numeroFatura, 'Data: ' + fmtDT(v.data), 'Cliente: ' + v.clienteNome, (v.clienteNif ? 'NIF: ' + v.clienteNif : ''), '=================================', ...(v.itens || []).map(it => it.nome.substring(0, 20).padEnd(20) + '\n  ' + it.qty + ' x ' + fmt(it.preco).padEnd(12) + fmt(it.subtotal)), '=================================', 'Subtotal:    ' + fmt(v.subtotal), (v.desconto > 0 ? 'Desconto:    -' + fmt(v.descontoValor) : ''), 'Imposto:     ' + fmt(v.iva), 'TOTAL:       ' + fmt(v.total), v.valorRecebido > 0 ? 'Recebido:    ' + fmt(v.valorRecebido) : '', v.valorRecebido > 0 ? 'Troco:       ' + fmt(v.troco) : '', '=================================', 'Valor: ' + numeroPorExtenso(v.total), '---------------------------------', 'Hash: ' + v.hash, 'Assinatura: ' + (v.assinatura || ''), '---------------------------------', '    Obrigado pela preferência!', '   Processado por Kanawa Soft ERP', '       www.kanawasoft.com', '================================='].filter(Boolean).join('\n');
+  const texto = ['=================================', '   ' + (emp.firma || emp.nome || 'KANAWA SOFT').toUpperCase(), '   NIF: ' + (emp.nif || '-'), '   ' + (emp.endereco || 'Luanda, Angola'), '   Tel: ' + (emp.telefone || '-'), '=================================', 'FATURA-RECIBO: ' + v.numeroFatura, 'Data: ' + fmtDT(v.data), 'Cliente: ' + v.clienteNome, (v.clienteNif ? 'NIF: ' + v.clienteNif : ''), '=================================', ...(v.itens || []).map(it => it.nome.substring(0, 20).padEnd(20) + '\n  ' + it.qty + ' x ' + fmt(it.preco).padEnd(12) + fmt(it.subtotal)), '=================================', 'Subtotal:    ' + fmt(v.subtotal), (v.desconto > 0 ? 'Desconto:    -' + fmt(v.descontoValor) : ''), 'Imposto:     ' + fmt(v.iva), 'TOTAL:       ' + fmt(v.total), v.valorRecebido > 0 ? 'Recebido:    ' + fmt(v.valorRecebido) : '', v.valorRecebido > 0 ? 'Troco:       ' + fmt(v.troco) : '', '=================================', 'Valor: ' + numeroPorExtenso(v.total), '---------------------------------', (emp.banco ? 'Banco: ' + emp.banco : ''), (emp.iban ? 'IBAN: ' + emp.iban : ''), '---------------------------------', '    Obrigado pela preferência!', '   Processado por Kanawa Soft ERP', '       www.kanawasoft.com', '================================='].filter(Boolean).join('\n');
   const w = window.open('', '_blank', 'width=300,height=600');
   w.document.write('<html><head><title>Recibo</title><style>@media print{@page{margin:0;size:58mm auto}}body{font-family:"Courier New",monospace;font-size:11px;width:200px;margin:0 auto;padding:5px;white-space:pre;line-height:1.3}</style></head><body>' + texto + '</body></html>');
   w.document.close(); setTimeout(() => { w.print(); }, 500); abrirGavetaAutomatico();
@@ -1010,25 +1027,43 @@ function pdvRenderResumoFinal() {
 }
 function pdvCancelarVenda() { if (!confirm('Cancelar esta venda?')) return; pdvState.carrinho = []; pdvState.cliente = { nome: 'Cliente Anônimo', nif: '', telefone: '' }; pdvState.desconto = 0; pdvState.valorRecebido = 0; toast('Venda cancelada', 'info'); openModule('pdv'); }
 async function pdvSalvarRascunho() { await saveData('vendas', Object.assign(copy(pdvState), { status: 'rascunho', data: now() })); toast('📝 Rascunho salvo', 'success'); }
-async function pdvSalvarOrcamento() { const c = pdvAtualizarValores(); await saveData('orcamentos', Object.assign(copy(pdvState), { total: c.total, status: 'pendente', data: now() })); toast('📄 Orçamento gerado', 'success'); }
+async function pdvSalvarOrcamento() {
+  const c=pdvAtualizarValores(),user=JSON.parse(localStorage.getItem('kanawa_user')||'{}');
+  const quote=Object.assign(copy(pdvState),{total:c.total,status:'rascunho',empresaCliente:pdvState.cliente.nome||'Consumidor Final',responsavel:user.nome||'Admin',data:now(),dataEnvio:null,dataValidade:null,historico:[{evento:'Proposta criada',data:now(),responsavel:user.nome||'Admin'}]});
+  await saveData('orcamentos',quote);toast('Proposta comercial guardada como rascunho.','success');
+}
 async function pdvFinalizarVenda(modo) {
   modo = modo || 'finalizada';
   if (!pdvState.carrinho.length) { toast('Carrinho vazio', 'warning'); return; }
   const c = pdvAtualizarValores();
   const emp = JSON.parse(localStorage.getItem('kanawa_empresa') || '{}');
   const user = JSON.parse(localStorage.getItem('kanawa_user') || '{}');
-  const numeroFatura = 'FT-' + new Date().getFullYear() + '-' + String(Date.now()).slice(-6);
-  const venda = { numeroFatura, clienteNome: pdvState.cliente.nome, clienteNif: pdvState.cliente.nif, clienteTelefone: pdvState.cliente.telefone, itens: pdvState.carrinho.map(i => ({ id: i.id, nome: i.nome, preco: i.preco, qty: i.qty, subtotal: i.subtotal })), subtotal: c.subtotal, desconto: pdvState.desconto, descontoValor: c.descontoValor, iva: c.iva, total: c.total, valorRecebido: pdvState.valorRecebido, troco: c.troco, pagamento: pdvState.pagamento, regime: pdvState.regime, aplicarIVA: pdvState.aplicarIVA, observacoes: pdvState.observacoes, status: modo, data: now(), hash: gerarHash({ total: c.total, data: Date.now() }), operador: user.nome || 'Admin', empresa: emp };
+  let numeroFatura;
+  if (modo === 'finalizada') {
+    try {
+      if (!window.KanawaCloud || !KanawaCloud.ready || typeof KanawaCloud.nextInvoiceNumber !== 'function') {
+        throw new Error('Ligue a empresa para obter a numeração sequencial oficial. Pode guardar a proposta enquanto estiver offline.');
+      }
+      numeroFatura = await KanawaCloud.nextInvoiceNumber();
+    } catch (numberError) {
+      toast(numberError.message || 'Não foi possível reservar o número sequencial da fatura.', 'error');
+      return;
+    }
+  } else {
+    numeroFatura = 'RASCUNHO-' + new Date().getFullYear() + '-' + String(Date.now()).slice(-6);
+  }
+  const venda = { numeroFatura, clienteNome: pdvState.cliente.nome, clienteNif: pdvState.cliente.nif, clienteTelefone: pdvState.cliente.telefone, itens: pdvState.carrinho.map(i => ({ id: i.id, nome: i.nome, preco: i.preco, qty: i.qty, subtotal: i.subtotal })), subtotal: c.subtotal, desconto: pdvState.desconto, descontoValor: c.descontoValor, iva: c.iva, total: c.total, valorRecebido: pdvState.valorRecebido, troco: c.troco, pagamento: pdvState.pagamento, regime: pdvState.regime, aplicarIVA: pdvState.aplicarIVA, observacoes: pdvState.observacoes, status: modo, data: now(), hash: gerarHash({ total: c.total, data: Date.now() }), operador: user.nome || 'Admin', empresa: emp, orcamentoOrigem: pdvState.orcamentoOrigem || null };
   venda.assinatura = gerarAssinatura(venda);
-  try { await saveData('vendas', venda); }
+  try { venda.id = await saveData('vendas', venda); }
   catch (saleError) { toast('Venda não finalizada no servidor: ' + (saleError.message || 'verifique licença e stock'), 'error'); return; }
+  if (pdvState.orcamentoOrigem) { const quote=await DB.get('orcamentos',pdvState.orcamentoOrigem); if(quote){quote.status='convertida';quote.vendaId=venda.id||null;quote.dataCompra=now();quote.historico=Array.isArray(quote.historico)?quote.historico:[];quote.historico.push({evento:'Convertida em venda '+numeroFatura,data:now(),responsavel:user.nome||'Admin'});await saveData('orcamentos',quote);} }
   for (const item of pdvState.carrinho) { const p = await DB.get('produtos', item.id); if (p) { p.estoque = Math.max(0, (p.estoque || 0) - item.qty); await saveData('produtos', p, { skipStockSync: true }); } }
   await saveData('movimentacoesEstoque', { tipo: 'saida', descricao: 'Venda ' + numeroFatura, itens: pdvState.carrinho.map(i => ({ id: i.id, nome: i.nome, qtd: i.qty })), data: now() });
   if (pdvState.pagamento === 'credito') await saveData('contasReceber', { cliente: pdvState.cliente.nome, valor: c.total, descricao: 'Venda ' + numeroFatura, vencimento: new Date(Date.now() + 30 * 86400000).toISOString(), status: 'pendente', data: now() });
   await criarNotificacao('Nova Venda', numeroFatura + ' - ' + fmt(c.total), 'success', 'vendas');
   toast('✅ Venda ' + numeroFatura + ': ' + fmt(c.total), 'success');
   abrirFatura(venda); abrirGavetaAutomatico(); pdvCache.ts = 0;
-  pdvState.carrinho = []; pdvState.cliente = { nome: 'Cliente Anônimo', nif: '', telefone: '' }; pdvState.desconto = 0; pdvState.valorRecebido = 0;
+  pdvState.carrinho = []; pdvState.cliente = { nome: 'Cliente Anônimo', nif: '', telefone: '' }; pdvState.desconto = 0; pdvState.valorRecebido = 0; pdvState.orcamentoOrigem = null;
 }
 function filtrarPDV(termo) {
   const t = (termo || '').toLowerCase().trim(); const grid = $('pdvProductsGrid'); if (!grid) return;
@@ -1368,6 +1403,76 @@ async function renderCRM() {
 function abrirModalLead() { openModal('Novo Lead', '<div class="form-group"><label>Nome *</label><input id="lNome"></div><div class="form-group"><label>Telefone</label><input id="lTel"></div><div class="form-group"><label>Email</label><input id="lEmail" type="email"></div><div class="form-group"><label>Origem</label><select id="lOrigem"><option>Site</option><option>WhatsApp</option><option>Facebook</option><option>Indicação</option></select></div><button class="btn btn-primary btn-block" onclick="salvarLead()">Salvar</button>'); }
 async function salvarLead() { const n = $('lNome').value.trim(); if (!n) { toast('Informe nome', 'warning'); return; } await saveData('leads', { nome: n, telefone: $('lTel').value, email: $('lEmail').value, origem: $('lOrigem').value, status: 'novo', data: now() }); toast('Lead cadastrado', 'success'); closeModal(); openModule('crm'); }
 
+/* ====== CONTABILIDADE ====== */
+async function renderContabilidade() {
+  if (!window.KanawaCloud || !KanawaCloud.ready) {
+    return header('Contabilidade', 'Plano de contas e lançamentos de dupla entrada', 'var(--primary)', '', 'fa-book') +
+      '<div class="card"><p>A contabilidade central requer ligação segura à empresa. Os lançamentos oficiais não são emitidos em modo offline.</p></div>';
+  }
+  const snap = await KanawaCloud.getAccountingSnapshot();
+  const accounts = Array.isArray(snap.accounts) ? snap.accounts : [];
+  const entries = Array.isArray(snap.entries) ? snap.entries : [];
+  const debit = entries.reduce((sum, e) => sum + Number(e.debit_total || 0), 0);
+  const credit = entries.reduce((sum, e) => sum + Number(e.credit_total || 0), 0);
+  const rows = entries.map(e => [
+    '<strong>' + esc(e.entry_number) + '</strong>',
+    fmtD(e.entry_date),
+    esc(e.description),
+    fmt(e.debit_total),
+    fmt(e.credit_total),
+    badge(e.status || 'posted', 'success')
+  ]);
+  const accountRows = accounts.map(a => [esc(a.account_code), esc(a.name), esc(a.account_type), fmt(a.debit_total), fmt(a.credit_total), fmt(a.balance)]);
+  return header('Contabilidade', 'Plano de contas e diário contabilístico', 'var(--primary)', '<button class="btn btn-light" onclick="abrirContaContabilistica()"><i class="fas fa-plus"></i> Nova conta</button> <button class="btn btn-success" onclick="abrirLancamentoContabilistico()"><i class="fas fa-plus-circle"></i> Novo lançamento</button>', 'fa-book') +
+    '<div class="metric-grid">' +
+    '<div class="metric-card"><div class="label">Contas activas</div><div class="value">' + accounts.length + '</div></div>' +
+    '<div class="metric-card"><div class="label">Lançamentos</div><div class="value">' + entries.length + '</div></div>' +
+    '<div class="metric-card"><div class="label">Débitos registados</div><div class="value">' + fmt(debit) + '</div></div>' +
+    '<div class="metric-card"><div class="label">Créditos registados</div><div class="value">' + fmt(credit) + '</div></div></div>' +
+    '<div class="card"><div class="card-header"><h3 class="card-title">Plano de contas</h3></div>' + table(['Código','Conta','Tipo','Débito','Crédito','Saldo'], accountRows) + '</div>' +
+    '<div class="card"><div class="card-header"><h3 class="card-title">Diário contabilístico</h3></div>' + table(['N.º','Data','Descrição','Débito','Crédito','Estado'], rows) + '</div>';
+}
+function abrirContaContabilistica() {
+  openModal('Nova conta contabilística',
+    '<div class="form-grid"><div class="form-group"><label>Código *</label><input id="caCodigo" maxlength="30"></div><div class="form-group"><label>Nome *</label><input id="caNome"></div>' +
+    '<div class="form-group full"><label>Tipo *</label><select id="caTipo"><option value="asset">Activo</option><option value="liability">Passivo</option><option value="equity">Capital próprio</option><option value="income">Rendimento</option><option value="expense">Gasto</option></select></div></div>' +
+    '<button class="btn btn-primary btn-block" onclick="guardarContaContabilistica()">Guardar conta</button>');
+}
+async function guardarContaContabilistica() {
+  const code=$('caCodigo').value.trim(), name=$('caNome').value.trim(), type=$('caTipo').value;
+  if(!code||!name){toast('Preencha código e nome da conta.','warning');return;}
+  try { await KanawaCloud.saveChartAccount({code,name,type}); toast('Conta contabilística guardada.','success'); closeModal(); openModule('contabilidade'); }
+  catch(error){toast(error.message||'Não foi possível guardar a conta.','error');}
+}
+function abrirLancamentoContabilistico() {
+  const options = '<option value="">Seleccione uma conta...</option>';
+  KanawaCloud.getAccountingSnapshot().then(snap=>{
+    const accounts=(snap.accounts||[]);
+    const opts=options+accounts.map(a=>'<option value="'+esc(a.id)+'">'+esc(a.account_code+' — '+a.name)+'</option>').join('');
+    openModal('Novo lançamento contabilístico',
+      '<div class="form-grid"><div class="form-group"><label>Data *</label><input id="jeData" type="date" value="'+new Date().toISOString().slice(0,10)+'"></div><div class="form-group"><label>Descrição *</label><input id="jeDesc" maxlength="180"></div>' +
+      '<div class="form-group"><label>Conta a debitar *</label><select id="jeDebito">'+opts+'</select></div><div class="form-group"><label>Valor do débito (Kz) *</label><input id="jeValorDebito" type="number" min="0.01" step="0.01"></div>' +
+      '<div class="form-group"><label>Conta a creditar *</label><select id="jeCredito">'+opts+'</select></div><div class="form-group"><label>Valor do crédito (Kz) *</label><input id="jeValorCredito" type="number" min="0.01" step="0.01"></div></div>' +
+      '<p class="text-muted">O servidor confirma que as contas pertencem à empresa e que o total de débito é igual ao total de crédito.</p>' +
+      '<button class="btn btn-primary btn-block" onclick="guardarLancamentoContabilistico()">Validar e lançar</button>');
+  }).catch(error=>toast(error.message||'Não foi possível carregar o plano de contas.','error'));
+}
+async function guardarLancamentoContabilistico() {
+  const date=$('jeData').value, description=$('jeDesc').value.trim();
+  const debitAccount=$('jeDebito').value, creditAccount=$('jeCredito').value;
+  const debit=Number($('jeValorDebito').value), credit=Number($('jeValorCredito').value);
+  if(!date||!description||!debitAccount||!creditAccount||debit<=0||credit<=0){toast('Preencha todos os campos com valores positivos.','warning');return;}
+  if(debitAccount===creditAccount){toast('Escolha contas diferentes para débito e crédito.','warning');return;}
+  if(Math.round(debit*100)!==Math.round(credit*100)){toast('Débito e crédito têm de ser iguais.','warning');return;}
+  try {
+    const result=await KanawaCloud.postJournalEntry({date,description,lines:[
+      {account_id:debitAccount,debit,credit:0},
+      {account_id:creditAccount,debit:0,credit}
+    ]});
+    toast('Lançamento '+result.entry_number+' registado.','success'); closeModal(); openModule('contabilidade');
+  } catch(error){toast(error.message||'Lançamento recusado pelo servidor.','error');}
+}
+
 /* ====== FINANCEIRO ====== */
 async function renderFinanceiro() {
   const [rec, pag] = await Promise.all([getData('contasReceber'), getData('contasPagar')]);
@@ -1479,11 +1584,49 @@ async function exportarInventario() {
 /* ====== RH ====== */
 async function renderRH() {
   const f = await getData('funcionarios');
-  const rows = f.map(x => { const irt = calcIRT(x.salario || 0).irt; return [x.id, '<strong>' + esc(x.nome) + '</strong>', esc(x.cargo || '-'), fmt(x.salario), '<span style="color:var(--danger)">-' + fmt(irt) + '</span>', '<span style="color:var(--success);font-weight:700">' + fmt((x.salario || 0) - irt) + '</span>', '<button class="btn btn-sm btn-danger" onclick="excluirItem(\'funcionarios\',' + x.id + ')"><i class="fas fa-trash"></i></button>']; });
-  return header('RH — Recursos Humanos', f.length + ' funcionários', 'var(--info)', '<button class="btn btn-success" onclick="abrirModalFuncionario()"><i class="fas fa-plus"></i> Novo</button>', 'fa-user-tie') + '<div class="card">' + table(['#', 'Nome', 'Cargo', 'Salário', 'IRT', 'Líquido', 'Ações'], rows) + '</div>';
+  const active=f.filter(x=>x.status!=='inactivo');
+  const rows = f.map(x => {
+    const p=calcularRemuneracaoAO(x);
+    return [x.id, '<strong>' + esc(x.nome) + '</strong>', esc(x.cargo || '-'), fmtD(x.dataContratacao), fmt(x.salario||0), fmt(x.bonus||0),
+      '<span style="color:var(--danger)">-' + fmt(p.irt+p.employeeInss) + '</span>',
+      '<span style="color:var(--success);font-weight:700">' + fmt(p.net) + '</span>',
+      '<button class="btn btn-sm btn-danger" onclick="excluirItem(&quot;funcionarios&quot;,' + x.id + ')"><i class="fas fa-trash"></i></button>'];
+  });
+  return header('RH — Recursos Humanos', f.length + ' funcionários', 'var(--info)', '<button class="btn btn-success" onclick="abrirModalFuncionario()"><i class="fas fa-plus"></i> Novo</button>', 'fa-user-tie') +
+    '<div class="metric-grid"><div class="metric-card"><div class="label">Activos</div><div class="value">'+active.length+'</div></div><div class="metric-card"><div class="label">Salário base mensal</div><div class="value">'+fmt(active.reduce((s,x)=>s+Number(x.salario||0),0))+'</div></div><div class="metric-card"><div class="label">Bónus mensais</div><div class="value">'+fmt(active.reduce((s,x)=>s+Number(x.bonus||0),0))+'</div></div></div>' +
+    '<div class="card">' + table(['#','Nome','Cargo','Admissão','Salário base','Bónus','IRT + INSS','Líquido estimado','Ações'], rows) + '</div>' +
+    '<div class="card"><p style="font-size:.78rem;color:var(--text-muted)">Para calcular e registar a folha completa, incluindo contribuições do empregador e histórico mensal, utilize o módulo Folha Salarial.</p></div>';
 }
-function abrirModalFuncionario() { openModal('Novo Funcionário', '<div class="form-group"><label>Nome *</label><input id="fnNome"></div><div class="form-group"><label>Cargo</label><input id="fnCargo"></div><div class="form-group"><label>Salário *</label><input id="fnSalario" type="number" value="0"></div><button class="btn btn-primary btn-block" onclick="salvarFuncionario()">Salvar</button>'); }
-async function salvarFuncionario() { const n = $('fnNome').value.trim(); if (!n) { toast('Informe nome', 'warning'); return; } await saveData('funcionarios', { nome: n, cargo: $('fnCargo').value, salario: num($('fnSalario').value, 0), dataContratacao: now() }); toast('Cadastrado', 'success'); closeModal(); openModule('rh'); }
+function abrirModalFuncionario() {
+  openModal('Novo Funcionário', '<div class="form-grid">' +
+    '<div class="form-group full"><label>Nome completo *</label><input id="fnNome"></div>' +
+    '<div class="form-group"><label>BI / Passaporte</label><input id="fnBI"></div><div class="form-group"><label>NIF</label><input id="fnNIF"></div>' +
+    '<div class="form-group"><label>Cargo</label><input id="fnCargo"></div><div class="form-group"><label>Departamento</label><input id="fnDepartamento"></div>' +
+    '<div class="form-group"><label>Data de admissão</label><input id="fnDataInicio" type="date"></div><div class="form-group"><label>Tipo de contrato</label><select id="fnContrato"><option>Indeterminado</option><option>Determinado</option><option>Temporário</option><option>Prestação de serviços</option></select></div>' +
+    '<div class="form-group"><label>Salário base (Kz)</label><input id="fnSalario" type="number" min="0" value="0"></div><div class="form-group"><label>Bónus mensal (Kz)</label><input id="fnBonus" type="number" min="0" value="0"></div>' +
+    '<div class="form-group"><label>Subsídio transporte</label><input id="fnTransporte" type="number" min="0" value="0"></div><div class="form-group"><label>Subsídio alimentação</label><input id="fnAlimentacao" type="number" min="0" value="0"></div>' +
+    '<div class="form-group"><label>Email</label><input id="fnEmail" type="email"></div><div class="form-group"><label>Telefone</label><input id="fnTelefone"></div></div>' +
+    '<button class="btn btn-primary btn-block" onclick="salvarFuncionario()">Guardar funcionário</button>');
+}
+async function salvarFuncionario() {
+  const n = $('fnNome').value.trim(); if (!n) { toast('Informe o nome do funcionário', 'warning'); return; }
+  const employeeData = {
+    nome:n, bi:$('fnBI').value.trim(), nif:$('fnNIF').value.trim(), cargo:$('fnCargo').value.trim(),
+    departamento:$('fnDepartamento').value.trim(), dataContratacao:$('fnDataInicio').value || now(),
+    tipoContrato:$('fnContrato').value, salario:num($('fnSalario').value,0), bonus:num($('fnBonus').value,0),
+    subsidioTransporte:num($('fnTransporte').value,0), subsidioAlimentacao:num($('fnAlimentacao').value,0),
+    email:$('fnEmail').value.trim(), telefone:$('fnTelefone').value.trim(), status:'activo'
+  };
+  const localId=await saveData('funcionarios',employeeData);
+  if(window.KanawaCloud&&KanawaCloud.ready){
+    try{
+      const remote=await KanawaCloud.upsertEmployee({employeeNumber:'EMP-'+localId,fullName:n,email:employeeData.email,phone:employeeData.telefone,taxId:employeeData.nif,department:employeeData.departamento,jobTitle:employeeData.cargo,hireDate:employeeData.dataContratacao,salary:employeeData.salario,status:'active'});
+      employeeData.id=localId;employeeData.cloud_id=remote.id;await DB.put('funcionarios',employeeData);
+      await KanawaCloud.saveEmployeeCompensation({employeeId:remote.id,effectiveFrom:employeeData.dataContratacao,baseSalary:employeeData.salario,transportAllowance:employeeData.subsidioTransporte,mealAllowance:employeeData.subsidioAlimentacao,bonus:employeeData.bonus});
+    }catch(syncError){console.warn('Sincronização RH pendente:',syncError);toast('Funcionário guardado. A sincronização dos dados laborais será repetida.','warning');}
+  }
+  toast('Funcionário registado', 'success'); closeModal(); openModule('rh');
+}
 
 /* ====== PROJETOS ====== */
 async function renderProjetos() {
@@ -1590,14 +1733,39 @@ async function verFatura(id) { const v = await DB.get('vendas', id); if (v) abri
 
 /* ====== ORÇAMENTOS ====== */
 async function renderOrcamentos() {
-  const o = await getData('orcamentos');
-  const rows = o.map(x => [x.id, esc((x.cliente && x.cliente.nome) || '-'), (x.carrinho || []).length, '<strong>' + fmt(x.total) + '</strong>', badge(x.status || 'pendente', 'warning'),
-    '<button class="btn btn-sm btn-success" onclick="converterOrcamento(' + x.id + ')"><i class="fas fa-arrow-right"></i></button> <button class="btn btn-sm btn-danger" onclick="excluirItem(\'orcamentos\',' + x.id + ')"><i class="fas fa-trash"></i></button>']);
-  return header('Orçamentos', o.length + ' orçamentos', 'var(--info)', '', 'fa-file-invoice') + '<div class="card">' + table(['#', 'Cliente', 'Itens', 'Total', 'Status', 'Ações'], rows) + '</div>';
+  const o=await getData('orcamentos')||[];
+  const counts={rascunho:o.filter(x=>x.status==='rascunho'||x.status==='pendente').length,enviada:o.filter(x=>x.status==='enviada').length,aceite:o.filter(x=>x.status==='aceite').length,convertida:o.filter(x=>x.status==='convertida').length,perdida:o.filter(x=>x.status==='perdida').length};
+  const rows=o.slice().reverse().map(x=>[
+    '#'+x.id,esc(x.empresaCliente||(x.cliente&&x.cliente.nome)||'-'),esc(x.responsavel||'-'),(x.carrinho||[]).length,
+    '<strong>'+fmt(x.total)+'</strong>',fmtD(x.dataEnvio||x.data),badge(x.status||'rascunho',x.status==='convertida'?'success':x.status==='perdida'?'danger':x.status==='aceite'?'info':'warning'),
+    '<button class="btn btn-sm btn-info" title="Marcar enviada" onclick="atualizarEstadoOrcamento('+x.id+',\'enviada\')"><i class="fas fa-paper-plane"></i></button> '+
+    '<button class="btn btn-sm btn-success" title="Aceite pelo cliente" onclick="atualizarEstadoOrcamento('+x.id+',\'aceite\')"><i class="fas fa-check"></i></button> '+
+    '<button class="btn btn-sm btn-warning" title="Proposta perdida" onclick="atualizarEstadoOrcamento('+x.id+',\'perdida\')"><i class="fas fa-times"></i></button> '+
+    '<button class="btn btn-sm btn-primary" title="Converter em venda" onclick="converterOrcamento('+x.id+')"><i class="fas fa-arrow-right"></i></button>'
+  ]);
+  return header('Propostas e Negócios',o.length+' propostas comerciais','var(--info)','', 'fa-file-invoice')+
+    '<div class="metric-grid">'+
+    '<div class="metric-card"><div class="label">Rascunhos</div><div class="value">'+counts.rascunho+'</div></div>'+
+    '<div class="metric-card"><div class="label">Enviadas</div><div class="value">'+counts.enviada+'</div></div>'+
+    '<div class="metric-card"><div class="label">Aceites</div><div class="value">'+counts.aceite+'</div></div>'+
+    '<div class="metric-card"><div class="label">Convertidas em compra</div><div class="value">'+counts.convertida+'</div></div></div>'+
+    '<div class="card"><p style="color:var(--text-muted);font-size:.84rem;margin-bottom:12px">Acompanhe para que empresa foi enviada cada proposta, quem é o responsável, o estado da negociação e a venda que resultou da proposta.</p>'+
+    table(['Referência','Empresa cliente','Responsável','Itens','Valor','Data','Estado','Acções'],rows)+'</div>';
+}
+async function atualizarEstadoOrcamento(id,status) {
+  const q=await DB.get('orcamentos',id);if(!q)return;
+  const user=JSON.parse(localStorage.getItem('kanawa_user')||'{}');
+  q.status=status;
+  if(status==='enviada')q.dataEnvio=now();
+  if(status==='aceite')q.dataAceite=now();
+  if(status==='perdida')q.dataPerda=now();
+  q.historico=Array.isArray(q.historico)?q.historico:[];
+  q.historico.push({evento:'Estado alterado para '+status,data:now(),responsavel:user.nome||'Admin'});
+  await saveData('orcamentos',q);toast('Estado da proposta actualizado.','success');openModule('orcamentos');
 }
 async function converterOrcamento(id) {
   const o = await DB.get('orcamentos', id); if (!o) return;
-  pdvState.carrinho = o.carrinho || []; pdvState.cliente = o.cliente || { nome: 'Cliente Anônimo', nif: '', telefone: '' }; pdvState.desconto = o.desconto || 0;
+  pdvState.carrinho = o.carrinho || []; pdvState.cliente = o.cliente || { nome: 'Cliente Anônimo', nif: '', telefone: '' }; pdvState.desconto = o.desconto || 0; pdvState.orcamentoOrigem=o.id;
   toast('Orçamento carregado no PDV', 'success'); openModule('pdv');
 }
 
@@ -1750,6 +1918,8 @@ async function renderModulos() {
 /* ====== CONFIGURAÇÕES ====== */
 async function renderConfig() {
   if (!podeAcessar('config')) return '<div class="card"><h3>Sem permissão</h3></div>';
+  await carregarConfigEmpresa();
+  await carregarConfigFatura();
   const emp = JSON.parse(localStorage.getItem('kanawa_empresa') || '{}');
   const regras = JSON.parse(localStorage.getItem('kanawa_regras') || '{}');
   const logoPreview = (emp.logo && emp.logo.indexOf('data:') === 0) ? emp.logo : 'logo.png';
@@ -1764,6 +1934,18 @@ async function renderConfig() {
     '<div class="form-group"><label>NIF *</label><input id="cfgNif" value="' + esc(emp.nif || '') + '"></div>' +
     '<div class="form-group"><label>Nº Alvará</label><input id="cfgAlvara" value="' + esc(emp.alvara || '') + '"></div>' +
     '<div class="form-group"><label>Regime Fiscal</label><select id="cfgRegime"><option value="geral" ' + (emp.regime === 'geral' ? 'selected' : '') + '>Geral (IVA 14%)</option><option value="simplificado" ' + (emp.regime === 'simplificado' ? 'selected' : '') + '>Simplificado (7%)</option><option value="isento" ' + (emp.regime === 'isento' ? 'selected' : '') + '>Isento</option></select></div>' +
+    '<div class="form-group"><label>Sector principal da empresa</label><select id="cfgSector">' +
+    '<option value="comercio" '+(emp.sector==='comercio'?'selected':'')+'>Comércio geral / retalho</option>' +
+    '<option value="farmacia" '+(emp.sector==='farmacia'?'selected':'')+'>Farmácia / saúde</option>' +
+    '<option value="restauracao" '+(emp.sector==='restauracao'?'selected':'')+'>Cantina / restauração</option>' +
+    '<option value="servicos_tecnicos" '+(emp.sector==='servicos_tecnicos'?'selected':'')+'>Serviços técnicos / manutenção</option>' +
+    '<option value="industria" '+(emp.sector==='industria'?'selected':'')+'>Indústria / produção</option>' +
+    '<option value="construcao" '+(emp.sector==='construcao'?'selected':'')+'>Construção / obras</option>' +
+    '<option value="logistica" '+(emp.sector==='logistica'?'selected':'')+'>Logística / transporte</option>' +
+    '<option value="educacao" '+(emp.sector==='educacao'?'selected':'')+'>Educação / formação</option>' +
+    '<option value="hotelaria" '+(emp.sector==='hotelaria'?'selected':'')+'>Hotelaria / alojamento</option>' +
+    '<option value="agricultura" '+(emp.sector==='agricultura'?'selected':'')+'>Agricultura / agropecuária</option>' +
+    '<option value="outro" '+(emp.sector==='outro'?'selected':'')+'>Outra actividade</option></select></div>' +
     '<div class="form-group"><label>Telefone</label><input id="cfgTel" value="' + esc(emp.telefone || '') + '"></div>' +
     '<div class="form-group"><label>Email</label><input id="cfgEmail" value="' + esc(emp.email || '') + '"></div>' +
     '<div class="form-group full"><label>Endereço Completo</label><input id="cfgEnd" value="' + esc(emp.endereco || '') + '"></div>' +
@@ -1796,16 +1978,17 @@ async function renderConfig() {
     '<div class="form-group"><label>Estoque Mínimo Padrão</label><input type="number" id="cfgEstMin" value="' + (regras.estoqueMin || 10) + '"></div>' +
     '<div class="form-group"><label>Desconto Máximo (%)</label><input type="number" id="cfgDescMax" value="' + (regras.descontoMax || 50) + '"></div></div>' +
     '<button class="btn btn-success btn-lg" style="margin-top:16px" onclick="salvarRegras()"><i class="fas fa-save"></i> Salvar Regras</button></div>' +
-    '<div class="card"><div class="card-header"><h3 class="card-title"><i class="fas fa-server"></i> Servidor (Opcional)</h3></div>' +
-    '<p style="color:var(--text-muted);font-size:.85rem;margin-bottom:12px">Os dados são guardados no PostgreSQL central e sincronizados com o cache local para permitir trabalho temporário sem internet.</p>' +
+    renderInvoiceSettingsCard() +
+    '<div class="card"><div class="card-header"><h3 class="card-title"><i class="fas fa-server"></i> Ligação e armazenamento</h3></div>' +
+    '<p style="color:var(--text-muted);font-size:.85rem;margin-bottom:12px">Os dados são guardados no serviço central da plataforma e sincronizados com o armazenamento local para permitir trabalho temporário sem internet.</p>' +
     '<div class="form-grid">' +
-    '<div class="form-group full"><label>Base de dados central</label><input value="Supabase PostgreSQL — Kanawa Cloud" disabled></div>' +
+    '<div class="form-group full"><label>Serviço de dados</label><input value="Ligação gerida pela plataforma Kanawa Soft" disabled></div>' +
     '<div class="form-group"><label>Status</label><div style="padding:10px"><span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:' + (API_ONLINE ? '#4ade80' : '#f87171') + ';margin-right:6px"></span>' + (API_ONLINE ? 'Conectado' : 'Desconectado') + '</div></div></div>' +
     '<div style="display:flex;gap:10px;margin-top:16px;flex-wrap:wrap">' +
     '<span style="font-size:.8rem;color:var(--text-muted);padding:10px">Ligação configurada pela D.PEDRO SOLUÇÕES</span>' +
     '<button class="btn btn-primary" onclick="testarAPI()"><i class="fas fa-check"></i> Testar</button>' +
     '<button class="btn btn-info" onclick="syncNow(true)"><i class="fas fa-sync"></i> Sincronizar Agora</button></div></div>' +
-    '<div class="card"><div class="card-header"><h3 class="card-title"><i class="fas fa-database"></i> Cache local (IndexedDB) + PostgreSQL central</h3></div>' + table(['Coleção', 'Registros', 'Ações'], countRows) + '</div>' +
+    '<div class="card"><div class="card-header"><h3 class="card-title"><i class="fas fa-database"></i> Armazenamento local e central</h3></div>' + table(['Coleção', 'Registros', 'Ações'], countRows) + '</div>' +
     '<div class="card"><div class="card-header"><h3 class="card-title"><i class="fas fa-tools"></i> Ferramentas</h3></div>' +
     '<div style="display:flex;gap:10px;flex-wrap:wrap">' +
     '<button class="btn btn-warning" onclick="recarregarDemo()"><i class="fas fa-seedling"></i> Dados Demo</button>' +
@@ -1842,16 +2025,91 @@ async function confirmarTelefoneSMS() {
     toast(error.message || 'Não foi possível confirmar o telefone.', 'danger');
   }
 }
-function salvarConfigEmpresa() {
+function renderInvoiceSettingsCard() {
+  const c = window.KanawaInvoiceTemplates ? KanawaInvoiceTemplates.getSettings() : {};
+  return '<div class="card"><div class="card-header"><h3 class="card-title"><i class="fas fa-file-invoice"></i> Modelos de faturação e aparência</h3></div>' +
+    '<p style="color:var(--text-muted);font-size:.84rem;margin-bottom:14px">Escolha o modelo, as cores e os elementos comerciais. Os valores da fatura são sempre carregados da venda e do cadastro da empresa.</p>' +
+    '<div class="form-grid">' +
+    '<div class="form-group"><label>Modelo de fatura</label><select id="cfgInvoiceTemplate"><option value="classic" '+(c.template==='classic'?'selected':'')+'>Clássico profissional</option><option value="modern" '+(c.template==='modern'?'selected':'')+'>Moderno empresarial</option><option value="minimal" '+(c.template==='minimal'?'selected':'')+'>Minimalista</option></select></div>' +
+    '<div class="form-group"><label>Cor principal da interface/documento</label><input id="cfgUiPrimary" type="color" value="'+(c.primary||'#1a3a5c')+'"></div>' +
+    '<div class="form-group"><label>Cor secundária</label><input id="cfgUiAccent" type="color" value="'+(c.accent||'#217346')+'"></div>' +
+    '<div class="form-group"><label><input id="cfgInvoiceQr" type="checkbox" '+(c.showQr===true?'checked':'')+'> Incluir QR de referência do documento (não é QR de validação AGT)</label></div>' +
+    '<div class="form-group"><label><input id="cfgInvoiceBank" type="checkbox" '+(c.showBank!==false?'checked':'')+'> Mostrar banco e IBAN na fatura</label></div>' +
+    '<div class="form-group full"><label>Termos e condições comerciais da empresa</label><textarea id="cfgInvoiceTerms" rows="4" placeholder="Ex.: Condições de pagamento, garantia, devoluções e contactos">'+String(c.customTerms||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')+'</textarea></div>' +
+    '</div><div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:12px"><button class="btn btn-success" onclick="salvarConfigFatura()"><i class="fas fa-save"></i> Guardar modelo e cores</button><button class="btn btn-secondary" onclick="previewConfigFatura()"><i class="fas fa-eye"></i> Pré-visualizar</button></div>' +
+    '<p style="font-size:.75rem;color:var(--text-muted);margin-top:10px">A secção de validação fiscal só será apresentada quando existir integração fiscal confirmada pelo servidor. Nenhuma menção de certificação ou QR AGT será impressa antes disso.</p></div>';
+}
+function aplicarTemaPersonalizado() {
+  try {
+    const c=JSON.parse(localStorage.getItem('kanawa_fatura_config')||'{}');
+    if(/^#[0-9a-f]{6}$/i.test(c.primary||'')) {
+      document.documentElement.style.setProperty('--primary',c.primary);
+      document.documentElement.style.setProperty('--primary-dark',c.primary);
+      document.documentElement.style.setProperty('--primary-light',c.primary);
+    }
+    if(/^#[0-9a-f]{6}$/i.test(c.accent||'')) {
+      document.documentElement.style.setProperty('--secondary',c.accent);
+      document.documentElement.style.setProperty('--secondary-light',c.accent);
+    }
+  } catch (_) {}
+}
+async function carregarConfigFatura() {
+  try {
+    const rows=await getData('configuracoesFatura');
+    const saved=(rows||[]).find(x=>x.id==='invoice-config');
+    if(saved) {
+      const config={template:saved.template,primary:saved.primary,accent:saved.accent,showQr:saved.showQr===true,showBank:saved.showBank!==false,customTerms:saved.customTerms||''};
+      localStorage.setItem('kanawa_fatura_config',JSON.stringify(config));
+      aplicarTemaPersonalizado();
+    }
+  } catch(error) { console.warn('Configuração de fatura ainda não sincronizada:',error); }
+}
+async function salvarConfigFatura() {
+  const c={template:$('cfgInvoiceTemplate').value,primary:$('cfgUiPrimary').value,accent:$('cfgUiAccent').value,showQr:$('cfgInvoiceQr').checked,showBank:$('cfgInvoiceBank').checked,customTerms:$('cfgInvoiceTerms').value};
+  localStorage.setItem('kanawa_fatura_config',JSON.stringify(c));
+  aplicarTemaPersonalizado();
+  try { await saveData('configuracoesFatura',Object.assign({id:'invoice-config'},c)); toast('Modelo de faturação e cores guardados na empresa.','success'); }
+  catch(error) { toast('Guardado neste dispositivo; sincronização pendente.','warning'); }
+}
+function previewConfigFatura() {
+  const c={template:$('cfgInvoiceTemplate').value,primary:$('cfgUiPrimary').value,accent:$('cfgUiAccent').value,showQr:$('cfgInvoiceQr').checked,showBank:$('cfgInvoiceBank').checked,customTerms:$('cfgInvoiceTerms').value};
+  const emp=JSON.parse(localStorage.getItem('kanawa_empresa')||'{}');
+  const demo={numeroFatura:'PRÉ-VISUALIZAÇÃO',data:new Date().toISOString(),clienteNome:'Cliente de demonstração',clienteNif:'',clienteTelefone:'',operador:'Administrador',pagamento:'Transferência',status:'Exemplo',itens:[{nome:'Produto de exemplo',qty:2,preco:5000,subtotal:10000}],subtotal:10000,descontoValor:0,iva:1400,total:11400,valorRecebido:11400,troco:0};
+  const markup=window.KanawaInvoiceTemplates.render(demo,emp,emp.logo||'logo.png',c);
+  openModal('Pré-visualização do modelo de fatura','<div style="max-height:70vh;overflow:auto">'+markup+'</div><div style="margin-top:12px;text-align:right"><button class="btn btn-secondary" onclick="closeModal()">Fechar</button></div>',true);
+  if(c.showQr) setTimeout(()=>gerarQRCodeFatura(JSON.stringify({document:'PRÉ-VISUALIZAÇÃO',currency:'AOA'})),150);
+}
+async function carregarConfigEmpresa() {
+  try {
+    const rows=await getData('empresaConfig');
+    const saved=(rows||[]).find(x=>x.id==='company-config');
+    if(saved) {
+      const local=JSON.parse(localStorage.getItem('kanawa_empresa')||'{}');
+      const merged=Object.assign({},local,saved);
+      if(local.logo && String(local.logo).indexOf('data:')===0) merged.logo=local.logo;
+      localStorage.setItem('kanawa_empresa',JSON.stringify(merged));
+    }
+  } catch(error) { console.warn('Cadastro da empresa ainda não sincronizado:',error); }
+}
+async function salvarConfigEmpresa() {
   const empAtual = JSON.parse(localStorage.getItem('kanawa_empresa') || '{}');
   const logoAtual = empAtual.logo || 'logo.png';
   const logoNovo = localStorage.getItem('kanawa_logo_temp') || logoAtual;
-  const e = { firma: $('cfgFirma').value, nome: $('cfgNome').value, nif: $('cfgNif').value, alvara: $('cfgAlvara').value, regime: $('cfgRegime').value, telefone: $('cfgTel').value, email: $('cfgEmail').value, endereco: $('cfgEnd').value, website: $('cfgSite').value, banco: $('cfgBanco').value, iban: $('cfgIban').value, logo: logoNovo };
+  const e = { firma: $('cfgFirma').value, nome: $('cfgNome').value, nif: $('cfgNif').value, alvara: $('cfgAlvara').value, regime: $('cfgRegime').value, telefone: $('cfgTel').value, email: $('cfgEmail').value, endereco: $('cfgEnd').value, website: $('cfgSite').value, sector: $('cfgSector').value, banco: $('cfgBanco').value, iban: $('cfgIban').value, logo: logoNovo };
   localStorage.setItem('kanawa_empresa', JSON.stringify(e));
   localStorage.removeItem('kanawa_logo_temp');
+  const centralReady=!!(window.KanawaCloud&&KanawaCloud.ready);
+  try {
+    const companyRecord=Object.assign({},e,{id:'company-config'});
+    if(companyRecord.logo&&String(companyRecord.logo).indexOf('data:')===0) delete companyRecord.logo;
+    await saveData('empresaConfig',companyRecord);
+  } catch(error) {
+    console.warn('Dados comerciais guardados localmente; sincronização pendente:',error);
+  }
   aplicarLogo();
+  aplicarTemaPersonalizado();
   if ($('topbarEmpresa')) $('topbarEmpresa').textContent = e.firma || e.nome || 'Kanawa Soft';
-  toast('✅ Empresa atualizada', 'success');
+  toast(centralReady?'Empresa actualizada e sincronizada.':'Empresa guardada; sincronização pendente.','success');
 }
 function escolherLogoEmpresa(input) {
   const file = input.files[0]; if (!file) return;
@@ -1929,7 +2187,22 @@ async function finalizarSetup() {
       phone: $('setupTelefone').value,
       companyName: companyName,
       taxId: taxId,
-      taxRegime: $('setupRegime').value
+      taxRegime: $('setupRegime').value,
+      selectedPlan: localStorage.getItem('kanawa_selected_plan') || 'trial',
+      legalProfile: {
+        legal_form:$('setupLegalForm').value, incorporation_date:$('setupIncorporationDate').value,
+        commercial_registry_number:$('setupRegistryNumber').value, commercial_registry_date:$('setupRegistryDate').value,
+        commercial_entry_number:$('setupEntryNumber').value, registry_office:$('setupRegistryOffice').value,
+        commercial_certificate_expires_at:$('setupRegistryExpiry').value,
+        owner_identity_number:$('setupOwnerBI').value, owner_nif:$('setupOwnerNIF').value, owner_nationality:$('setupOwnerNationality').value,
+        publication_number:$('setupPublicationNumber').value, publication_date:$('setupPublicationDate').value,
+        publication_url:$('setupPublicationUrl').value, capital_amount:$('setupCapital').value,
+        activity_code:$('setupActivityCode').value, activity_description:$('setupActivityDescription').value,
+        alvara_number:$('setupAlvaraNumber').value, alvara_type:$('setupAlvaraType').value,
+        alvara_issue_date:$('setupAlvaraIssue').value, alvara_expiry_date:$('setupAlvaraExpiry').value,
+        inss_employer_number:$('setupInssNumber').value, registered_address:$('setupEndereco').value,
+        province:$('setupProvince').value, municipality:$('setupMunicipality').value, parish:$('setupParish').value
+      }
     });
 
     const existingLocalCompany = await DB.get('empresas', 1);
@@ -2473,15 +2746,78 @@ async function renderAtivosDepreciacao() {
       ativos.map(a => { const anos = Math.floor((new Date() - new Date(a.dataAquisicao)) / (1000 * 60 * 60 * 24 * 365)); const dt = (a.valor || 0) * ((a.depreciacao || 0) / 100) * Math.min(anos, 10); const va = Math.max(0, (a.valor || 0) - dt); return ['<strong>' + esc(a.nome) + '</strong>', fmt(a.valor || 0), (a.depreciacao || 0) + '% ao ano', fmt(va)]; })) + '</div>';
 }
 async function renderAtivosManutencao() {
-  const m = await getData('manutencoes') || [];
-  return header('Manutenção de Ativos', m.length + ' manutenções', 'var(--warning)',
-    '<button class="btn btn-success" onclick="novaManutencaoAtivo()"><i class="fas fa-plus"></i> Nova Manutenção</button>', 'fa-tools') +
-    '<div class="card">' + table(['Ativo', 'Data', 'Custo', 'Status', 'Ações'],
-      m.map(x => [esc(x.ativo || '-'), fmtD(x.data), fmt(x.custo || 0), badge(x.status === 'concluida' ? 'Concluída' : 'Pendente', x.status === 'concluida' ? 'success' : 'warning'),
-      '<button class="btn btn-sm btn-success" onclick="concluirManutencaoAtivo(' + x.id + ')"><i class="fas fa-check"></i></button> <button class="btn btn-sm btn-danger" onclick="excluirItem(\'manutencoes\',' + x.id + ')"><i class="fas fa-trash"></i></button>'])) + '</div>';
+  const m=await getData('manutencoes')||[];
+  const rows=m.slice().sort((a,b)=>String(b.dataAgendada||b.data||'').localeCompare(String(a.dataAgendada||a.data||''))).map(x=>[
+    esc(x.ativo||x.equipamento||'-'),
+    esc(x.empresaCliente||x.cliente||'-'),
+    esc(x.tecnicoNome||x.tecnico||'-'),
+    esc(x.tipoManutencao||'Correctiva'),
+    fmtD(x.dataAgendada||x.data),
+    fmtD(x.proximaManutencao),
+    badge(x.status==='concluida'?'Concluída':(x.status||'Pendente'),x.status==='concluida'?'success':(x.status==='em_curso'?'info':'warning')),
+    fmt(x.custo||0),
+    '<button class="btn btn-sm btn-primary" onclick="verDetalheManutencao('+x.id+')"><i class="fas fa-eye"></i></button> <button class="btn btn-sm btn-success" onclick="concluirManutencaoAtivo('+x.id+')"><i class="fas fa-check"></i></button> <button class="btn btn-sm btn-danger" onclick="excluirItem(\'manutencoes\','+x.id+')"><i class="fas fa-trash"></i></button>'
+  ]);
+  return header('Manutenção e Intervenções',m.length+' registos de manutenção','var(--warning)',
+    '<button class="btn btn-success" onclick="novaManutencaoAtivo()"><i class="fas fa-plus"></i> Agendar manutenção</button>','fa-tools')+
+    '<div class="card"><p style="color:var(--text-muted);font-size:.84rem;margin-bottom:12px">Registe a empresa atendida, equipamento, técnico responsável, data, relatório, custo e próxima intervenção. O histórico permanece associado ao ativo e ao cliente.</p>'+
+    table(['Ativo / Equipamento','Empresa cliente','Técnico','Tipo','Data agendada','Próxima','Estado','Custo','Ações'],rows)+'</div>';
 }
-async function novaManutencaoAtivo() { const a = prompt('Nome do ativo:'); if (!a) return; await saveData('manutencoes', { ativo: a, data: now(), custo: parseFloat(prompt('Custo:', '0')) || 0, status: 'pendente' }); toast('Manutenção registrada', 'success'); openModule('ativos-manutencao'); }
-async function concluirManutencaoAtivo(id) { const m = await DB.get('manutencoes', id); if (m) { m.status = 'concluida'; await saveData('manutencoes', m); toast('Manutenção concluída', 'success'); openModule('ativos-manutencao'); } }
+async function novaManutencaoAtivo() {
+  const [clients,staff]=await Promise.all([getData('clientes'),getData('funcionarios')]);
+  const clientOptions=clients.map(c=>'<option value="'+esc(c.nome)+'">'+esc(c.nome)+'</option>').join('');
+  const techOptions=staff.map(t=>'<option value="'+esc(t.nome)+'">'+esc(t.nome)+'</option>').join('');
+  openModal('Agendar manutenção / intervenção',
+    '<div class="form-grid">'+
+    '<div class="form-group"><label>Empresa cliente *</label><input id="maintCompany" list="maintClients" placeholder="Nome da empresa atendida"><datalist id="maintClients">'+clients.map(c=>'<option value="'+esc(c.nome)+'">').join('')+'</datalist></div>'+
+    '<div class="form-group"><label>Ativo / Equipamento *</label><input id="maintAsset" placeholder="Ex.: CCTV, servidor, viatura, máquina"></div>'+
+    '<div class="form-group"><label>Tipo de manutenção</label><select id="maintType"><option>Preventiva</option><option>Correctiva</option><option>Inspecção</option><option>Instalação</option><option>Assistência técnica</option></select></div>'+
+    '<div class="form-group"><label>Técnico responsável</label><select id="maintTech"><option value="">Atribuir mais tarde</option>'+techOptions+'</select></div>'+
+    '<div class="form-group"><label>Data agendada</label><input id="maintDate" type="date" value="'+new Date().toISOString().slice(0,10)+'"></div>'+
+    '<div class="form-group"><label>Próxima manutenção</label><input id="maintNext" type="date"></div>'+
+    '<div class="form-group"><label>Custo estimado (Kz)</label><input id="maintCost" type="number" min="0" value="0"></div>'+
+    '<div class="form-group"><label>Prioridade</label><select id="maintPriority"><option>Normal</option><option>Alta</option><option>Urgente</option></select></div>'+
+    '<div class="form-group full"><label>Problema / trabalho solicitado</label><textarea id="maintDescription" rows="2"></textarea></div>'+
+    '<div class="form-group full"><label>Peças / materiais previstos</label><textarea id="maintParts" rows="2"></textarea></div></div>'+
+    '<button class="btn btn-success btn-block" onclick="salvarManutencaoAtivo()">Guardar ordem de manutenção</button>',true);
+}
+async function salvarManutencaoAtivo() {
+  const company=$('maintCompany').value.trim(),asset=$('maintAsset').value.trim();
+  if(!company||!asset){toast('Indique a empresa cliente e o equipamento.','warning');return;}
+  const staff=await getData('funcionarios'),tech=$('maintTech').value;
+  const assigned=staff.find(x=>x.nome===tech);
+  await saveData('manutencoes',{
+    empresaCliente:company,ativo:asset,equipamento:asset,tipoManutencao:$('maintType').value,
+    tecnicoNome:tech||'',tecnicoId:assigned?assigned.id:null,
+    dataAgendada:$('maintDate').value,proximaManutencao:$('maintNext').value||null,
+    custo:num($('maintCost').value,0),prioridade:$('maintPriority').value,
+    descricao:$('maintDescription').value,pecasMateriais:$('maintParts').value,
+    status:'pendente',dataCriacao:now(),historico:[{evento:'Ordem criada',data:now(),responsavel:(JSON.parse(localStorage.getItem('kanawa_user')||'{}').nome||'Administrador')}]
+  });
+  toast('Ordem de manutenção registada.','success');closeModal();openModule('ativos-manutencao');
+}
+async function verDetalheManutencao(id) {
+  const m=await DB.get('manutencoes',id);if(!m)return;
+  openModal('Histórico da intervenção',
+    '<div class="card"><strong>'+esc(m.empresaCliente||m.cliente||'—')+'</strong><p>'+esc(m.ativo||m.equipamento||'—')+'</p>'+
+    '<p>Técnico: '+esc(m.tecnicoNome||m.tecnico||'Por atribuir')+'</p><p>Tipo: '+esc(m.tipoManutencao||'—')+'</p>'+
+    '<p>Agendada: '+fmtD(m.dataAgendada||m.data)+'</p><p>Concluída: '+fmtD(m.dataConclusao)+'</p>'+
+    '<p>Próxima: '+fmtD(m.proximaManutencao)+'</p><p>Custo: '+fmt(m.custo||0)+'</p>'+
+    '<p>Descrição: '+esc(m.descricao||'—')+'</p><p>Relatório técnico: '+esc(m.relatorioTecnico||'Ainda não registado')+'</p>'+
+    '<p>Peças: '+esc(m.pecasMateriais||'—')+'</p></div>'+
+    '<button class="btn btn-secondary" onclick="closeModal()">Fechar</button>',true);
+}
+async function concluirManutencaoAtivo(id) {
+  const m=await DB.get('manutencoes',id);if(!m)return;
+  const report=prompt('Relatório do técnico / trabalho executado:',m.relatorioTecnico||'');
+  if(report===null)return;
+  const user=JSON.parse(localStorage.getItem('kanawa_user')||'{}');
+  m.status='concluida';m.dataConclusao=now();m.relatorioTecnico=report;
+  m.tecnicoNome=m.tecnicoNome||user.nome||'Administrador';
+  m.historico=Array.isArray(m.historico)?m.historico:[];
+  m.historico.push({evento:'Manutenção concluída',data:now(),responsavel:m.tecnicoNome,relatorio:report});
+  await saveData('manutencoes',m);toast('Manutenção concluída e histórico actualizado.','success');openModule('ativos-manutencao');
+}
 async function renderAtivosGarantia() {
   const g = await getData('garantias') || [];
   return header('Controle de Garantia', g.length + ' garantias', 'var(--success)',
@@ -2852,8 +3188,12 @@ async function init() {
       localStorage.removeItem('kanawa_user');
       if ($('app')) $('app').classList.remove('active');
       if ($('setupWizard')) $('setupWizard').classList.remove('active');
-      if ($('authScreen')) $('authScreen').classList.add('active');
-      if ($('loginEmail')) $('loginEmail').value = localStorage.getItem('kanawa_pending_email') || '';
+      if (!localStorage.getItem('kanawa_plan_intro_seen_v1')) {
+        if ($('planWelcome')) $('planWelcome').classList.add('active');
+      } else {
+        if ($('authScreen')) $('authScreen').classList.add('active');
+        if ($('loginEmail')) $('loginEmail').value = localStorage.getItem('kanawa_pending_email') || '';
+      }
     }
 
     const loginForm = $('loginForm');
@@ -2906,6 +3246,8 @@ async function init() {
           emailInput.reportValidity();
           return;
         }
+        const pendingKey = $('preLoginLicenseKey') && $('preLoginLicenseKey').value.trim();
+        if (pendingKey) sessionStorage.setItem('kanawa_pending_license_key', pendingKey);
         await KanawaCloud.requestOtp(identifier, method);
         otpStep = true;
         emailInput.readOnly = true;
@@ -2923,6 +3265,9 @@ async function init() {
         event.preventDefault();
         if (errorBox) { errorBox.textContent = ''; errorBox.classList.remove('show'); }
         submit.disabled = true;
+        const idleLoginLabel = submit.innerHTML;
+        submit.setAttribute('aria-busy','true');
+        submit.innerHTML = '<i class="fas fa-spinner fa-spin" aria-hidden="true"></i> A processar acesso...';
         try {
           if (!otpStep) {
             await sendLoginCode();
@@ -2932,11 +3277,14 @@ async function init() {
           await activateCloudSession(ctx, true);
           if (loginMethod() === 'email') localStorage.removeItem('kanawa_pending_email');
           mostrarAplicacaoAutenticada(ctx);
-          toast('Sessão iniciada. Os dados estão ligados à base de dados central.', 'success');
+          toast('Sessão iniciada. Os seus dados estão disponíveis no espaço de trabalho.', 'success');
         } catch (error) {
           showLoginError(error.message || 'Não foi possível validar o acesso. Verifique o email e o código.');
         } finally {
           submit.disabled = false;
+          submit.removeAttribute('aria-busy');
+          if (!otpStep) submit.innerHTML = idleLoginLabel;
+          else if (submit.innerHTML.indexOf('fa-spinner') !== -1) submit.innerHTML = '<i class="fas fa-unlock-alt"></i> Validar código e entrar';
         }
       });
 
@@ -2987,6 +3335,7 @@ async function init() {
       if (changeEmailButton) changeEmailButton.addEventListener('click', resetOtpStep);
     }
 
+    aplicarTemaPersonalizado();
     startAutoSync();
   } catch (e) {
     console.error('Init error:', e);
@@ -3038,7 +3387,7 @@ const EXPORTS = [
   'abrirModalPromocao','salvarPromocao','togglePublicado',
   'converterOrcamento',
   'criarNotificacao','marcarNotificacaoLida','marcarTodasLidas','updateNotifBadge',
-  'salvarConfigEmpresa','salvarRegras','salvarConfigAPI','testarAPI',
+  'salvarConfigEmpresa','salvarRegras','salvarConfigAPI','testarAPI','salvarConfigFatura','previewConfigFatura',
   'limparColecao','recarregarDemo','resetTotal',
   'escolherLogoEmpresa','removerLogoEmpresa',
   'escolherAvatarPerfil','removerAvatarPerfil','salvarPerfil','alterarSenhaPerfil',
@@ -3095,3 +3444,428 @@ EXPORTS.forEach(name => { try { window[name] = eval(name); } catch (e) { } });
 
 /* ====== START ====== */
 if (document.readyState === 'loading') { document.addEventListener('DOMContentLoaded', init); } else { init(); }
+
+/* ====== CENTRO DE INTEGRAÇÕES (credenciais apenas no backend) ====== */
+function renderIntegracoes() {
+  const cloudReady = !!(window.KanawaCloud && window.KanawaCloud.ready);
+  return `
+    <div class="card" style="background:linear-gradient(120deg,var(--primary),var(--primary-light));color:#fff;border:0">
+      <h2 style="font-size:1.25rem;margin-bottom:6px"><i class="fas fa-plug"></i> Centro de Integrações</h2>
+      <p style="opacity:.85">Ligue o Kanawa Soft a WhatsApp, Facebook, Instagram, lojas virtuais e aplicações externas.</p>
+    </div>
+    <div class="metric-grid">
+      <div class="metric-card"><div class="label">Meta / WhatsApp</div><div class="value" style="font-size:1rem">Credenciais protegidas</div><div class="sub">Segredos cifrados no servidor</div></div>
+      <div class="metric-card"><div class="label">E-commerce API</div><div class="value" style="font-size:1rem">Chaves por empresa</div><div class="sub">Gerar, consultar prefixo e revogar</div></div>
+      <div class="metric-card"><div class="label">Conectores</div><div class="value" style="font-size:1rem">Entrada e saída</div><div class="sub">Arquitetura para webhooks e ERP externo</div></div>
+    </div>
+    <div class="card">
+      <h3 style="margin-bottom:8px">Configuração segura</h3>
+      <p style="color:var(--text-muted);margin-bottom:12px">Cada empresa utiliza as suas próprias credenciais. O Kanawa Soft não apresenta App Secret ou Access Token depois de guardar e nunca os coloca no HTML ou no armazenamento local.</p>
+      <p style="margin-bottom:14px"><span class="badge ${cloudReady ? 'badge-success' : 'badge-warning'}">${cloudReady ? 'Empresa cloud ligada' : 'Sessão cloud não confirmada'}</span></p>
+      <a class="btn btn-primary" href="integracoes.html" target="_blank" rel="noopener"><i class="fas fa-shield-alt"></i> Abrir gestão de credenciais</a>
+    </div>
+    <div class="card">
+      <h3 style="margin-bottom:8px">Assistente inteligente</h3>
+      <p style="color:var(--text-muted)">Base de conhecimento e conector futuro para ChatGPT preparados na arquitetura. A ativação do modelo, permissões e políticas de dados será feita numa etapa separada; nenhuma informação financeira ou credencial será enviada automaticamente a um modelo externo.</p>
+    </div>`;
+}
+
+
+/* ====== CENTRO DE CONFORMIDADE E LEGISLAÇÃO ====== */
+function renderConformidade() {
+  return `
+    <div class="card" style="background:linear-gradient(120deg,var(--primary),var(--primary-light));color:#fff;border:0">
+      <h2><i class="fas fa-balance-scale"></i> Conformidade e legislação</h2>
+      <p style="opacity:.85">Biblioteca de referências legais, políticas e tarefas de conformidade da empresa.</p>
+    </div>
+    <div class="card">
+      <h3 style="margin-bottom:8px">Angola · diplomas de referência</h3>
+      <p style="color:var(--text-muted);margin-bottom:14px">Protecção de dados, comunicações electrónicas, cibersegurança, videovigilância, defesa do consumidor, trabalho e fiscalidade.</p>
+      <a class="btn btn-primary" href="conformidade.html" target="_blank" rel="noopener"><i class="fas fa-book-open"></i> Abrir biblioteca legal e termos</a>
+    </div>
+    <div class="card">
+      <h3 style="margin-bottom:8px">Aviso de conformidade</h3>
+      <p style="color:var(--text-muted)">Os diplomas e minutas são referências para revisão. A empresa deve confirmar a legislação vigente, preencher os dados legais do operador e obter validação jurídica. O Kanawa Soft não declara homologação ou certificação AGT.</p>
+    </div>`;
+}
+
+
+/* ====== FIRST-RUN PACKAGE ONBOARDING ====== */
+const KS_PLAN_LABELS = { trial:'Teste gratuito', mini:'Mini', standard:'Standard', premium:'Premium', enterprise:'Enterprise' };
+const KS_PLAN_PRICES = { trial:0, mini:15000, standard:35000, premium:75000, enterprise:0 };
+function ignorarApresentacaoPlanos() {
+  localStorage.setItem('kanawa_plan_intro_seen_v1','true');
+  const splash=$('planWelcome'); if(splash)splash.classList.remove('active');
+  if($('authScreen'))$('authScreen').classList.add('active');
+}
+function selecionarPlano(code) {
+  localStorage.setItem('kanawa_selected_plan',code);
+  localStorage.setItem('kanawa_plan_intro_seen_v1','true');
+  if(code==='trial') {
+    const splash=$('planWelcome');if(splash)splash.classList.remove('active');
+    if($('authScreen'))$('authScreen').classList.remove('active');
+    if($('setupWizard'))$('setupWizard').classList.add('active');
+    toast('Teste gratuito de 14 dias seleccionado.','success');
+    return;
+  }
+  const panel=$('planPaymentChoice'); if(panel)panel.classList.add('active');
+  const label=$('chosenPlanLabel'); if(label)label.textContent=KS_PLAN_LABELS[code]||code;
+  panel && panel.scrollIntoView({behavior:'smooth',block:'center'});
+}
+function continuarComPlanoPago() {
+  const plan=localStorage.getItem('kanawa_selected_plan')||'mini';
+  localStorage.setItem('kanawa_selected_term',$('chosenTerm').value);
+  localStorage.setItem('kanawa_selected_payment',$('chosenPayment').value);
+  const splash=$('planWelcome');if(splash)splash.classList.remove('active');
+  if($('authScreen'))$('authScreen').classList.remove('active');
+  if($('setupWizard'))$('setupWizard').classList.add('active');
+  toast('Pacote '+(KS_PLAN_LABELS[plan]||plan)+' seleccionado. Crie a conta e depois envie o comprovativo em Licença e Pacotes.','info');
+}
+
+/* ====== COMPANY REGISTRY AND DOCUMENT EXPIRY ====== */
+function ksExpiryLabel(date) {
+  if(!date)return '<span class="badge badge-secondary">Sem validade indicada</span>';
+  const days=Math.ceil((new Date(date+'T23:59:59').getTime()-Date.now())/86400000);
+  if(days<0)return '<span class="badge badge-danger">Expirado há '+Math.abs(days)+' dia(s)</span>';
+  if(days<=7)return '<span class="badge badge-danger">Expira em '+days+' dia(s)</span>';
+  if(days<=15)return '<span class="badge badge-warning">Expira em '+days+' dias</span>';
+  if(days<=30)return '<span class="badge badge-warning">Expira em '+days+' dias</span>';
+  if(days<=60)return '<span class="badge badge-info">Expira em '+days+' dias</span>';
+  if(days<=90)return '<span class="badge badge-info">Expira em '+days+' dias</span>';
+  return '<span class="badge badge-success">Válido</span>';
+}
+async function renderEmpresaLegal() {
+  let p=null,docs=[];
+  try { p=await KanawaCloud.getCompanyLegalProfile(); docs=await KanawaCloud.getCompanyDocuments(); }
+  catch(e){toast('Não foi possível carregar os dados legais: '+e.message,'warning');}
+  p=p||{};
+  const fields=[
+    ['legal_form','Natureza jurídica'],['incorporation_date','Data de constituição','date'],
+    ['commercial_registry_number','N.º matrícula / registo comercial'],['commercial_entry_number','N.º verbete / ficha'],['registry_office','Conservatória / entidade de registo'],['commercial_registry_date','Data da certidão','date'],['commercial_certificate_expires_at','Validade da certidão','date'],
+    ['publication_number','N.º publicação online GUE'],['publication_date','Data publicação GUE','date'],
+    ['publication_url','Link publicação GUE','url'],['capital_amount','Capital social (Kz)','number'],
+    ['activity_code','Código de actividade'],['activity_description','Actividade principal'],
+    ['alvara_number','N.º alvará/licença'],['alvara_type','Tipo de alvará'],
+    ['alvara_issue_date','Emissão alvará','date'],['alvara_expiry_date','Validade alvará','date'],
+    ['inss_employer_number','N.º empregador INSS'],['registered_address','Morada registada'],
+    ['province','Província'],['municipality','Município'],['parish','Distrito / comuna / bairro']
+  ];
+  const inputs=fields.map(([key,label,type])=>'<div class="form-group"><label>'+label+'</label><input id="legal_'+key+'" type="'+(type||'text')+'" value="'+esc(p[key]||'')+'"></div>').join('');
+  const rows=docs.map(d=>[esc(d.title),esc(d.document_number||'-'),fmtD(d.issued_at),fmtD(d.expires_at),ksExpiryLabel(d.expires_at),d.file_path?'<span class="badge badge-success">Anexado</span>':'-']);
+  const expiring=docs.filter(d=>d.expires_at&&new Date(d.expires_at).getTime()-Date.now()<90*86400000);
+  return header('Cadastro Legal da Empresa','Registo comercial, licenças e documentos com alertas de validade','var(--primary)','', 'fa-building')+
+    '<div class="metric-grid"><div class="metric-card"><div class="label">Documentos registados</div><div class="value">'+docs.length+'</div></div><div class="metric-card"><div class="label">A renovar em 90 dias</div><div class="value" style="color:var(--warning)">'+expiring.length+'</div></div><div class="metric-card"><div class="label">Publicação</div><div class="value" style="font-size:1rem">GUE Online</div></div></div>'+
+    '<div class="card"><h3>Dados legais e fiscais</h3><p style="color:var(--text-muted);font-size:.84rem">A publicação dos actos societários é registada no GUE online. Não se exige número de Diário da República como campo obrigatório.</p><div class="form-grid">'+inputs+'</div><button class="btn btn-success" onclick="guardarPerfilLegalEmpresa()">Guardar cadastro legal</button></div>'+
+    '<div class="card"><h3>Documentos da empresa</h3><div class="form-grid"><div class="form-group"><label>Tipo de documento</label><select id="companyDocType"><option>Certidão comercial</option><option>Comprovativo NIF</option><option>Publicação GUE</option><option>Alvará / licença</option><option>Estatutos / pacto social</option><option>Acta / procuração</option><option>Comprovativo INSS</option><option>Seguro obrigatório</option><option>Outro</option></select></div><div class="form-group"><label>Título</label><input id="companyDocTitle" placeholder="Nome do documento"></div><div class="form-group"><label>Número / referência</label><input id="companyDocNumber"></div><div class="form-group"><label>Entidade emissora</label><input id="companyDocAuthority"></div><div class="form-group"><label>Data de emissão</label><input id="companyDocIssue" type="date"></div><div class="form-group"><label>Data de validade / expiração</label><input id="companyDocExpiry" type="date"></div><div class="form-group full"><label>Ficheiro (PDF/JPG/PNG/WEBP, até 15 MB)</label><input id="companyDocFile" type="file" accept=".pdf,image/jpeg,image/png,image/webp"></div></div><button class="btn btn-primary" onclick="adicionarDocumentoEmpresa()">Guardar documento e activar alertas</button></div>'+
+    '<div class="card"><h3>Calendário de validade</h3>'+table(['Documento','Número','Emissão','Validade','Alerta','Ficheiro'],rows)+'</div>'+
+    '<div class="card"><p style="font-size:.8rem;color:var(--text-muted)">Os alertas são calculados a 90, 60, 30, 15 e 7 dias. Para avisos automáticos por email/WhatsApp será necessário activar o serviço de notificações no servidor.</p><a href="https://gue.gov.ao/portal/public/publicacoes" target="_blank" rel="noopener">Consultar publicações oficiais do GUE</a></div>';
+}
+async function guardarPerfilLegalEmpresa() {
+  const keys=['legal_form','incorporation_date','commercial_registry_number','commercial_registry_date','publication_number','publication_date','publication_url','capital_amount','activity_code','activity_description','alvara_number','alvara_type','alvara_issue_date','alvara_expiry_date','inss_employer_number','registered_address','province','municipality','parish'];
+  const data={};keys.forEach(k=>{const el=$('legal_'+k);if(el)data[k]=el.value||null;});
+  if(data.capital_amount)data.capital_amount=Number(data.capital_amount);
+  try{await KanawaCloud.saveCompanyLegalProfile(data);toast('Cadastro legal actualizado no servidor.','success');openModule('empresa-legal');}
+  catch(e){toast(e.message||'Erro ao guardar cadastro.','danger');}
+}
+async function adicionarDocumentoEmpresa() {
+  const title=$('companyDocTitle').value.trim()||$('companyDocType').value;
+  const file=$('companyDocFile').files[0];
+  if(!file){toast('Anexe o documento para continuar.','warning');return;}
+  try{
+    const path=await KanawaCloud.uploadPrivateFile('ks-company-documents',file,'company');
+    await KanawaCloud.saveCompanyDocument({document_type:$('companyDocType').value,title,document_number:$('companyDocNumber').value.trim(),issuing_authority:$('companyDocAuthority').value.trim(),issued_at:$('companyDocIssue').value||null,expires_at:$('companyDocExpiry').value||null,file_path:path,status:'valid',reminder_days:[90,60,30,15,7]});
+    toast('Documento guardado em armazenamento privado.','success');openModule('empresa-legal');
+  }catch(e){toast(e.message||'Não foi possível guardar o documento.','danger');}
+}
+
+/* ====== EMPLOYEE DOCUMENTS ====== */
+async function renderDocumentosFuncionarios() {
+  const employees=await getData('funcionarios');
+  let docs=[];try{docs=await KanawaCloud.getEmployeeDocuments();}catch(e){console.warn(e);}
+  const options=employees.map(x=>'<option value="'+esc(x.cloud_id||'')+'" data-local-id="'+x.id+'" '+(!x.cloud_id?'disabled':'')+'>'+esc(x.nome)+(x.cloud_id?'':' · sincronização pendente')+'</option>').join('');
+  return header('Documentos dos Funcionários',docs.length+' documentos pessoais e laborais','var(--info)','', 'fa-id-card')+
+    '<div class="card"><div class="form-grid"><div class="form-group"><label>Funcionário</label><select id="empDocEmployee">'+options+'</select></div><div class="form-group"><label>Tipo</label><select id="empDocType"><option>Bilhete de Identidade</option><option>Passaporte</option><option>NIF</option><option>Contrato de trabalho</option><option>Atestado / exame médico</option><option>Certificado profissional</option><option>Visto / autorização de trabalho</option><option>Seguro</option><option>Outro</option></select></div><div class="form-group"><label>Título</label><input id="empDocTitle"></div><div class="form-group"><label>Número</label><input id="empDocNumber"></div><div class="form-group"><label>Emissão</label><input id="empDocIssue" type="date"></div><div class="form-group"><label>Validade</label><input id="empDocExpiry" type="date"></div><div class="form-group full"><label>Ficheiro privado</label><input id="empDocFile" type="file" accept=".pdf,image/jpeg,image/png,image/webp"></div></div><button class="btn btn-primary" onclick="adicionarDocumentoFuncionario()">Guardar documento</button></div>'+
+    '<div class="card">'+table(['Funcionário','Documento','Número','Emissão','Validade','Alerta'],docs.map(d=>{const emp=employees.find(x=>String(x.cloud_id)===String(d.employee_id));return[esc(emp?emp.nome:'Funcionário'),esc(d.title),esc(d.document_number||'-'),fmtD(d.issued_at),fmtD(d.expires_at),ksExpiryLabel(d.expires_at)];}))+'</div>';
+}
+async function adicionarDocumentoFuncionario() {
+  const select=$('empDocEmployee'),employeeId=select.value,file=$('empDocFile').files[0];
+  if(!employeeId||!file){toast('Seleccione um funcionário sincronizado e anexe o ficheiro.','warning');return;}
+  const localId=select.options[select.selectedIndex].dataset.localId;
+  try{const path=await KanawaCloud.uploadPrivateFile('ks-company-documents',file,'employee');
+    await KanawaCloud.saveEmployeeDocument({employeeId,documentType:$('empDocType').value,title:$('empDocTitle').value.trim()||$('empDocType').value,documentNumber:$('empDocNumber').value.trim(),issuedAt:$('empDocIssue').value||null,expiresAt:$('empDocExpiry').value||null,filePath:path});
+    toast('Documento do funcionário guardado.','success');openModule('rh-documentos');
+  }catch(e){toast(e.message||'Falha ao guardar documento.','danger');}
+}
+
+/* ====== LICENSE, PLANS, PAYMENT AND INVOICE QUOTAS ====== */
+async function renderLicenca() {
+  let license=null,ent=null,plans=[],requests=[];
+  try{[license,ent,plans,requests]=await Promise.all([KanawaCloud.getLicense(),KanawaCloud.getEntitlements(),KanawaCloud.getPlans(),KanawaCloud.getPaymentRequests()]);}
+  catch(e){console.warn('Licença:',e);}
+  const current=license||{};
+  const plan=plans.find(x=>x.plan_code===current.plan_code);
+  const used=Number(ent&&ent.invoice_usage||0),limit=Number(ent&&ent.invoice_limit||0);
+  const pct=limit?Math.min(100,Math.round(used/limit*100)):0;
+  const selected=localStorage.getItem('kanawa_selected_plan')||'mini';
+  const opts=plans.filter(x=>x.plan_code!=='trial').map(x=>'<option value="'+x.plan_code+'" data-price="'+Number(x.price||0)+'" '+(x.plan_code===selected?'selected':'')+'>'+esc(x.name)+' · '+(Number(x.price)?fmt(x.price)+' Kz/mês':'Sob consulta')+' · '+(Number(x.max_invoices_period)>0?Number(x.max_invoices_period).toLocaleString('pt-AO')+' facturas/mês':'Facturas ilimitadas')+'</option>').join('');
+  const isPlatformAdmin=!!(KanawaCloud.context&&KanawaCloud.context.isPlatformAdmin);
+  let adminRequests=[];
+  if(isPlatformAdmin){try{adminRequests=await KanawaCloud.listAllPaymentRequests();}catch(adminError){console.warn(adminError);}}
+  const selectedTerm=localStorage.getItem('kanawa_selected_term')||'1';
+  const selectedMethod=localStorage.getItem('kanawa_selected_payment')||'bank_transfer';
+  const requestRows=requests.map(x=>[esc(x.plan_code),x.duration_months+' meses',fmt(x.amount)+' Kz',esc(x.payment_method),badge(x.status,x.status==='approved'?'success':'warning'),fmtD(x.created_at)]);
+  setTimeout(atualizarTotalLicenca,0);
+  const adminRows=adminRequests.map(x=>[esc((x.company&&x.company.trade_name)|| (x.company&&x.company.legal_name)||x.company_id),esc(x.plan_code),x.duration_months+' meses',fmt(x.amount)+' Kz',esc(x.payment_method),'<button class="btn btn-sm btn-info" onclick="abrirComprovativoPagamento(&quot;'+esc(x.proof_path||'')+'&quot;)">Comprovativo</button> <button class="btn btn-sm btn-success" onclick="emitirChavePedido(&quot;'+esc(x.plan_code)+'&quot;,'+Number(x.duration_months)+',&quot;'+x.id+'&quot;)">Emitir chave</button>']);
+  return header('Licença e Pacotes','Teste de 14 dias, activação por chave e controlo de facturas','var(--primary)','', 'fa-key')+
+    '<div class="metric-grid"><div class="metric-card"><div class="label">Pacote actual</div><div class="value" style="font-size:1.25rem">'+esc(plan?plan.name:(current.plan_code||'Pendente'))+'</div></div><div class="metric-card"><div class="label">Estado</div><div class="value" style="font-size:1.1rem">'+badge(current.status||'sem licença',current.status==='active'||current.status==='trial'?'success':'warning')+'</div></div><div class="metric-card"><div class="label">Facturas este mês</div><div class="value">'+used.toLocaleString('pt-AO')+' / '+(limit?limit.toLocaleString('pt-AO'):'Ilimitado')+'</div><div style="height:8px;background:var(--border);border-radius:8px;margin-top:8px"><div style="height:8px;width:'+pct+'%;background:var(--success);border-radius:8px"></div></div></div><div class="metric-card"><div class="label">Validade</div><div class="value" style="font-size:1rem">'+(current.expires_at?fmtD(current.expires_at):'A aguardar activação')+'</div></div></div>'+
+    '<div class="card"><h3>Introduzir chave de licença</h3><p style="color:var(--text-muted);font-size:.84rem">A chave é validada no servidor. Não a partilhe com outros utilizadores.</p><div class="form-group"><input id="licenseActivationKey" autocomplete="off" placeholder="KANAWA-XXXX-XXXX-XXXX"></div><button class="btn btn-success" onclick="ativarChaveLicenca()">Validar e activar</button></div>'+
+    '<div class="card"><h3>Solicitar activação de pacote</h3><div class="form-grid"><div class="form-group"><label>Pacote</label><select id="activationPlan" onchange="atualizarTotalLicenca()">'+opts+'</select></div><div class="form-group"><label>Duração</label><select id="activationDuration" onchange="atualizarTotalLicenca()"><option value="1" '+(selectedTerm==='1'?'selected':'')+'>1 mês</option><option value="12" '+(selectedTerm==='12'?'selected':'')+'>12 meses</option><option value="24" '+(selectedTerm==='24'?'selected':'')+'>24 meses</option><option value="36" '+(selectedTerm==='36'?'selected':'')+'>36 meses</option></select></div><div class="form-group"><label>Meio de pagamento</label><select id="activationMethod"><option value="bank_transfer" '+(selectedMethod==='bank_transfer'?'selected':'')+'>Transferência bancária</option><option value="card" '+(selectedMethod==='card'?'selected':'')+'>Cartão</option><option value="multicaixa_express" '+(selectedMethod==='multicaixa_express'?'selected':'')+'>Multicaixa Express</option><option value="cash_without_card" '+(selectedMethod==='cash_without_card'?'selected':'')+'>Levantamento sem cartão</option></select></div><div class="form-group"><label>Referência / comprovativo</label><input id="activationReference" placeholder="Referência da operação"></div><div class="form-group full"><label>Comprovativo de pagamento (PDF/JPG/PNG)</label><input id="activationProof" type="file" accept=".pdf,image/jpeg,image/png,image/webp"></div></div><p id="activationTotal" style="font-weight:800">Total: —</p><button class="btn btn-primary" onclick="solicitarAtivacaoLicenca()">Enviar comprovativo para validação</button><p style="font-size:.76rem;color:var(--text-muted)">A licença permanece pendente até o pagamento ser verificado e o administrador emitir uma chave. O sistema nunca activa uma licença apenas porque um ficheiro foi carregado.</p></div>'+
+    '<div class="card"><h3>Histórico de pedidos</h3>'+table(['Pacote','Período','Valor','Método','Estado','Data'],requestRows)+'</div>'+
+    (isPlatformAdmin?'<div class="card"><h3>Administração de licenças · pedidos pendentes</h3><p style="color:var(--text-muted);font-size:.82rem">Verifique o comprovativo antes de emitir uma chave. A chave é mostrada uma única vez; envie-a ao cliente por um canal seguro.</p>'+table(['Empresa','Pacote','Prazo','Valor','Pagamento','Acções'],adminRows)+'</div>':'');
+}
+function atualizarTotalLicenca(){
+  const p=$('activationPlan'),d=$('activationDuration');if(!p||!d)return;
+  const price=Number(p.options[p.selectedIndex]&&p.options[p.selectedIndex].dataset.price)||KS_PLAN_PRICES[p.value]||0;const months=Number(d.value);
+  const el=$('activationTotal');if(el)el.textContent=price?'Total proposto: '+fmt(price*months)+' Kz ('+months+' mês(es))':'Total: orçamento sob consulta';
+}
+async function solicitarAtivacaoLicenca(){
+  const file=$('activationProof').files[0],plan=$('activationPlan').value,months=Number($('activationDuration').value);
+  if(!file){toast('Anexe o comprovativo de pagamento.','warning');return;}
+  const selectedOption=$('activationPlan').options[$('activationPlan').selectedIndex];
+  const price=Number(selectedOption&&selectedOption.dataset.price)||KS_PLAN_PRICES[plan]||0;
+  if(!price){toast('O pacote Enterprise exige proposta comercial aprovada.','warning');return;}
+  try{const path=await KanawaCloud.uploadPrivateFile('ks-payment-proofs',file,'payment');
+    const req=await KanawaCloud.requestPaymentActivation({planCode:plan,durationMonths:months,amount:price*months,paymentMethod:$('activationMethod').value,transactionReference:$('activationReference').value,proofPath:path});
+    toast('Pedido de activação enviado para validação. Referência '+req.id,'success');openModule('licenca');
+  }catch(e){toast(e.message||'Não foi possível enviar o pedido.','danger');}
+}
+async function ativarChaveLicenca(){
+  const key=$('licenseActivationKey').value.trim();if(!key){toast('Introduza a chave recebida.','warning');return;}
+  try{const result=await KanawaCloud.redeemLicenseKey(key);localStorage.removeItem('kanawa_pending_license_key');toast('Licença '+result.plan_code+' activada com sucesso.','success');openModule('licenca');}
+  catch(e){toast(e.message||'Chave inválida.','danger');}
+}
+
+/* ====== GENERAL EXPENSES ====== */
+async function renderDespesasGerais(){
+  let items=[];try{items=await KanawaCloud.listGeneralExpenses();}catch(e){console.warn(e);}
+  const total=items.reduce((s,x)=>s+Number(x.amount||0),0);
+  return header('Despesas Gerais','Custos operacionais, comprovativos e centros de custo','var(--danger)','<button class="btn btn-success" onclick="novaDespesaGeral()"><i class="fas fa-plus"></i> Registar despesa</button>','fa-file-invoice-dollar')+
+    '<div class="metric-grid"><div class="metric-card"><div class="label">Total registado</div><div class="value">'+fmt(total)+'</div></div><div class="metric-card"><div class="label">Despesas</div><div class="value">'+items.length+'</div></div><div class="metric-card"><div class="label">Por pagar</div><div class="value">'+fmt(items.filter(x=>x.status!=='paid').reduce((s,x)=>s+Number(x.amount||0),0))+'</div></div></div>'+
+    '<div class="card">'+table(['Categoria','Descrição','Fornecedor','Valor','Vencimento','Estado','Acções'],items.map(x=>[esc(x.category||'-'),esc(x.description||'-'),esc(x.supplier_name||'-'),fmt(x.amount),fmtD(x.due_on),badge(x.status,x.status==='paid'?'success':'warning'),x.status!=='paid'?'<button class="btn btn-sm btn-success" onclick="marcarDespesaGeralPaga(\''+x.id+'\')">Pagar</button>':'-']))+'</div>';
+}
+function novaDespesaGeral(){
+  openModal('Nova Despesa Geral','<div class="form-grid"><div class="form-group"><label>Categoria</label><select id="dgCategoria"><option>Renda</option><option>Água e electricidade</option><option>Internet e comunicações</option><option>Combustível e transporte</option><option>Manutenção</option><option>Material de escritório</option><option>Alimentação</option><option>Seguros</option><option>Impostos e taxas</option><option>Marketing</option><option>Outros</option></select></div><div class="form-group"><label>Fornecedor</label><input id="dgFornecedor"></div><div class="form-group full"><label>Descrição</label><input id="dgDescricao"></div><div class="form-group"><label>Valor (Kz)</label><input id="dgValor" type="number" min="0" value="0"></div><div class="form-group"><label>Vencimento</label><input id="dgVenc" type="date"></div><div class="form-group"><label>Centro de custo</label><input id="dgCentro"></div><div class="form-group"><label>Projecto</label><input id="dgProjecto"></div></div><button class="btn btn-primary btn-block" onclick="guardarDespesaGeral()">Guardar despesa</button>');
+}
+async function guardarDespesaGeral(){
+  const desc=$('dgDescricao').value.trim();if(!desc){toast('Informe a descrição.','warning');return;}
+  try{
+    await KanawaCloud.createGeneralExpense({category:$('dgCategoria').value,description:desc,supplierName:$('dgFornecedor').value.trim(),amount:num($('dgValor').value,0),dueOn:$('dgVenc').value||null});
+    toast('Despesa registada na base de dados central.','success');closeModal();openModule('despesas-gerais');
+  }catch(e){toast(e.message||'Não foi possível registar a despesa.','danger');}
+}
+async function marcarDespesaGeralPaga(id){
+  if(!confirm('Confirmar que esta despesa foi paga?'))return;
+  try{await KanawaCloud.updateGeneralExpenseStatus(id,'paid');toast('Despesa marcada como paga.','success');openModule('despesas-gerais');}
+  catch(e){toast(e.message||'Não foi possível actualizar a despesa.','danger');}
+}
+
+/* ====== LEAVE, HOLIDAYS AND ABSENCES ====== */
+async function renderFeriasDispensas(){
+  const [remoteRows,staff]=await Promise.all([KanawaCloud.listLeaveRequests(),getData('funcionarios')]);
+  const rows=remoteRows.map(x=>{const emp=staff.find(e=>String(e.cloud_id)===String(x.employee_id));return{id:x.id,cloud_id:x.id,funcionarioNome:emp?emp.nome:'Funcionário',tipo:x.reason||'Pedido de ausência',inicio:x.starts_on,fim:x.ends_on,dias:x.requested_days,motivo:x.reason,status:x.status==='approved'?'aprovado':x.status==='rejected'?'rejeitado':'pendente'};});
+  const pending=rows.filter(x=>x.status==='pendente').length;
+  const vacationBalances=staff.map(x=>({name:x.nome,days:calcularDireitoFerias(x)}));
+  return header('Férias, Licenças e Dispensas',rows.length+' pedidos · '+pending+' pendentes','var(--info)','<button class="btn btn-success" onclick="novoPedidoAusencia()"><i class="fas fa-plus"></i> Novo pedido</button>','fa-calendar-minus')+
+    '<div class="metric-grid"><div class="metric-card"><div class="label">Pedidos</div><div class="value">'+rows.length+'</div></div><div class="metric-card"><div class="label">Pendentes</div><div class="value">'+pending+'</div></div><div class="metric-card"><div class="label">Aprovados</div><div class="value">'+rows.filter(x=>x.status==='aprovado').length+'</div></div></div>'+
+    '<div class="card"><h3>Referência de férias anuais</h3><p style="font-size:.8rem;color:var(--text-muted)">Estimativa inicial com base na Lei 12/23, artigo 204.º: 22 dias úteis por ano; no ano de admissão, 2 dias úteis por mês completo, sujeito às regras legais e à validação do RH.</p>'+table(['Funcionário','Dias estimados no ano'],vacationBalances.map(x=>[esc(x.name),x.days]))+'</div>'+
+    '<div class="card"><p style="font-size:.82rem;color:var(--text-muted)">Os pedidos são guardados na base de dados da empresa. A aprovação final deve respeitar o contrato, o calendário de férias e a legislação aplicável.</p>'+
+    table(['Funcionário','Tipo / motivo','Início','Fim','Dias','Estado','Acção'],rows.map(x=>[esc(x.funcionarioNome),esc(x.tipo||'-'),fmtD(x.inicio),fmtD(x.fim),x.dias||'-',badge(x.status,x.status==='aprovado'?'success':x.status==='rejeitado'?'danger':'warning'),x.status==='pendente'&&podeFazer('aprovar')?'<button class="btn btn-sm btn-success" onclick="decidirAusencia(\''+x.id+'\',\'aprovado\')">Aprovar</button> <button class="btn btn-sm btn-danger" onclick="decidirAusencia(\''+x.id+'\',\'rejeitado\')">Rejeitar</button>':'A aguardar']))+'</div>';
+}
+function novoPedidoAusencia(){
+  const staff=DB.getAll('funcionarios');
+  staff.then(list=>openModal('Pedido de Férias / Dispensa','<div class="form-group"><label>Funcionário</label><select id="ausFuncionario">'+list.map(x=>'<option value="'+x.id+'">'+esc(x.nome)+'</option>').join('')+'</select></div><div class="form-group"><label>Tipo</label><select id="ausTipo"><option>Férias anuais</option><option>Dispensa autorizada</option><option>Falta justificada</option><option>Licença sem remuneração</option><option>Licença de formação</option><option>Assistência familiar</option><option>Outro</option></select></div><div class="form-grid"><div class="form-group"><label>Início</label><input id="ausInicio" type="date"></div><div class="form-group"><label>Fim</label><input id="ausFim" type="date"></div></div><div class="form-group"><label>Motivo / observação</label><textarea id="ausMotivo"></textarea></div><button class="btn btn-primary btn-block" onclick="guardarPedidoAusencia()">Enviar pedido</button>'));
+}
+async function guardarPedidoAusencia(){
+  const staff=await DB.getAll('funcionarios'),id=$('ausFuncionario').value,emp=staff.find(x=>String(x.id)===String(id));
+  const start=$('ausInicio').value,end=$('ausFim').value;if(!emp||!start||!end||end<start){toast('Verifique funcionário e datas.','warning');return;}
+  const days=Math.floor((new Date(end+'T12:00:00')-new Date(start+'T12:00:00'))/86400000)+1;
+  try{
+    let employeeId=emp.cloud_id;
+    if(!employeeId){
+      const remote=await KanawaCloud.upsertEmployee({employeeNumber:'EMP-'+emp.id,fullName:emp.nome,email:emp.email,phone:emp.telefone,taxId:emp.nif,department:emp.departamento,jobTitle:emp.cargo,hireDate:emp.dataContratacao,salary:emp.salario,status:'active'});
+      employeeId=remote.id;emp.cloud_id=employeeId;await DB.put('funcionarios',emp);
+    }
+    await KanawaCloud.createLeaveRequest({employeeId,startsOn:start,endsOn:end,days,reason:$('ausTipo').value+': '+$('ausMotivo').value});
+    toast('Pedido enviado para aprovação.','success');closeModal();openModule('ferias-dispensas');
+  }catch(e){toast(e.message||'Não foi possível enviar o pedido.','danger');}
+}
+async function decidirAusencia(id,status){
+  try{await KanawaCloud.decideLeaveRequest(id,status==='aprovado'?'approved':'rejected');toast('Pedido '+status+'.','success');openModule('ferias-dispensas');}
+  catch(e){toast(e.message||'Não foi possível decidir o pedido.','danger');}
+}
+
+/* ====== CALENDAR AND MEETINGS ====== */
+async function renderAgenda(){
+  let events=[];
+  try{
+    const [calendar,meetings]=await Promise.all([KanawaCloud.listCalendarEvents(),KanawaCloud.listMeetings()]);
+    events=calendar.map(x=>({titulo:x.title,tipo:x.event_type,inicio:x.starts_at,local:x.location,status:x.status,hora:new Date(x.starts_at).toLocaleTimeString('pt-AO',{hour:'2-digit',minute:'2-digit'})}));
+    meetings.forEach(m=>events.push({titulo:m.title,tipo:'Reunião',inicio:m.starts_at,local:m.meeting_url||m.location,status:m.status,hora:new Date(m.starts_at).toLocaleTimeString('pt-AO',{hour:'2-digit',minute:'2-digit'})}));
+  }catch(e){events=await getData('eventosCalendar');console.warn('Agenda central indisponível:',e);}
+  const sorted=events.slice().sort((a,b)=>String(a.inicio||'').localeCompare(String(b.inicio||'')));
+  window.KS_AGENDA_CACHE=sorted;
+  return header('Agenda e Marcações',sorted.length+' eventos e compromissos','var(--primary)','<button class="btn btn-success" onclick="novoEventoAgenda()"><i class="fas fa-plus"></i> Nova marcação</button>','fa-calendar-alt')+
+    '<div class="card"><div class="form-grid"><div class="form-group"><label>Pesquisar agenda</label><input id="agendaSearch" oninput="filtrarAgenda()" placeholder="Título, local ou responsável"></div><div class="form-group"><label>Tipo</label><select id="agendaType" onchange="filtrarAgenda()"><option value="">Todos</option><option>Reunião</option><option>Marcação</option><option>Entrega</option><option>Manutenção</option><option>Prazo</option><option>Outro</option></select></div></div><div id="agendaRows">'+table(['Data','Hora','Compromisso','Tipo','Local','Estado'],sorted.map(x=>[fmtD(x.inicio),esc(x.hora||''),'<strong>'+esc(x.titulo)+'</strong>',esc(x.tipo||'-'),esc(x.local||'-'),badge(x.status||'agendado','info')]))+'</div></div>';
+}
+function filtrarAgenda(){
+  const q=($('agendaSearch').value||'').toLowerCase(),t=$('agendaType').value;
+  const rows=(window.KS_AGENDA_CACHE||[]).filter(x=>(!t||x.tipo===t)&&JSON.stringify(x).toLowerCase().includes(q));
+  $('agendaRows').innerHTML=table(['Data','Hora','Compromisso','Tipo','Local','Estado'],rows.map(x=>[fmtD(x.inicio),esc(x.hora||''),'<strong>'+esc(x.titulo)+'</strong>',esc(x.tipo||'-'),esc(x.local||'-'),badge(x.status||'agendado','info')]));
+}
+function novoEventoAgenda(){
+  openModal('Novo compromisso','<div class="form-grid"><div class="form-group full"><label>Título</label><input id="agTitulo"></div><div class="form-group"><label>Tipo</label><select id="agTipo"><option>Marcação</option><option>Reunião</option><option>Entrega</option><option>Manutenção</option><option>Prazo</option><option>Outro</option></select></div><div class="form-group"><label>Data</label><input id="agData" type="date"></div><div class="form-group"><label>Hora</label><input id="agHora" type="time"></div><div class="form-group"><label>Local / Link</label><input id="agLocal"></div><div class="form-group"><label>Responsável</label><input id="agResp"></div><div class="form-group full"><label>Descrição</label><textarea id="agDesc"></textarea></div></div><button class="btn btn-primary btn-block" onclick="guardarEventoAgenda()">Guardar na agenda</button>');
+}
+async function guardarEventoAgenda(){
+  const title=$('agTitulo').value.trim(),date=$('agData').value;
+  if(!title||!date){toast('Título e data são obrigatórios.','warning');return;}
+  const startsAt=new Date(date+'T'+($('agHora').value||'09:00')+':00').toISOString();
+  try{
+    await KanawaCloud.createCalendarEvent({title,description:$('agDesc').value,eventType:$('agTipo').value,startsAt,location:$('agLocal').value});
+    toast('Compromisso guardado na agenda central.','success');closeModal();openModule('agenda');
+  }catch(e){toast(e.message||'Não foi possível agendar.','danger');}
+}
+async function renderReunioes(){
+  let rows=[];try{rows=await KanawaCloud.listMeetings();}catch(e){console.warn(e);}
+  return header('Reuniões Empresariais',rows.length+' reuniões','var(--purple)','<button class="btn btn-success" onclick="novaReuniao()">Agendar reunião</button>','fa-users')+
+    '<div class="card"><p style="color:var(--text-muted);font-size:.84rem">Registe pauta, participantes, decisões, actas, local e link de videoconferência.</p>'+
+    table(['Data','Reunião','Pauta','Local / Link','Estado'],rows.map(x=>[fmtD(x.starts_at),'<strong>'+esc(x.title)+'</strong>',esc(x.agenda||'-'),esc(x.meeting_url||x.location||'-'),badge(x.status||'agendada','info')]))+'</div>';
+}
+function novaReuniao(){
+  openModal('Agendar reunião empresarial','<div class="form-grid"><div class="form-group full"><label>Título</label><input id="meetTitle"></div><div class="form-group full"><label>Pauta / objectivo</label><textarea id="meetAgenda"></textarea></div><div class="form-group"><label>Data e hora de início</label><input id="meetStart" type="datetime-local"></div><div class="form-group"><label>Data e hora de fim</label><input id="meetEnd" type="datetime-local"></div><div class="form-group"><label>Local</label><input id="meetLocation"></div><div class="form-group"><label>Link de reunião</label><input id="meetUrl" type="url"></div><div class="form-group full"><label>Emails dos participantes (separados por vírgula)</label><input id="meetAttendees" type="text"></div></div><button class="btn btn-primary btn-block" onclick="guardarReuniao()">Guardar reunião e convites</button>');
+}
+async function guardarReuniao(){
+  const title=$('meetTitle').value.trim(),start=$('meetStart').value;
+  if(!title||!start){toast('Título e data de início são obrigatórios.','warning');return;}
+  try{
+    await KanawaCloud.createMeeting({title,agenda:$('meetAgenda').value,startsAt:new Date(start).toISOString(),endsAt:$('meetEnd').value?new Date($('meetEnd').value).toISOString():null,location:$('meetLocation').value,meetingUrl:$('meetUrl').value,attendees:$('meetAttendees').value.split(',').map(x=>x.trim()).filter(Boolean)});
+    toast('Reunião registada e participantes convidados.','success');closeModal();openModule('reunioes');
+  }catch(e){toast(e.message||'Não foi possível criar a reunião.','danger');}
+}
+
+/* ====== INTERNAL COMMUNICATION ====== */
+async function renderComunicacao(){
+  let msgs=[],files=[];try{[msgs,files]=await Promise.all([KanawaCloud.listInternalMessages(),KanawaCloud.listSharedFiles()]);}catch(e){console.warn(e);}
+  return header('Comunicação Interna',msgs.length+' mensagens e '+files.length+' ficheiros partilhados','var(--info)','','fa-comments')+
+    '<div class="card"><h3>Conversas e comunicados</h3><div style="max-height:430px;overflow:auto">'+(msgs.length?msgs.slice().reverse().map(m=>'<div style="padding:10px;border-bottom:1px solid var(--border)"><strong>'+esc(String(m.sender_user_id||'Colaborador').slice(0,8))+'</strong> <small style="color:var(--text-muted)">'+fmtD(m.created_at)+'</small><div>'+esc(m.body||'')+'</div></div>').join(''):emptyState('fa-comments','Ainda não existem mensagens'))+'</div><div class="form-group" style="margin-top:12px"><label>Mensagem para a equipa</label><textarea id="chatMessage" rows="3" placeholder="Escreva uma mensagem ou comunicado…"></textarea></div><div class="form-group"><label>Canal</label><select id="chatChannel"><option>Geral</option><option>Direcção</option><option>Financeiro</option><option>Recursos Humanos</option><option>Operações</option><option>Produção</option></select></div><button class="btn btn-primary" onclick="enviarMensagemInterna()">Enviar mensagem</button></div>'+
+    '<div class="card"><h3>Partilha segura de ficheiros</h3><div class="form-group"><label>Nome do ficheiro / assunto</label><input id="shareTitle"></div><div class="form-group"><label>Descrição</label><input id="shareDescription"></div><div class="form-group"><label>Ficheiro PDF, imagem ou documento (máx. 15 MB)</label><input id="shareFile" type="file" accept=".pdf,image/jpeg,image/png,image/webp"></div><button class="btn btn-primary" onclick="partilharFicheiroEmpresa()">Carregar e partilhar com a empresa</button>'+table(['Ficheiro','Categoria','Data','Acção'],files.map(x=>[esc(x.title),esc(x.category||'Geral'),fmtD(x.created_at),'<button class="btn btn-sm btn-info" onclick="abrirFicheiroPartilhado(\''+esc(x.file_path)+'\')">Abrir</button>']))+'</div>';
+}
+async function enviarMensagemInterna(){
+  const text=$('chatMessage').value.trim();if(!text){toast('Escreva uma mensagem.','warning');return;}
+  try{await KanawaCloud.sendInternalMessage('['+$('chatChannel').value+'] '+text);toast('Mensagem enviada à empresa.','success');openModule('comunicacao');}
+  catch(e){toast(e.message||'Não foi possível enviar.','danger');}
+}
+async function partilharFicheiroEmpresa(){
+  const file=$('shareFile').files[0];if(!file){toast('Seleccione um ficheiro.','warning');return;}
+  try{const path=await KanawaCloud.uploadPrivateFile('ks-shared-files',file,'shared');
+    await KanawaCloud.createSharedFile({title:$('shareTitle').value.trim()||file.name,description:$('shareDescription').value,filePath:path,category:'Partilha interna'});
+    toast('Ficheiro partilhado com segurança.','success');openModule('comunicacao');
+  }catch(e){toast(e.message||'Não foi possível partilhar o ficheiro.','danger');}
+}
+async function abrirFicheiroPartilhado(path){
+  try{const url=await KanawaCloud.getPrivateFileUrl('ks-shared-files',path);window.open(url,'_blank','noopener');}
+  catch(e){toast(e.message||'Não foi possível abrir o ficheiro.','danger');}
+}
+
+/* ====== APPROVALS, DEPARTMENTS AND BUDGETS ====== */
+async function renderAprovacoesEmpresa(){const rows=await getData('aprovacoes');return header('Centro de Aprovações',rows.length+' pedidos','var(--warning)','', 'fa-clipboard-check')+'<div class="card">'+table(['Pedido','Solicitante','Valor','Data','Estado','Acção'],rows.map(x=>[esc(x.titulo||x.tipo||'-'),esc(x.solicitante||'-'),fmt(x.valor||0),fmtD(x.data),badge(x.status||'pendente','warning'),x.status==='pendente'?'<button class="btn btn-sm btn-success" onclick="decidirAprovacao('+x.id+',\'aprovado\')">Aprovar</button> <button class="btn btn-sm btn-danger" onclick="decidirAprovacao('+x.id+',\'rejeitado\')">Rejeitar</button>':'-']))+'</div>';}
+async function decidirAprovacao(id,status){const x=await DB.get('aprovacoes',id);if(!x)return;x.status=status;x.decididoEm=now();await saveData('aprovacoes',x);toast('Pedido '+status,'success');openModule('aprovacoes-empresa');}
+async function renderDepartamentosEmpresa(){
+  let rows=[];try{rows=await KanawaCloud.listDepartments();}catch(e){console.warn(e);}
+  return header('Departamentos e Estrutura',rows.length+' departamentos','var(--primary)','<button class="btn btn-success" onclick="novoDepartamentoEmpresa()">Novo departamento</button>','fa-sitemap')+'<div class="card">'+table(['Código','Departamento','Responsável','Estado'],rows.map(x=>[esc(x.code||'-'),'<strong>'+esc(x.name)+'</strong>',esc(x.manager_user_id||'-'),badge(x.status||'active','success')]))+'</div>';
+}
+async function novoDepartamentoEmpresa(){
+  const n=prompt('Nome do departamento:');if(!n)return;
+  const code=prompt('Código (opcional):')||'';
+  try{await KanawaCloud.createDepartment({name:n,code});toast('Departamento criado.','success');openModule('departamentos-empresa');}
+  catch(e){toast(e.message||'Não foi possível criar departamento.','danger');}
+}
+async function renderOrcamentoEmpresa(){
+  let rows=[];try{rows=await KanawaCloud.listBudgets();}catch(e){console.warn(e);}
+  const total=rows.reduce((s,x)=>s+Number(x.approved_amount||0),0);
+  return header('Orçamento Empresarial','Planeamento anual e controlo de custos','var(--success)','<button class="btn btn-success" onclick="novoOrcamentoEmpresa()">Novo orçamento</button>','fa-chart-pie')+
+    '<div class="metric-grid"><div class="metric-card"><div class="label">Orçamentos</div><div class="value">'+rows.length+'</div></div><div class="metric-card"><div class="label">Valor planeado</div><div class="value">'+fmt(total)+'</div></div></div>'+
+    '<div class="card">'+table(['Nome','Ano','Período','Valor','Estado'],rows.map(x=>[esc(x.name),x.fiscal_year,esc(x.period_type),fmt(x.approved_amount),badge(x.status,'info')]))+'</div>';
+}
+async function novoOrcamentoEmpresa(){
+  const nome=prompt('Nome do orçamento:');if(!nome)return;
+  const valor=Number(prompt('Valor total em Kz:','0'))||0;
+  try{await KanawaCloud.createBudget({name:nome,fiscalYear:new Date().getFullYear(),amount:valor});toast('Orçamento criado.','success');openModule('orcamento-empresa');}
+  catch(e){toast(e.message||'Não foi possível criar orçamento.','danger');}
+}
+
+async function abrirComprovativoPagamento(path){
+  if(!path){toast('Sem comprovativo anexado.','warning');return;}
+  try{const url=await KanawaCloud.getPrivateFileUrl('ks-payment-proofs',path);window.open(url,'_blank','noopener');}
+  catch(e){toast(e.message||'Não foi possível abrir o comprovativo.','danger');}
+}
+async function emitirChavePedido(plan,duration,requestId){
+  if(!confirm('Confirma que verificou o pagamento e pretende emitir uma chave '+plan+' por '+duration+' mês(es)?'))return;
+  try{
+    const result=await KanawaCloud.issueLicenseKey(plan,duration,requestId);
+    openModal('Chave de licença emitida','<div style="padding:12px;background:var(--bg);border-radius:10px"><p><strong>Copie esta chave agora. Ela não será mostrada novamente.</strong></p><h3 style="letter-spacing:.08em;overflow-wrap:anywhere">'+esc(result.license_key)+'</h3><p>Pacote: '+esc(result.plan_code)+' · Duração: '+result.duration_months+' meses · Limite: '+Number(result.max_invoices_period).toLocaleString('pt-AO')+' facturas/mês</p><button class="btn btn-primary" onclick="navigator.clipboard.writeText(\''+esc(result.license_key)+'\').then(()=>toast(\'Chave copiada\',\'success\'))">Copiar chave</button></div>');
+    toast('Chave emitida. Envie-a ao cliente por canal seguro.','success');
+  }catch(e){toast(e.message||'Não foi possível emitir a chave.','danger');}
+}
+
+/* ====== ANGOLA PAYROLL ENGINE ====== */
+function calcularDireitoFerias(employee){
+  const start=new Date(employee.dataContratacao||employee.dataInicio||new Date().toISOString().slice(0,10));
+  if(Number.isNaN(start.getTime()))return 0;
+  const today=new Date(),year=today.getFullYear();
+  if(start.getFullYear()===year){
+    let months=(today.getFullYear()-start.getFullYear())*12+(today.getMonth()-start.getMonth());
+    if(today.getDate()<start.getDate())months--;
+    return Math.max(0,Math.min(22,months*2));
+  }
+  return start.getFullYear()<year?22:0;
+}
+function calcularRemuneracaoAO(employee){
+  const base=Number(employee.salario||0),bonus=Number(employee.bonus||0);
+  const transport=Number(employee.subsidioTransporte||0),meal=Number(employee.subsidioAlimentacao||0);
+  const gross=base+bonus+transport+meal;
+  const irtResult=calcIRT(gross);
+  const irt=Number(irtResult&&irtResult.irt||0);
+  const employeeInss=Math.round(gross*0.03*100)/100;
+  const employerInss=Math.round(gross*0.08*100)/100;
+  return {gross,irt,employeeInss,employerInss,net:Math.max(0,gross-irt-employeeInss),bonus,allowances:transport+meal};
+}
+async function renderFolhaSalarial(){
+  const staff=(await getData('funcionarios')).filter(x=>x.status!=='inactivo');
+  const rows=staff.map(x=>{const p=calcularRemuneracaoAO(x);return[esc(x.nome),fmt(x.salario||0),fmt(x.bonus||0),fmt(p.gross),fmt(p.irt),fmt(p.employeeInss),'<strong>'+fmt(p.net)+'</strong>'];});
+  const totals=staff.reduce((s,x)=>{const p=calcularRemuneracaoAO(x);s.gross+=p.gross;s.irt+=p.irt;s.inss+=p.employeeInss;s.net+=p.net;s.employer+=p.employerInss;return s;},{gross:0,irt:0,inss:0,net:0,employer:0});
+  const history=await getData('folhasPagamento');
+  return header('Processamento Salarial','Folha mensal, bónus, subsídios, IRT e INSS','var(--success)','<button class="btn btn-success" onclick="processarFolhaSalarial()">Calcular e fechar folha</button>','fa-money-check-alt')+
+    '<div class="metric-grid"><div class="metric-card"><div class="label">Remuneração bruta</div><div class="value">'+fmt(totals.gross)+'</div></div><div class="metric-card"><div class="label">IRT estimado</div><div class="value">'+fmt(totals.irt)+'</div></div><div class="metric-card"><div class="label">INSS trabalhador (3%)</div><div class="value">'+fmt(totals.inss)+'</div></div><div class="metric-card"><div class="label">Custo empregador + INSS (8%)</div><div class="value">'+fmt(totals.gross+totals.employer)+'</div></div></div>'+
+    '<div class="card"><p style="font-size:.8rem;color:var(--text-muted)">Estimativa do regime geral: 3% trabalhador e 8% empregador, com base de incidência sujeita à lei e ao regime de cada trabalhador. O IRT utiliza a tabela configurada no sistema. Validar a folha e os casos especiais antes de pagar ou declarar.</p>'+table(['Trabalhador','Base','Bónus','Bruto','IRT','INSS 3%','Líquido estimado'],rows)+'</div>'+
+    '<div class="card"><h3>Folhas processadas</h3>'+table(['Período','Funcionários','Bruto','Líquido','Data'],history.map(x=>[esc(x.periodo),x.quantidade,fmt(x.bruto),fmt(x.liquido),fmtD(x.data)]))+'</div>';
+}
+async function processarFolhaSalarial(){
+  const staff=(await getData('funcionarios')).filter(x=>x.status!=='inactivo');
+  if(!staff.length){toast('Cadastre funcionários antes de processar a folha.','warning');return;}
+  const nowDate=new Date(),start=new Date(nowDate.getFullYear(),nowDate.getMonth(),1),end=new Date(nowDate.getFullYear(),nowDate.getMonth()+1,0);
+  const items=[];
+  for(const emp of staff){
+    let remoteId=emp.cloud_id;
+    if(!remoteId){
+      const remote=await KanawaCloud.upsertEmployee({employeeNumber:'EMP-'+emp.id,fullName:emp.nome,email:emp.email,phone:emp.telefone,taxId:emp.nif,department:emp.departamento,jobTitle:emp.cargo,hireDate:emp.dataContratacao,salary:emp.salario,status:'active'});
+      remoteId=remote.id;emp.cloud_id=remoteId;await DB.put('funcionarios',emp);
+    }
+    const p=calcularRemuneracaoAO(emp);items.push({employeeId:remoteId,gross:p.gross,irt:p.irt,employeeInss:p.employeeInss,employerInss:p.employerInss,net:p.net,bonus:p.bonus,allowances:p.allowances});
+  }
+  const gross=items.reduce((s,x)=>s+x.gross,0),net=items.reduce((s,x)=>s+x.net,0),deductions=gross-net;
+  try{
+    await KanawaCloud.savePayrollRun({periodStart:start.toISOString().slice(0,10),periodEnd:end.toISOString().slice(0,10),grossTotal:gross,deductionsTotal:deductions,netTotal:net,items});
+    await saveData('folhasPagamento',{periodo:start.toLocaleDateString('pt-AO',{month:'long',year:'numeric'}),quantidade:items.length,bruto:gross,liquido:net,data:now()});
+    toast('Folha salarial processada e guardada com sucesso.','success');openModule('folha-salarial');
+  }catch(e){toast(e.message||'Não foi possível processar a folha.','danger');}
+}
