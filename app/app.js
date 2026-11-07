@@ -82,7 +82,7 @@ function gerarAssinatura(v) { const d = (v.numeroFatura || '') + '|' + (v.total 
 /* ====== INDEXEDDB ====== */
 const DB_STORES = [
   'produtos','clientes','fornecedores','vendas','compras','estoque','contasReceber','contasPagar','funcionarios','categorias','projetos','tarefas','ativos','frotas','ordensServico','notificacoes','documentos','mensagens','cursos','leads','campanhas','eventos','devolucoes','faturas','pagamentos','empresas','usuarios','movimentacoesEstoque','promocoes','ecommerce','auditoria','orcamentos','transportadoras','contratos','aprovacoes','sincronizacao','tickets','dispositivos','_sync_queue',
-  'producao','ordensProducao','mrp','boms','custosProducao','controleQualidade','planosProducao','planoContas','budgets','forecasts','conciliacoes','transacoesBancarias','previsoesVendas','tendencias','folhasPagamento','turnos','ferias','vagas','candidatos','desempenhoRH','beneficios','planosCarreira','onboarding','pontoDigital','rescisoes','automacoes','scoreLeads','campanhasMarketing','segmentacoes','cupons','fidelidade','ganttProjetos','timesheets','manutencoes','ordensManutencao','garantias','pecasEstoque','checklistsInspecao','calendarioManutencoes','gpsTracking','abastecimentos','configuracoesFatura','empresaConfig','multas','tecnicos','roteirizacao','etiquetas','transferencias','inventarios','lotes','rastreios','recebimentos','ecommerceProdutos','ecommerceCarrinhos','ecommercePedidos','avaliacoes','pagamentosEcommerce','vendasConsignadas','tabelasPrecos','assinaturasDigitais','documentosFiscais','certificacoes','quizzes','mensagensChat','mensagensWhatsApp','eventosCalendar','unidades','servicos','clientesPortal','acessos','politicasSenha','tentativasLogin','sessoes','sms2FA','integracoesAGT','ivas','irts','backups','backupsAgendados','backupsNuvem','audiobooks','ddgHistorico','bingHistorico','dashboardsCustom','modulosPersonalizados','departamentos','frequencias','feriasFuncionarios','pagamentosFuncionarios','motoristas','manutencoesAtivos','depreciacoes','historicoOS','contatosWhatsApp','templatesWhatsApp','carrinhosSalvos','feedbacks','logsSeguranca','seguranca','migracoes','tarefasProjetos','membrosProjetos','atividadesProjetos','gruposUsuarios','config','armazens'
+  'producao','ordensProducao','mrp','boms','custosProducao','controleQualidade','planosProducao','planoContas','budgets','forecasts','conciliacoes','transacoesBancarias','previsoesVendas','tendencias','folhasPagamento','turnos','ferias','vagas','candidatos','desempenhoRH','beneficios','planosCarreira','onboarding','pontoDigital','rescisoes','automacoes','scoreLeads','campanhasMarketing','segmentacoes','cupons','fidelidade','ganttProjetos','timesheets','manutencoes','ordensManutencao','garantias','pecasEstoque','checklistsInspecao','calendarioManutencoes','gpsTracking','abastecimentos','configuracoesFatura','empresaConfig','multas','tecnicos','roteirizacao','etiquetas','transferencias','inventarios','lotes','rastreios','recebimentos','ecommerceProdutos','ecommerceCarrinhos','ecommercePedidos','avaliacoes','pagamentosEcommerce','vendasConsignadas','tabelasPrecos','assinaturasDigitais','documentosFiscais','certificacoes','quizzes','mensagensChat','mensagensWhatsApp','eventosCalendar','unidades','servicos','clientesPortal','acessos','politicasSenha','tentativasLogin','sessoes','sms2FA','integracoesAGT','ivas','irts','backups','backupsAgendados','backupsNuvem','audiobooks','ddgHistorico','bingHistorico','dashboardsCustom','modulosPersonalizados','departamentos','frequencias','feriasFuncionarios','pagamentosFuncionarios','motoristas','manutencoesAtivos','depreciacoes','historicoOS','contatosWhatsApp','templatesWhatsApp','carrinhosSalvos','feedbacks','logsSeguranca','seguranca','migracoes','tarefasProjetos','membrosProjetos','atividadesProjetos','gruposUsuarios','config','armazens','contasContabilisticas','lancamentosContabilisticos'
 ];
 let lastGeneratedRecordId = 0;
 function nextGeneratedRecordId() {
@@ -91,7 +91,7 @@ function nextGeneratedRecordId() {
   return lastGeneratedRecordId;
 }
 const DB = {
-  name: 'kanawa_erp_v15', version: 8, db: null, stores: DB_STORES,
+  name: 'kanawa_erp_v15', version: 9, db: null, stores: DB_STORES,
   init() { return new Promise((res, rej) => { const req = indexedDB.open(this.name, this.version); req.onupgradeneeded = e => { const db = e.target.result; DB_STORES.forEach(s => { if (!db.objectStoreNames.contains(s)) db.createObjectStore(s, { keyPath: 'id', autoIncrement: true }); }); }; req.onsuccess = e => { this.db = e.target.result; res(this.db); }; req.onerror = e => rej(e.target.error); }); },
   _tx(s, m) { return this.db.transaction(s, m || 'readonly').objectStore(s); },
   add(s, i) { if (s !== '_sync_queue' && i && (i.id === undefined || i.id === null)) i.id = nextGeneratedRecordId(); return new Promise((res, rej) => { const r = this._tx(s, 'readwrite').add(i); r.onsuccess = () => res(r.result); r.onerror = () => rej(r.error); }); },
@@ -215,7 +215,7 @@ async function pullFromServer() {
   }
   let total = 0;
   for (const store of DB_STORES) {
-    if (KanawaCloud.isLocalOnly(store) || dirty.has(store)) continue;
+    if (KanawaCloud.isLocalOnly(store) || store === 'contasContabilisticas' || store === 'lancamentosContabilisticos' || dirty.has(store)) continue;
     await DB.clear(store);
     for (const item of (grouped.get(store) || [])) {
       await DB.put(store, item);
@@ -260,7 +260,7 @@ function startAutoSync() {
 async function activateCloudSession(ctx, migrateLocal) {
   const companyId = ctx.company.id;
   const previousCompanyId = localStorage.getItem('kanawa_cloud_company_id');
-  const localOnly = new Set(['empresas','usuarios','config','dispositivos','sessoes','tentativasLogin','politicasSenha','sms2FA','acessos','logsSeguranca','seguranca','migracoes','_sync_queue']);
+  const localOnly = new Set(['empresas','usuarios','config','dispositivos','sessoes','tentativasLogin','politicasSenha','sms2FA','acessos','logsSeguranca','seguranca','migracoes','_sync_queue','contasContabilisticas','lancamentosContabilisticos']);
 
   if (previousCompanyId && previousCompanyId !== companyId) {
     for (const store of DB_STORES) await DB.clear(store);
@@ -408,12 +408,13 @@ const PERMISSOES = {
   admin: { modulos: '*', acoes: ['criar','editar','excluir','ver','configurar','aprovar','cancelar','exportar','importar'], verFinanceiro: true, excluir: true, configurar: true, descontoMax: 100 },
   gerente: { modulos: ['dashboard','pdv','vendas','produtos','categorias','ecommerce','estoque','compras','clientes','fornecedores','crm','financeiro','fiscal','rh','projetos','tarefas','ativos','frota','os','documentos','relatorios','notificacoes','orcamentos','transportadoras','contratos','tickets','perfil','dispositivos','producao','ordens-producao','mrp','bom','custos-producao','controle-qualidade','planos-producao','logistica-roteirizacao','logistica-etiquetas','logistica-picking','logistica-armazens','logistica-crossdocking','logistica-rastreio','ecommerce-vitrine','ecommerce-carrinho','ecommerce-pedidos','ecommerce-produtos','ecommerce-pagamento','ecommerce-rastreio','rh-recrutamento','rh-desempenho','rh-beneficios','rh-onboarding','rh-ponto','rh-rescisao','rh-plano-carreira','projetos-tarefas','projetos-kanban','projetos-gantt','projetos-recursos','projetos-timesheet','projetos-custos','projetos-riscos','ativos-depreciacao','ativos-manutencao','ativos-garantia','frota-manutencao','frota-rotas','frota-gps','frota-combustivel','frota-documentos','frota-multas','frota-desempenho','os-manutencao','os-checklist','os-calendario','os-tecnicos','produtos-avaliacoes','tabelas-precos','vendas-consignadas','vendas-promocoes','clientes-fidelidade','clientes-cupons','portal-cliente','clientes-segmentacao','crm-pipeline','crm-automacao','crm-score','crm-remarketing','marketing-campanhas','marketing-analise','empresa-legal','despesas-gerais','ferias-dispensas','agenda','reunioes','comunicacao','aprovacoes-empresa','departamentos-empresa','orcamento-empresa','rh-documentos','folha-salarial','elearning-cursos','elearning-certificacoes','elearning-quizzes','elearning-progresso','elearning-relatorios','servicos'], acoes: ['criar','editar','ver','aprovar','cancelar','exportar'], verFinanceiro: true, excluir: false, configurar: false, descontoMax: 30 },
   operador: { modulos: ['dashboard','pdv','vendas','produtos','clientes','estoque','notificacoes','perfil','producao','ordens-producao','controle-qualidade','os','os-manutencao','os-checklist','os-calendario','agenda','reunioes','comunicacao','ferias-dispensas','projetos-tarefas','projetos-kanban','tarefas'], acoes: ['criar','ver'], verFinanceiro: false, excluir: false, configurar: false, descontoMax: 10 },
-  caixa: { modulos: ['pdv','vendas','clientes','notificacoes','perfil','ecommerce-vitrine','ecommerce-carrinho','ecommerce-pedidos'], acoes: ['criar','ver'], verFinanceiro: false, excluir: false, configurar: false, descontoMax: 5 }
+  caixa: { modulos: ['pdv','vendas','clientes','notificacoes','perfil','ecommerce-vitrine','ecommerce-carrinho','ecommerce-pedidos'], acoes: ['criar','ver'], verFinanceiro: false, excluir: false, configurar: false, descontoMax: 5 },
+  contabilista: { modulos: ['dashboard','vendas','compras','clientes','fornecedores','contabilidade','financeiro','fiscal','relatorios','perfil','notificacoes'], acoes: ['ver','criar','editar','exportar'], verFinanceiro: true, excluir: false, configurar: false, descontoMax: 0 }
 };
 function getPerms() {
   const membership = window.KanawaCloud && KanawaCloud.context && KanawaCloud.context.membership;
   const role = membership && membership.role || 'operator';
-  const roleKey = ({ owner: 'admin', admin: 'admin', manager: 'gerente', gerente: 'gerente', operator: 'operador', operador: 'operador', cashier: 'caixa', caixa: 'caixa' })[role] || 'operador';
+  const roleKey = ({ owner: 'admin', admin: 'admin', manager: 'gerente', gerente: 'gerente', operator: 'operador', operador: 'operador', cashier: 'caixa', caixa: 'caixa', accountant: 'contabilista', contabilista: 'contabilista' })[role] || 'operador';
   return PERMISSOES[roleKey] || PERMISSOES.operador;
 }
 function podeAcessar(m) { const p = getPerms(); return p.modulos === '*' || p.modulos.indexOf(m) !== -1; }
@@ -532,16 +533,54 @@ const MENU = [
   { id: 'modulos', icon: 'fa-code', label: 'Módulos' }
 ];
 
-function renderSidebar() {
-  const sb = $('sidebar'); if (!sb) return;
-  const perm = MENU.filter(m => podeAcessar(m.id));
-  sb.innerHTML = perm.map(m => '<button class="sidebar-item" data-id="' + m.id + '" onclick="openModule(\'' + m.id + '\')"><i class="fas ' + m.icon + '"></i><span>' + m.label + '</span></button>').join('');
+let expandedMenuGroup = null;
+const MENU_GROUP_DEFINITIONS = [
+ {id:'inicio',label:'Visão geral',icon:'fa-home',ids:['dashboard']},
+ {id:'vendas',label:'Vendas e PDV',icon:'fa-cash-register',ids:['pdv','vendas','orcamentos']},
+ {id:'produtos',label:'Produtos e inventário',icon:'fa-boxes',ids:['produtos','produtos-avaliacoes','categorias','servicos','tabelas-precos','estoque','producao','ordens-producao','mrp','bom','custos-producao','controle-qualidade','planos-producao']},
+ {id:'compras',label:'Compras e fornecedores',icon:'fa-shopping-cart',ids:['compras','fornecedores','transportadoras']},
+ {id:'clientes',label:'Clientes e CRM',icon:'fa-users',ids:['clientes','clientes-fidelidade','clientes-cupons','clientes-segmentacao','portal-cliente','crm','crm-pipeline','crm-automacao','crm-score','crm-remarketing','marketing-campanhas','marketing-analise']},
+ {id:'ecommerce',label:'Comércio electrónico',icon:'fa-store',ids:['ecommerce-vitrine','ecommerce-carrinho','ecommerce-pedidos','ecommerce-produtos','ecommerce-pagamento','ecommerce-rastreio']},
+ {id:'financeiro',label:'Financeiro e fiscalidade',icon:'fa-coins',ids:['financeiro','fiscal','despesas-gerais','orcamento-empresa']},
+ {id:'contabilidade',label:'Contabilidade',icon:'fa-book',ids:['contabilidade']},
+ {id:'rh',label:'Recursos humanos',icon:'fa-user-tie',ids:['rh','rh-recrutamento','rh-desempenho','rh-beneficios','rh-onboarding','rh-ponto','rh-rescisao','rh-plano-carreira','rh-documentos','folha-salarial','ferias-dispensas','departamentos-empresa']},
+ {id:'projetos',label:'Projectos e tarefas',icon:'fa-project-diagram',ids:['projetos','tarefas','projetos-tarefas','projetos-kanban','projetos-gantt','projetos-recursos','projetos-timesheet','projetos-custos','projetos-riscos']},
+ {id:'ativos',label:'Activos e património',icon:'fa-building',ids:['ativos','ativos-depreciacao','ativos-manutencao','ativos-garantia']},
+ {id:'frota',label:'Gestão de frota',icon:'fa-truck-moving',ids:['frota','frota-manutencao','frota-rotas','frota-gps','frota-combustivel','frota-documentos','frota-multas','frota-desempenho']},
+ {id:'operacoes',label:'Serviços e operações',icon:'fa-tools',ids:['os','os-manutencao','os-checklist','os-calendario','os-tecnicos','agenda','reunioes','comunicacao','aprovacoes-empresa']},
+ {id:'logistica',label:'Logística',icon:'fa-route',ids:['logistica-roteirizacao','logistica-etiquetas','logistica-picking','logistica-armazens','logistica-crossdocking','logistica-rastreio']},
+ {id:'documentos',label:'Documentos e conformidade',icon:'fa-folder-open',ids:['contratos','documentos','tickets','empresa-legal','conformidade','licenca','integracoes']},
+ {id:'formacao',label:'Formação',icon:'fa-graduation-cap',ids:['elearning-cursos','elearning-certificacoes','elearning-quizzes','elearning-progresso','elearning-relatorios']},
+ {id:'administracao',label:'Administração e sistema',icon:'fa-sliders-h',ids:['relatorios','notificacoes','usuarios','auditoria','perfil','dispositivos','config','modulos']}
+];
+const MENU_GROUPS = MENU_GROUP_DEFINITIONS.map(group => ({id:group.id,label:group.label,icon:group.icon,items:group.ids.map(id=>MENU.find(item=>item.id===id)).filter(Boolean)})).filter(group=>group.items.length);
+const MENU_GROUPED_IDS = new Set(MENU_GROUPS.flatMap(group=>group.items.map(item=>item.id)));
+const MENU_UNGROUPED = MENU.filter(item=>!MENU_GROUPED_IDS.has(item.id));
+if(MENU_UNGROUPED.length) MENU_GROUPS.push({id:'outros',label:'Outros módulos',icon:'fa-ellipsis-h',items:MENU_UNGROUPED});
+function toggleMenuGroup(groupId){
+ const group=MENU_GROUPS.find(item=>item.id===groupId); if(!group)return;
+ if(group.items.length===1){openModule(group.items[0].id);return;}
+ expandedMenuGroup=expandedMenuGroup===groupId?null:groupId; renderSidebar();
+}
+function renderSidebar(){
+ const sb=$('sidebar'); if(!sb)return;
+ const groups=MENU_GROUPS.map(group=>({...group,items:group.items.filter(item=>podeAcessar(item.id))})).filter(group=>group.items.length);
+ const activeGroup=groups.find(group=>group.items.some(item=>item.id===currentModule));
+ const openGroup=activeGroup?activeGroup.id:expandedMenuGroup;
+ if(activeGroup)expandedMenuGroup=activeGroup.id;
+ sb.innerHTML=groups.map(group=>{
+  const isOpen=group.id===openGroup;
+  const children=group.items.map(item=>'<button type="button" class="sidebar-item sidebar-subitem'+(item.id===currentModule?' active':'')+'" data-id="'+item.id+'" onclick="openModule('+JSON.stringify(item.id)+')" style="display:flex;align-items:center;gap:10px;width:100%;padding:9px 12px 9px 30px;border:0;background:'+(item.id===currentModule?'var(--bg)':'transparent')+';color:var(--text);text-align:left;border-radius:8px;cursor:pointer;font:inherit"><i class="fas '+item.icon+'" aria-hidden="true" style="width:18px;text-align:center"></i><span>'+esc(item.label)+'</span></button>').join('');
+  return '<div class="sidebar-group" data-group="'+group.id+'" style="margin:3px 0"><button type="button" class="sidebar-group-trigger'+(isOpen?' active':'')+'" aria-expanded="'+(isOpen?'true':'false')+'" onclick="toggleMenuGroup('+JSON.stringify(group.id)+')" style="display:flex;align-items:center;gap:12px;width:100%;padding:11px 12px;border:0;border-radius:9px;background:'+(isOpen?'var(--bg)':'transparent')+';color:var(--text);text-align:left;cursor:pointer;font:inherit;font-weight:600"><i class="fas '+group.icon+'" aria-hidden="true" style="width:20px;text-align:center"></i><span style="flex:1">'+esc(group.label)+'</span>'+(group.items.length>1?'<i class="fas fa-chevron-'+(isOpen?'down':'right')+'" style="font-size:.7rem;opacity:.65"></i>':'')+'</button>'+(isOpen&&group.items.length>1?'<div class="sidebar-submenu" style="padding:3px 0 5px 7px;margin-left:12px;border-left:1px solid var(--border)">'+children+'</div>':'')+'</div>';
+ }).join('');
 }
 
 async function openModule(id) {
   if (!podeAcessar(id)) { toast('🔒 Sem permissão', 'error'); return; }
   currentModule = id;
-  $$('.sidebar-item').forEach(el => el.classList.toggle('active', el.dataset.id === id));
+  const activeGroup = MENU_GROUPS.find(group => group.items.some(item => item.id === id));
+  if (activeGroup) expandedMenuGroup = activeGroup.id;
+  renderSidebar();
   const c = $('content');
   c.innerHTML = '<div style="text-align:center;padding:60px"><i class="fas fa-spinner fa-spin" style="font-size:3rem;color:var(--primary)"></i></div>';
   const R = {
@@ -1405,72 +1444,68 @@ async function salvarLead() { const n = $('lNome').value.trim(); if (!n) { toast
 
 /* ====== CONTABILIDADE ====== */
 async function renderContabilidade() {
-  if (!window.KanawaCloud || !KanawaCloud.ready) {
-    return header('Contabilidade', 'Plano de contas e lançamentos de dupla entrada', 'var(--primary)', '', 'fa-book') +
-      '<div class="card"><p>A contabilidade central requer ligação segura à empresa. Os lançamentos oficiais não são emitidos em modo offline.</p></div>';
-  }
-  const snap = await KanawaCloud.getAccountingSnapshot();
-  const accounts = Array.isArray(snap.accounts) ? snap.accounts : [];
-  const entries = Array.isArray(snap.entries) ? snap.entries : [];
-  const debit = entries.reduce((sum, e) => sum + Number(e.debit_total || 0), 0);
-  const credit = entries.reduce((sum, e) => sum + Number(e.credit_total || 0), 0);
-  const rows = entries.map(e => [
-    '<strong>' + esc(e.entry_number) + '</strong>',
-    fmtD(e.entry_date),
-    esc(e.description),
-    fmt(e.debit_total),
-    fmt(e.credit_total),
-    badge(e.status || 'posted', 'success')
-  ]);
-  const accountRows = accounts.map(a => [esc(a.account_code), esc(a.name), esc(a.account_type), fmt(a.debit_total), fmt(a.credit_total), fmt(a.balance)]);
-  return header('Contabilidade', 'Plano de contas e diário contabilístico', 'var(--primary)', '<button class="btn btn-light" onclick="abrirContaContabilistica()"><i class="fas fa-plus"></i> Nova conta</button> <button class="btn btn-success" onclick="abrirLancamentoContabilistico()"><i class="fas fa-plus-circle"></i> Novo lançamento</button>', 'fa-book') +
-    '<div class="metric-grid">' +
-    '<div class="metric-card"><div class="label">Contas activas</div><div class="value">' + accounts.length + '</div></div>' +
-    '<div class="metric-card"><div class="label">Lançamentos</div><div class="value">' + entries.length + '</div></div>' +
-    '<div class="metric-card"><div class="label">Débitos registados</div><div class="value">' + fmt(debit) + '</div></div>' +
-    '<div class="metric-card"><div class="label">Créditos registados</div><div class="value">' + fmt(credit) + '</div></div></div>' +
-    '<div class="card"><div class="card-header"><h3 class="card-title">Plano de contas</h3></div>' + table(['Código','Conta','Tipo','Débito','Crédito','Saldo'], accountRows) + '</div>' +
-    '<div class="card"><div class="card-header"><h3 class="card-title">Diário contabilístico</h3></div>' + table(['N.º','Data','Descrição','Débito','Crédito','Estado'], rows) + '</div>';
-}
-function abrirContaContabilistica() {
-  openModal('Nova conta contabilística',
-    '<div class="form-grid"><div class="form-group"><label>Código *</label><input id="caCodigo" maxlength="30"></div><div class="form-group"><label>Nome *</label><input id="caNome"></div>' +
-    '<div class="form-group full"><label>Tipo *</label><select id="caTipo"><option value="asset">Activo</option><option value="liability">Passivo</option><option value="equity">Capital próprio</option><option value="income">Rendimento</option><option value="expense">Gasto</option></select></div></div>' +
-    '<button class="btn btn-primary btn-block" onclick="guardarContaContabilistica()">Guardar conta</button>');
-}
-async function guardarContaContabilistica() {
-  const code=$('caCodigo').value.trim(), name=$('caNome').value.trim(), type=$('caTipo').value;
-  if(!code||!name){toast('Preencha código e nome da conta.','warning');return;}
-  try { await KanawaCloud.saveChartAccount({code,name,type}); toast('Conta contabilística guardada.','success'); closeModal(); openModule('contabilidade'); }
-  catch(error){toast(error.message||'Não foi possível guardar a conta.','error');}
-}
-function abrirLancamentoContabilistico() {
-  const options = '<option value="">Seleccione uma conta...</option>';
-  KanawaCloud.getAccountingSnapshot().then(snap=>{
-    const accounts=(snap.accounts||[]);
-    const opts=options+accounts.map(a=>'<option value="'+esc(a.id)+'">'+esc(a.account_code+' — '+a.name)+'</option>').join('');
-    openModal('Novo lançamento contabilístico',
-      '<div class="form-grid"><div class="form-group"><label>Data *</label><input id="jeData" type="date" value="'+new Date().toISOString().slice(0,10)+'"></div><div class="form-group"><label>Descrição *</label><input id="jeDesc" maxlength="180"></div>' +
-      '<div class="form-group"><label>Conta a debitar *</label><select id="jeDebito">'+opts+'</select></div><div class="form-group"><label>Valor do débito (Kz) *</label><input id="jeValorDebito" type="number" min="0.01" step="0.01"></div>' +
-      '<div class="form-group"><label>Conta a creditar *</label><select id="jeCredito">'+opts+'</select></div><div class="form-group"><label>Valor do crédito (Kz) *</label><input id="jeValorCredito" type="number" min="0.01" step="0.01"></div></div>' +
-      '<p class="text-muted">O servidor confirma que as contas pertencem à empresa e que o total de débito é igual ao total de crédito.</p>' +
-      '<button class="btn btn-primary btn-block" onclick="guardarLancamentoContabilistico()">Validar e lançar</button>');
-  }).catch(error=>toast(error.message||'Não foi possível carregar o plano de contas.','error'));
-}
-async function guardarLancamentoContabilistico() {
-  const date=$('jeData').value, description=$('jeDesc').value.trim();
-  const debitAccount=$('jeDebito').value, creditAccount=$('jeCredito').value;
-  const debit=Number($('jeValorDebito').value), credit=Number($('jeValorCredito').value);
-  if(!date||!description||!debitAccount||!creditAccount||debit<=0||credit<=0){toast('Preencha todos os campos com valores positivos.','warning');return;}
-  if(debitAccount===creditAccount){toast('Escolha contas diferentes para débito e crédito.','warning');return;}
-  if(Math.round(debit*100)!==Math.round(credit*100)){toast('Débito e crédito têm de ser iguais.','warning');return;}
+  let accounts=[],entries=[],cloudError='';
   try {
-    const result=await KanawaCloud.postJournalEntry({date,description,lines:[
-      {account_id:debitAccount,debit,credit:0},
-      {account_id:creditAccount,debit:0,credit}
-    ]});
-    toast('Lançamento '+result.entry_number+' registado.','success'); closeModal(); openModule('contabilidade');
-  } catch(error){toast(error.message||'Lançamento recusado pelo servidor.','error');}
+    if(window.KanawaCloud&&KanawaCloud.ready&&typeof KanawaCloud.getAccountingSnapshot==='function'){
+      const snap=await KanawaCloud.getAccountingSnapshot();
+      accounts=Array.isArray(snap.accounts)?snap.accounts:[];
+      entries=Array.isArray(snap.entries)?snap.entries:[];
+    }
+  } catch(error){cloudError=error.message||'Serviço contabilístico indisponível';}
+  const localAccounts=await DB.getAll('contasContabilisticas').catch(()=>[]);
+  const localEntries=await DB.getAll('lancamentosContabilisticos').catch(()=>[]);
+  const ids=new Set(accounts.map(a=>String(a.id||a.account_code)));
+  accounts=accounts.concat(localAccounts.filter(a=>!ids.has(String(a.id||a.account_code))));
+  entries=entries.concat(localEntries);
+  const debit=entries.reduce((sum,e)=>sum+Number(e.debit_total||0),0);
+  const credit=entries.reduce((sum,e)=>sum+Number(e.credit_total||0),0);
+  const rows=entries.slice().reverse().map(e=>['<strong>'+esc(e.entry_number||('RASC-'+e.id))+'</strong>',fmtD(e.entry_date||e.data),esc(e.description),fmt(e.debit_total),fmt(e.credit_total),badge(e.status==='draft'||e.local_draft?'Rascunho local':(e.status||'Registado'),e.status==='draft'||e.local_draft?'warning':'success')]);
+  const accountRows=accounts.map(a=>[esc(a.account_code||a.code),esc(a.name),esc(a.account_type||a.type),fmt(a.debit_total),fmt(a.credit_total),fmt(a.balance)]);
+  const cloudReady=!!(window.KanawaCloud&&KanawaCloud.ready);
+  return header('Contabilidade','Plano de contas, diário e lançamentos de dupla entrada','var(--primary)','<button class="btn btn-light" onclick="abrirContaContabilistica()"><i class="fas fa-plus"></i> Nova conta</button> <button class="btn btn-success" onclick="abrirLancamentoContabilistico()"><i class="fas fa-plus-circle"></i> Novo lançamento</button>','fa-book')+
+    '<div class="card"><p style="color:var(--text-muted)">'+(cloudReady?'Ligação central activa. Os lançamentos oficiais são validados pelo servidor.':'Modo de preparação: pode criar contas e rascunhos neste dispositivo. Os rascunhos locais não são lançamentos oficiais e ainda não são enviados à AGT.')+(cloudError?'<br>Serviço central: '+esc(cloudError):'')+'</p></div>'+
+    '<div class="metric-grid"><div class="metric-card"><div class="label">Contas</div><div class="value">'+accounts.length+'</div></div><div class="metric-card"><div class="label">Lançamentos</div><div class="value">'+entries.length+'</div></div><div class="metric-card"><div class="label">Débitos</div><div class="value">'+fmt(debit)+'</div></div><div class="metric-card"><div class="label">Créditos</div><div class="value">'+fmt(credit)+'</div></div></div>'+
+    '<div class="card"><div class="card-header"><h3 class="card-title">Plano de contas</h3><button class="btn btn-sm btn-success" onclick="abrirContaContabilistica()">Adicionar conta</button></div>'+table(['Código','Conta','Tipo','Débito','Crédito','Saldo'],accountRows)+'</div>'+
+    '<div class="card"><div class="card-header"><h3 class="card-title">Diário contabilístico</h3><button class="btn btn-sm btn-success" onclick="abrirLancamentoContabilistico()">Novo lançamento</button></div>'+table(['N.º','Data','Descrição','Débito','Crédito','Estado'],rows)+'</div>';
+}
+function abrirContaContabilistica(){
+ openModal('Nova conta contabilística','<div class="form-grid"><div class="form-group"><label>Código *</label><input id="caCodigo" maxlength="30" placeholder="Ex.: 11.1"></div><div class="form-group"><label>Nome *</label><input id="caNome"></div><div class="form-group full"><label>Tipo *</label><select id="caTipo"><option value="asset">Activo</option><option value="liability">Passivo</option><option value="equity">Capital próprio</option><option value="income">Rendimento</option><option value="expense">Gasto</option></select></div></div><button class="btn btn-primary btn-block" onclick="guardarContaContabilistica()">Guardar conta</button>');
+}
+async function guardarContaContabilistica(){
+ const code=$('caCodigo').value.trim(),name=$('caNome').value.trim(),type=$('caTipo').value;
+ if(!code||!name){toast('Preencha código e nome da conta.','warning');return;}
+ try{
+  if(window.KanawaCloud&&KanawaCloud.ready&&typeof KanawaCloud.saveChartAccount==='function'){
+   await KanawaCloud.saveChartAccount({code,name,type});toast('Conta contabilística guardada no servidor.','success');
+  }else{
+   await DB.add('contasContabilisticas',{account_code:code,code,name,account_type:type,type,debit_total:0,credit_total:0,balance:0,local_draft:true,created_at:now()});toast('Conta guardada como rascunho local.','warning');
+  }
+  closeModal();openModule('contabilidade');
+ }catch(error){toast(error.message||'Não foi possível guardar a conta.','error');}
+}
+async function abrirLancamentoContabilistico(){
+ let accounts=[];
+ try{if(window.KanawaCloud&&KanawaCloud.ready&&typeof KanawaCloud.getAccountingSnapshot==='function'){const snap=await KanawaCloud.getAccountingSnapshot();accounts=Array.isArray(snap.accounts)?snap.accounts:[];}}catch(error){console.warn('Plano de contas cloud:',error);}
+ const local=await DB.getAll('contasContabilisticas').catch(()=>[]);
+ const ids=new Set(accounts.map(a=>String(a.id||a.account_code)));
+ accounts=accounts.concat(local.filter(a=>!ids.has(String(a.id||a.account_code))));
+ if(accounts.length<2){toast('Crie pelo menos duas contas antes do lançamento.','warning');return;}
+ const opts='<option value="">Seleccione uma conta...</option>'+accounts.map(a=>'<option value="'+esc(a.id||a.account_code)+'">'+esc((a.account_code||a.code)+' — '+a.name)+'</option>').join('');
+ openModal('Novo lançamento contabilístico','<div class="form-grid"><div class="form-group"><label>Data *</label><input id="jeData" type="date" value="'+new Date().toISOString().slice(0,10)+'"></div><div class="form-group"><label>Descrição *</label><input id="jeDesc" maxlength="180"></div><div class="form-group"><label>Conta a debitar *</label><select id="jeDebito">'+opts+'</select></div><div class="form-group"><label>Valor do débito (Kz) *</label><input id="jeValorDebito" type="number" min="0.01" step="0.01"></div><div class="form-group"><label>Conta a creditar *</label><select id="jeCredito">'+opts+'</select></div><div class="form-group"><label>Valor do crédito (Kz) *</label><input id="jeValorCredito" type="number" min="0.01" step="0.01"></div></div><p class="text-muted">Débito e crédito devem ser iguais. Sem ligação central, o lançamento será guardado apenas como rascunho local.</p><button class="btn btn-primary btn-block" onclick="guardarLancamentoContabilistico()">Validar e guardar</button>');
+}
+async function guardarLancamentoContabilistico(){
+ const date=$('jeData').value,description=$('jeDesc').value.trim(),debitAccount=$('jeDebito').value,creditAccount=$('jeCredito').value,debit=Number($('jeValorDebito').value),credit=Number($('jeValorCredito').value);
+ if(!date||!description||!debitAccount||!creditAccount||debit<=0||credit<=0){toast('Preencha todos os campos com valores positivos.','warning');return;}
+ if(debitAccount===creditAccount){toast('Escolha contas diferentes para débito e crédito.','warning');return;}
+ if(Math.round(debit*100)!==Math.round(credit*100)){toast('Débito e crédito têm de ser iguais.','warning');return;}
+ try{
+  if(window.KanawaCloud&&KanawaCloud.ready&&typeof KanawaCloud.postJournalEntry==='function'){
+   const result=await KanawaCloud.postJournalEntry({date,description,lines:[{account_id:debitAccount,debit,credit:0},{account_id:creditAccount,debit:0,credit}]});toast('Lançamento '+result.entry_number+' registado no servidor.','success');
+  }else{
+   await DB.add('lancamentosContabilisticos',{entry_number:'RASC-'+Date.now(),entry_date:date,data:date,description,debit_total:debit,credit_total:credit,status:'draft',local_draft:true,lines:[{account_id:debitAccount,debit,credit:0},{account_id:creditAccount,debit:0,credit}],created_at:now()});toast('Lançamento guardado como rascunho local.','warning');
+  }
+  closeModal();openModule('contabilidade');
+ }catch(error){toast(error.message||'Lançamento recusado pelo servidor.','error');}
 }
 
 /* ====== FINANCEIRO ====== */
@@ -1533,7 +1568,11 @@ async function renderFiscal() {
     '<button class="btn btn-success" onclick="exportarSAFTCompleto()"><i class="fas fa-file-code"></i> SAF-T Completo</button>' +
     '<button class="btn btn-info" onclick="exportarIRTDeclaracao()"><i class="fas fa-file-invoice"></i> Declaração IRT</button>' +
     '<button class="btn btn-warning" onclick="exportarIVADeclaracao()"><i class="fas fa-percent"></i> Declaração IVA</button>' +
-    '<button class="btn btn-primary" onclick="exportarInventario()"><i class="fas fa-boxes"></i> Inventário</button></div></div>';
+    '<button class="btn btn-primary" onclick="exportarInventario()"><i class="fas fa-boxes"></i> Inventário</button></div></div>' +
+    '<div class="card"><div class="card-header"><h3 class="card-title"><i class="fas fa-plug"></i> Ligação à AGT e fiscalização</h3><span class="badge badge-warning">Aguardando credenciais oficiais</span></div>' +
+    '<p style="color:var(--text-muted);margin-bottom:10px">Área preparada para a chave, certificado e parâmetros que serão atribuídos oficialmente pela AGT. As credenciais deverão ser guardadas no servidor, nunca no navegador nem neste ficheiro.</p>' +
+    '<div class="form-grid"><div class="form-group"><label>Ambiente</label><input value="Homologação / produção — a confirmar com a AGT" disabled></div><div class="form-group"><label>Estado da integração</label><input value="Não ligada — falta chave oficial e endpoint de servidor" disabled></div></div>' +
+    '<p class="text-muted" style="font-size:.8rem">Não enviar documentos fiscais reais nem declarar certificação enquanto a AGT não disponibilizar credenciais e aprovar a integração.</p></div>';
 }
 async function exportarSAFTCompleto() {
   const [vendas, produtos, clientes, emp] = await Promise.all([getData('vendas'), getData('produtos'), getData('clientes'), Promise.resolve(JSON.parse(localStorage.getItem('kanawa_empresa') || '{}'))]);
@@ -1601,7 +1640,7 @@ function abrirModalFuncionario() {
   openModal('Novo Funcionário', '<div class="form-grid">' +
     '<div class="form-group full"><label>Nome completo *</label><input id="fnNome"></div>' +
     '<div class="form-group"><label>BI / Passaporte</label><input id="fnBI"></div><div class="form-group"><label>NIF</label><input id="fnNIF"></div>' +
-    '<div class="form-group"><label>Cargo</label><input id="fnCargo"></div><div class="form-group"><label>Departamento</label><input id="fnDepartamento"></div>' +
+    '<div class="form-group"><label>Cargo</label><input id="fnCargo"></div><div class="form-group"><label>Departamento</label><select id="fnDepartamento"><option value="">Seleccione...</option><option>Administração</option><option>Contabilidade</option><option>Comercial e Vendas</option><option>Compras</option><option>Financeiro</option><option>Fiscalidade</option><option>Gestão de Stock</option><option>Logística</option><option>Marketing</option><option>Operações</option><option>Recursos Humanos</option><option>Suporte Técnico</option><option>Tecnologia e Informática</option><option>Outro</option></select></div>' +
     '<div class="form-group"><label>Data de admissão</label><input id="fnDataInicio" type="date"></div><div class="form-group"><label>Tipo de contrato</label><select id="fnContrato"><option>Indeterminado</option><option>Determinado</option><option>Temporário</option><option>Prestação de serviços</option></select></div>' +
     '<div class="form-group"><label>Salário base (Kz)</label><input id="fnSalario" type="number" min="0" value="0"></div><div class="form-group"><label>Bónus mensal (Kz)</label><input id="fnBonus" type="number" min="0" value="0"></div>' +
     '<div class="form-group"><label>Subsídio transporte</label><input id="fnTransporte" type="number" min="0" value="0"></div><div class="form-group"><label>Subsídio alimentação</label><input id="fnAlimentacao" type="number" min="0" value="0"></div>' +
@@ -1831,13 +1870,13 @@ async function renderUsuarios() {
     const members = await KanawaCloud.listTeamMembers();
     const invitations = await KanawaCloud.listTeamInvitations();
     const currentUserId = KanawaCloud.context.user.id;
-    const labels = { owner: 'Proprietário', admin: 'Administrador', manager: 'Gerente', operator: 'Operador', cashier: 'Caixa' };
+    const labels = { owner: 'Proprietário', admin: 'Administrador', manager: 'Gerente', operator: 'Operador', cashier: 'Caixa', accountant: 'Contabilista' };
     const rows = members.map(member => {
       const id = esc(member.user_id);
       const role = member.role || 'operator';
       const protectedMember = role === 'owner' || role === 'admin' || member.user_id === currentUserId;
       const active = member.status === 'active';
-      const options = ['manager','operator','cashier'].map(value =>
+      const options = ['manager','operator','cashier','accountant'].map(value =>
         '<option value="' + value + '" ' + (role === value ? 'selected' : '') + '>' + esc(labels[value]) + '</option>'
       ).join('');
       const actions = protectedMember ? '<span class="text-muted">Protegido</span>' :
@@ -3357,7 +3396,7 @@ if (window.kanawaNative && window.kanawaNative.isDesktop) {
 
 /* ====== EXPORT GLOBAL ====== */
 const EXPORTS = [
-  'openModule','closeModal','openModal','toggleTheme','toggleUserMenu','logout','aplicarLogo','setupNextStep','finalizarSetup','abrirCadastroEmpresa','toggleSync','syncNow','mostrarToast','toast','solicitarVerificacaoSMS','confirmarTelefoneSMS',
+  'openModule','toggleMenuGroup','closeModal','openModal','abrirContaContabilistica','guardarContaContabilistica','abrirLancamentoContabilistico','guardarLancamentoContabilistico','toggleTheme','toggleUserMenu','logout','aplicarLogo','setupNextStep','finalizarSetup','abrirCadastroEmpresa','toggleSync','syncNow','mostrarToast','toast','solicitarVerificacaoSMS','confirmarTelefoneSMS',
   'pdvIrParaTela','pdvSelecionarProduto','pdvAltQty','pdvRemoverItem','pdvSalvarCliente','pdvClienteAnonimo','pdvSelecionarPagamento','pdvAtualizarValores','pdvCancelarVenda','pdvSalvarRascunho','pdvSalvarOrcamento','pdvFinalizarVenda','abrirModalPDVCliente','salvarNovoClientePDV','filtrarPDV','toggleFavorito',
   'abrirScanner','fecharScanner','buscarPorCodigo','cadastroRapidoProduto','salvarCadastroRapido',
   'imprimirEtiquetaIndividual','imprimirEtiquetasLote','gerarLoteEtiquetas','imprimirEtiquetaHTML','baixarEtiquetaPDF',
