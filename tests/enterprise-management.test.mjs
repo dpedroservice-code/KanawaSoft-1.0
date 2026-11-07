@@ -79,10 +79,10 @@ test('trial, licence keys, subscription terms and invoice quotas are enforced se
 });
 
 test('sensitive employee, company and payroll data is manager-restricted', () => {
-  assert.match(privacy, /ks_employee_documents_manager_read/);
-  assert.match(privacy, /ks_employee_compensation_history_manager_read/);
-  assert.match(privacy, /ks_company_documents_manager_read/);
-  assert.match(privacy, /ks_payroll_items_manager_read/);
+  assert.match(privacy, /t\|\|'_manager_read'/);
+  for (const table of ['ks_employee_documents','ks_employee_compensation_history','ks_company_documents','ks_payroll_items']) {
+    assert.ok(privacy.includes("'"+table+"'"), 'missing manager-restricted table '+table);
+  }
   assert.match(employeePolicies, /ks_calendar_events_member_insert/);
   assert.match(employeePolicies, /ks_internal_messages_member_insert/);
   assert.match(employeePolicies, /ks_leave_requests_employee_insert/);
